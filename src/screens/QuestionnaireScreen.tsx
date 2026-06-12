@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RouteProp } from '@react-navigation/native'
 import { RootStackParamList, Lifestyle, ExerciseLevel } from '../types'
@@ -36,7 +36,7 @@ export default function QuestionnaireScreen({ navigation, route }: Props) {
   }
 
   return (
-    <View style={s.container}>
+    <ScrollView style={s.container} contentContainerStyle={s.content}>
       <Text style={s.heading}>Let's Personalize Your Plan</Text>
 
       <Text style={s.sectionTitle}>Lifestyle</Text>
@@ -74,12 +74,13 @@ export default function QuestionnaireScreen({ navigation, route }: Props) {
       >
         <Text style={s.buttonText}>Generate Workout Plan</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   )
 }
 
 const styles = (t: Theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: t.bg, padding: 24, paddingTop: 60 },
+  container: { flex: 1, backgroundColor: t.bg },
+  content: { padding: 24, paddingTop: 60, paddingBottom: 40 },
   heading: { fontSize: 24, fontWeight: '700', color: t.text, marginBottom: 28 },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: t.textSecondary, marginBottom: 10, marginTop: 8 },
   optionsContainer: { gap: 10, marginBottom: 24 },

@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RouteProp } from '@react-navigation/native'
 import { RootStackParamList } from '../types'
@@ -34,7 +34,7 @@ export default function ResultScreen({ navigation, route }: Props) {
   const color = evaluationColors[evaluation]
 
   return (
-    <View style={s.container}>
+    <ScrollView style={s.container} contentContainerStyle={s.content}>
       <View style={s.card}>
         <Text style={[s.bmiValue, { color }]}>{bmi}</Text>
         <Text style={s.bmiLabel}>Your BMI</Text>
@@ -61,12 +61,13 @@ export default function ResultScreen({ navigation, route }: Props) {
       <TouchableOpacity style={s.secondaryButton} onPress={() => navigation.goBack()}>
         <Text style={s.secondaryButtonText}>Re-enter Measurements</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   )
 }
 
 const styles = (t: Theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: t.bg, padding: 24, justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: t.bg },
+  content: { padding: 24, flexGrow: 1, justifyContent: 'center' },
   card: { alignItems: 'center', marginBottom: 32 },
   bmiValue: { fontSize: 64, fontWeight: '800', color: t.accent },
   bmiLabel: { fontSize: 16, color: t.textSecondary, marginTop: 4 },
