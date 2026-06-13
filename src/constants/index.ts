@@ -21,6 +21,9 @@ export const PROVIDER_INFO = {
   huggingface: { label: 'HuggingFace', needsApiKey: true, needsBaseUrl: false, defaultBaseUrl: 'https://api-inference.huggingface.co' },
 } as const
 
+export const CM_PER_INCH = 2.54
+export const LBS_PER_KG = 2.20462
+
 export const STORAGE_KEYS = {
   WORKOUT_HISTORY: 'altianly_workout_history',
   LLM_CONFIG: 'altianly_llm_config',

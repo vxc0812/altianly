@@ -3,10 +3,12 @@ export type ExerciseLevel = 'low' | 'medium' | 'high'
 export type BMIEvaluation = 'underweight' | 'normal' | 'overweight' | 'obese'
 
 export type Gender = 'male' | 'female' | 'other'
+export type UnitSystem = 'imperial' | 'metric'
 
 export interface UserInput {
   age: number
   gender: Gender
+  unitSystem: UnitSystem
   heightFeet: number
   heightInches: number
   weightLbs: number

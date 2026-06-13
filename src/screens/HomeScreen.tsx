@@ -10,9 +10,10 @@ import {
   ScrollView,
 } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import { RootStackParamList, Gender } from '../types'
+import { RootStackParamList, Gender, UnitSystem } from '../types'
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
+import { CM_PER_INCH, LBS_PER_KG } from '../constants'
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Home'> }
 
@@ -27,6 +28,7 @@ export default function HomeScreen({ navigation }: Props) {
   const s = styles(theme)
   const [age, setAge] = useState('')
   const [gender, setGender] = useState<Gender | null>(null)
+  const [unitSystem, setUnitSystem] = useState<UnitSystem>('imperial')
   const [feet, setFeet] = useState('')
   const [inches, setInches] = useState('')
   const [weight, setWeight] = useState('')
@@ -36,18 +38,32 @@ export default function HomeScreen({ navigation }: Props) {
     setError('')
     const a = parseInt(age, 10)
     const g = gender
-    const f = parseInt(feet, 10)
-    const i = parseInt(inches, 10) || 0
-    const w = parseFloat(weight)
 
     if (!a || a < 1 || a > 120) { setError('Please enter a valid age (1-120)'); return }
     if (!g) { setError('Please select your gender'); return }
-    if (!f || f < 1 || f > 8) { setError('Please enter a valid height in feet (1-8)'); return }
-    if (i < 0 || i > 11) { setError('Inches must be between 0 and 11'); return }
-    if (!w || w < 20 || w > 1000) { setError('Please enter a valid weight in lbs (20-1000)'); return }
+
+    let f: number, i: number, w: number
+
+    if (unitSystem === 'metric') {
+      const cm = parseInt(feet, 10)
+      const kg = parseFloat(weight)
+      if (!cm || cm < 30 || cm > 250) { setError('Please enter a valid height in cm (30-250)'); return }
+      if (!kg || kg < 9 || kg > 450) { setError('Please enter a valid weight in kg (9-450)'); return }
+      const totalInches = cm / CM_PER_INCH
+      f = Math.floor(totalInches / 12)
+      i = Math.round(totalInches - f * 12)
+      w = kg * LBS_PER_KG
+    } else {
+      f = parseInt(feet, 10)
+      i = parseInt(inches, 10) || 0
+      w = parseFloat(weight)
+      if (!f || f < 1 || f > 8) { setError('Please enter a valid height in feet (1-8)'); return }
+      if (i < 0 || i > 11) { setError('Inches must be between 0 and 11'); return }
+      if (!w || w < 20 || w > 1000) { setError('Please enter a valid weight in lbs (20-1000)'); return }
+    }
 
     navigation.navigate('Result', {
-      userInput: { age: a, gender: g, heightFeet: f, heightInches: i, weightLbs: w },
+      userInput: { age: a, gender: g, unitSystem, heightFeet: f, heightInches: i, weightLbs: Math.round(w) },
     })
   }
 
@@ -64,6 +80,20 @@ export default function HomeScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
+        <View style={s.unitToggle}>
+          <TouchableOpacity
+            style={[s.unitButton, unitSystem === 'imperial' && s.unitButtonActive]}
+            onPress={() => setUnitSystem('imperial')}
+          >
+            <Text style={[s.unitButtonText, unitSystem === 'imperial' && s.unitButtonTextActive]}>Imperial</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.unitButton, unitSystem === 'metric' && s.unitButtonActive]}
+            onPress={() => setUnitSystem('metric')}
+          >
+            <Text style={[s.unitButtonText, unitSystem === 'metric' && s.unitButtonTextActive]}>Metric</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={s.inputGroup}>
           <Text style={s.label}>Gender</Text>
@@ -97,30 +127,42 @@ export default function HomeScreen({ navigation }: Props) {
 
         <View style={s.inputGroup}>
           <Text style={s.label}>Height</Text>
-          <View style={s.row}>
-            <View style={s.halfInput}>
-              <TextInput
-                style={s.input}
-                value={feet}
-                onChangeText={setFeet}
-                keyboardType="number-pad"
-                placeholder="Feet"
-                maxLength={1}
-                placeholderTextColor={theme.textMuted}
-              />
+          {unitSystem === 'imperial' ? (
+            <View style={s.row}>
+              <View style={s.halfInput}>
+                <TextInput
+                  style={s.input}
+                  value={feet}
+                  onChangeText={setFeet}
+                  keyboardType="number-pad"
+                  placeholder="Feet"
+                  maxLength={1}
+                  placeholderTextColor={theme.textMuted}
+                />
+              </View>
+              <View style={s.halfInput}>
+                <TextInput
+                  style={s.input}
+                  value={inches}
+                  onChangeText={setInches}
+                  keyboardType="number-pad"
+                  placeholder="Inches"
+                  maxLength={2}
+                  placeholderTextColor={theme.textMuted}
+                />
+              </View>
             </View>
-            <View style={s.halfInput}>
-              <TextInput
-                style={s.input}
-                value={inches}
-                onChangeText={setInches}
-                keyboardType="number-pad"
-                placeholder="Inches"
-                maxLength={2}
-                placeholderTextColor={theme.textMuted}
-              />
-            </View>
-          </View>
+          ) : (
+            <TextInput
+              style={s.input}
+              value={feet}
+              onChangeText={setFeet}
+              keyboardType="number-pad"
+              placeholder="Centimeters (cm)"
+              maxLength={3}
+              placeholderTextColor={theme.textMuted}
+            />
+          )}
         </View>
 
         <View style={s.inputGroup}>
@@ -130,7 +172,7 @@ export default function HomeScreen({ navigation }: Props) {
             value={weight}
             onChangeText={setWeight}
             keyboardType="decimal-pad"
-            placeholder="Pounds (lbs)"
+            placeholder={unitSystem === 'imperial' ? 'Pounds (lbs)' : 'Kilograms (kg)'}
             placeholderTextColor={theme.textMuted}
           />
         </View>
@@ -148,13 +190,18 @@ export default function HomeScreen({ navigation }: Props) {
 const styles = (t: Theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: t.bg },
   content: { padding: 24, paddingTop: 60 },
-  headerRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 28 },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20 },
   title: { fontSize: 32, fontWeight: '800', color: t.accent },
   subtitle: { fontSize: 16, color: t.textSecondary, marginTop: 4 },
   settingsButton: { padding: 8, marginTop: 4 },
   settingsText: { color: t.accent, fontSize: 14, fontWeight: '600' },
   historyLink: { alignSelf: 'center', marginBottom: 24 },
   historyLinkText: { color: t.textSecondary, fontSize: 14, textDecorationLine: 'underline' },
+  unitToggle: { flexDirection: 'row', backgroundColor: t.surface, borderRadius: 8, borderWidth: 1, borderColor: t.border, marginBottom: 20 },
+  unitButton: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 7 },
+  unitButtonActive: { backgroundColor: t.accent },
+  unitButtonText: { fontSize: 14, fontWeight: '600', color: t.textSecondary },
+  unitButtonTextActive: { color: '#FFF' },
   inputGroup: { marginBottom: 20 },
   genderRow: { flexDirection: 'row', gap: 10 },
   genderCard: {
