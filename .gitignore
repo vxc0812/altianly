@@ -45,3 +45,13 @@ yarn-error.*
 CLAUDE.md
 AGENTS.md
 PROJECT_DOCS.md
+
+# Obsidian vault copy
+Altianly/
+
+# Exercise DB (not used)
+src/data/
+src/services/exerciseDb.ts
+
+# Home dir symlink
+~/

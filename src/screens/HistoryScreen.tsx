@@ -11,7 +11,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useFocusEffect } from '@react-navigation/native'
 import { RootStackParamList, WorkoutPlan } from '../types'
-import { getWorkoutHistory, deleteWorkoutPlan } from '../services/storage'
+import { getWorkoutHistory, deleteWorkoutPlan, getWorkoutLogsForPlan } from '../services/storage'
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
 
@@ -29,13 +29,21 @@ export default function HistoryScreen({ navigation }: Props) {
   const s = styles(theme)
   const [plans, setPlans] = useState<WorkoutPlan[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [logCounts, setLogCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
 
   useFocusEffect(useCallback(() => { loadPlans() }, []))
 
   async function loadPlans() {
     setLoading(true)
-    setPlans(await getWorkoutHistory())
+    const plans = await getWorkoutHistory()
+    setPlans(plans)
+    const counts: Record<string, number> = {}
+    for (const p of plans) {
+      const logs = await getWorkoutLogsForPlan(p.id)
+      counts[p.id] = logs.length
+    }
+    setLogCounts(counts)
     setLoading(false)
   }
 
@@ -92,9 +100,19 @@ export default function HistoryScreen({ navigation }: Props) {
                 {isExpanded && (
                   <View style={s.cardBody}>
                     <Text style={s.planText}>{plan.plan}</Text>
-                    <TouchableOpacity style={s.deleteButton} onPress={() => handleDelete(plan.id)}>
-                      <Text style={s.deleteText}>Delete</Text>
-                    </TouchableOpacity>
+                    <View style={s.cardActions}>
+                      <TouchableOpacity
+                        style={s.logsButton}
+                        onPress={() => navigation.navigate('PlanLogs', { planId: plan.id })}
+                      >
+                        <Text style={s.logsButtonText}>
+                          View Logs ({logCounts[plan.id] ?? 0})
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={s.deleteButton} onPress={() => handleDelete(plan.id)}>
+                        <Text style={s.deleteText}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 )}
               </View>
@@ -128,6 +146,9 @@ const styles = (t: Theme) => StyleSheet.create({
   expandIcon: { color: t.textSecondary, fontSize: 12 },
   cardBody: { borderTopWidth: 1, borderTopColor: t.border, padding: 16 },
   planText: { color: t.text, fontSize: 13, lineHeight: 20, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
-  deleteButton: { marginTop: 16, alignSelf: 'flex-end' },
+  cardActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 },
+  logsButton: { paddingVertical: 8, paddingHorizontal: 12, backgroundColor: t.accent + '22', borderRadius: 6 },
+  logsButtonText: { color: t.accent, fontSize: 13, fontWeight: '600' },
+  deleteButton: {},
   deleteText: { color: t.danger, fontSize: 14, fontWeight: '600' },
 })

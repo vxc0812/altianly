@@ -40,6 +40,25 @@ export interface LLMConfig {
   apiKey?: string
 }
 
+export interface WorkoutLogEntry {
+  exerciseName: string
+  plannedSets: number
+  plannedReps: string
+  actualSets: number
+  actualReps: string
+  weight: string
+  notes: string
+}
+
+export interface WorkoutLog {
+  id: string
+  planId: string
+  day: number
+  focus: string
+  timestamp: number
+  entries: WorkoutLogEntry[]
+}
+
 export type RootStackParamList = {
   Home: undefined
   Result: { userInput: UserInput }
@@ -47,6 +66,9 @@ export type RootStackParamList = {
   WorkoutPlan: { userInput: UserInput; bmiResult: BMIResult; answers: QuestionnaireAnswers }
   Settings: undefined
   History: undefined
+  Timer: { initialSeconds?: number }
+  WorkoutLog: { planId: string; day: number; focus: string; exercises: WorkoutExercise[] }
+  PlanLogs: { planId: string }
 }
 
 export type ExerciseType = 'strength' | 'cardio' | 'metcon' | 'hiit' | 'combat' | 'stretching' | 'wellness' | 'yoga'

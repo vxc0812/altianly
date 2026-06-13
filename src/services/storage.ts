@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { WorkoutPlan, LLMConfig } from '../types'
+import { WorkoutPlan, LLMConfig, WorkoutLog } from '../types'
 import { STORAGE_KEYS } from '../constants'
 
 async function secureSet(key: string, value: string): Promise<void> {
@@ -49,4 +49,28 @@ export async function saveLLMConfig(config: LLMConfig): Promise<void> {
 export async function getLLMConfig(): Promise<LLMConfig | null> {
   const json = await secureGet(STORAGE_KEYS.LLM_CONFIG)
   return json ? JSON.parse(json) : null
+}
+
+export async function saveWorkoutLog(log: WorkoutLog): Promise<void> {
+  const json = await AsyncStorage.getItem(STORAGE_KEYS.WORKOUT_LOGS)
+  const logs: WorkoutLog[] = json ? JSON.parse(json) : []
+  logs.unshift(log)
+  await AsyncStorage.setItem(STORAGE_KEYS.WORKOUT_LOGS, JSON.stringify(logs.slice(0, 200)))
+}
+
+export async function getWorkoutLogs(): Promise<WorkoutLog[]> {
+  const json = await AsyncStorage.getItem(STORAGE_KEYS.WORKOUT_LOGS)
+  return json ? JSON.parse(json) : []
+}
+
+export async function getWorkoutLogsForPlan(planId: string): Promise<WorkoutLog[]> {
+  const logs = await getWorkoutLogs()
+  return logs.filter((l) => l.planId === planId).sort((a, b) => b.timestamp - a.timestamp)
+}
+
+export async function deleteWorkoutLog(id: string): Promise<void> {
+  const json = await AsyncStorage.getItem(STORAGE_KEYS.WORKOUT_LOGS)
+  if (!json) return
+  const logs: WorkoutLog[] = JSON.parse(json)
+  await AsyncStorage.setItem(STORAGE_KEYS.WORKOUT_LOGS, JSON.stringify(logs.filter((l) => l.id !== id)))
 }

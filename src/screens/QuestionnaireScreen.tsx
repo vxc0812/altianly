@@ -2,8 +2,9 @@ import React, { useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RouteProp } from '@react-navigation/native'
-import { RootStackParamList, Lifestyle, ExerciseLevel } from '../types'
+import { RootStackParamList, Lifestyle, ExerciseLevel, TrainingSplit } from '../types'
 import { useTheme } from '../context/ThemeContext'
+import { TRAINING_SPLITS } from '../constants'
 import { Theme } from '../constants/theme'
 
 type Props = {
@@ -29,10 +30,11 @@ export default function QuestionnaireScreen({ navigation, route }: Props) {
   const { userInput, bmiResult } = route.params
   const [lifestyle, setLifestyle] = useState<Lifestyle | null>(null)
   const [exerciseLevel, setExerciseLevel] = useState<ExerciseLevel | null>(null)
+  const [trainingSplit, setTrainingSplit] = useState<TrainingSplit | null>(null)
 
   function handleGenerate() {
-    if (!lifestyle || !exerciseLevel) return
-    navigation.navigate('WorkoutPlan', { userInput, bmiResult, answers: { lifestyle, exerciseLevel } })
+    if (!lifestyle || !exerciseLevel || !trainingSplit) return
+    navigation.navigate('WorkoutPlan', { userInput, bmiResult, answers: { lifestyle, exerciseLevel, trainingSplit } })
   }
 
   return (
@@ -67,10 +69,24 @@ export default function QuestionnaireScreen({ navigation, route }: Props) {
         ))}
       </View>
 
+      <Text style={s.sectionTitle}>Training Split</Text>
+      <View style={s.optionsContainer}>
+        {TRAINING_SPLITS.map((opt) => (
+          <TouchableOpacity
+            key={opt.value}
+            style={[s.optionCard, trainingSplit === opt.value && s.optionCardSelected]}
+            onPress={() => setTrainingSplit(opt.value)}
+          >
+            <Text style={[s.optionLabel, trainingSplit === opt.value && s.optionLabelSelected]}>{opt.label}</Text>
+            <Text style={s.optionDesc}>{opt.desc}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <TouchableOpacity
-        style={[s.button, (!lifestyle || !exerciseLevel) && s.buttonDisabled]}
+        style={[s.button, (!lifestyle || !exerciseLevel || !trainingSplit) && s.buttonDisabled]}
         onPress={handleGenerate}
-        disabled={!lifestyle || !exerciseLevel}
+        disabled={!lifestyle || !exerciseLevel || !trainingSplit}
       >
         <Text style={s.buttonText}>Generate Workout Plan</Text>
       </TouchableOpacity>

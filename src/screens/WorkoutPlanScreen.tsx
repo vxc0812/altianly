@@ -33,6 +33,7 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
   const [saved, setSaved] = useState(false)
   const [progress, setProgress] = useState(0)
   const savedRef = useRef(false)
+  const planId = useRef(Date.now().toString())
   const tokenCount = useRef(0)
 
   useEffect(() => { loadPlan() }, [])
@@ -80,7 +81,7 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
     if (savedRef.current) return
     savedRef.current = true
     const record: WorkoutPlan = {
-      id: Date.now().toString(),
+      id: planId.current,
       timestamp: Date.now(),
       userInput,
       bmiResult,
@@ -127,11 +128,32 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
               <Text style={s.dayHeading}>Day {day.day}: {day.focus}</Text>
               {day.exercises.map((ex, i) => (
                 <View key={i} style={s.exerciseRow}>
-                  <Text style={s.exerciseName}>{ex.name}</Text>
-                  <Text style={s.exerciseDetail}>{ex.sets}×{ex.reps} · {ex.restSeconds}s rest</Text>
-                  {ex.notes ? <Text style={s.exerciseNotes}>{ex.notes}</Text> : null}
+                  <View style={s.exerciseInfo}>
+                    <Text style={s.exerciseName}>{ex.name}</Text>
+                    <Text style={s.exerciseDetail}>{ex.sets}×{ex.reps} · {ex.restSeconds}s rest</Text>
+                    {ex.notes ? <Text style={s.exerciseNotes}>{ex.notes}</Text> : null}
+                  </View>
+                  <TouchableOpacity
+                    style={s.exerciseTimerButton}
+                    onPress={() => navigation.navigate('Timer', { initialSeconds: ex.restSeconds })}
+                  >
+                    <Text style={s.exerciseTimerText}>⏱</Text>
+                  </TouchableOpacity>
                 </View>
               ))}
+              <View style={s.dayActions}>
+                <TouchableOpacity
+                  style={s.logDayButton}
+                  onPress={() => navigation.navigate('WorkoutLog', {
+                    planId: planId.current,
+                    day: day.day,
+                    focus: day.focus,
+                    exercises: day.exercises,
+                  })}
+                >
+                  <Text style={s.logDayButtonText}>Log This Day</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ))}
           {structuredPlan.warmup ? <Text style={s.planSection}>Warmup: {structuredPlan.warmup}</Text> : null}
@@ -177,10 +199,13 @@ const styles = (t: Theme) => StyleSheet.create({
   planText: { color: t.text, fontSize: 14, lineHeight: 22, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
   dayCard: { backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 16, marginBottom: 16 },
   dayHeading: { fontSize: 18, fontWeight: '700', color: t.text, marginBottom: 12 },
-  exerciseRow: { marginBottom: 10, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: t.accent },
+  exerciseRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: t.accent },
+  exerciseInfo: { flex: 1 },
   exerciseName: { fontSize: 15, fontWeight: '600', color: t.text },
   exerciseDetail: { fontSize: 13, color: t.textSecondary, marginTop: 2 },
   exerciseNotes: { fontSize: 12, color: t.textMuted, marginTop: 2, fontStyle: 'italic' },
+  exerciseTimerButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+  exerciseTimerText: { fontSize: 16 },
   planSection: { fontSize: 14, color: t.text, marginBottom: 8, marginTop: 12 },
   planNotes: { fontSize: 13, color: t.textSecondary, marginTop: 12, lineHeight: 20, fontStyle: 'italic' },
   streamRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 },
@@ -191,4 +216,7 @@ const styles = (t: Theme) => StyleSheet.create({
   saveButtonText: { color: t.successText, fontSize: 16, fontWeight: '700' },
   newButton: { padding: 12, alignItems: 'center' },
   newButtonText: { color: t.accent, fontSize: 15 },
+  logDayButton: { backgroundColor: t.accent + '22', padding: 10, borderRadius: 6, borderWidth: 1, borderColor: t.accent, flex: 1, alignItems: 'center' },
+  logDayButtonText: { color: t.accent, fontSize: 13, fontWeight: '600' },
+  dayActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
 })
