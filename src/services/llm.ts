@@ -1,26 +1,43 @@
-import { LLMConfig } from '../types'
+import { LLMConfig, StructuredWorkoutPlan } from '../types'
 import { DEFAULT_LLM_CONFIG } from '../constants'
 
 function buildPrompt(params: {
-  age: number; gender: string; bmi: number; evaluation: string; lifestyle: string; exerciseLevel: string
+  age: number; gender: string; bmi: number; evaluation: string;
+  lifestyle: string; exerciseLevel: string; split: string
 }): string {
-  return `You are a professional fitness trainer. Given the following user data, create a detailed weekly workout plan.
+  return `You are a professional fitness trainer. Generate a weekly workout plan as a JSON object. No markdown, no explanation — only valid JSON.
 
 User Profile:
 - Age: ${params.age}
 - Gender: ${params.gender}
 - BMI: ${params.bmi} (${params.evaluation})
 - Lifestyle: ${params.lifestyle}
-- Exercise Level: ${params.exerciseLevel}
+- Experience: ${params.exerciseLevel}
+- Training Split: ${params.split}
 
-Provide a structured workout plan with:
-1. Weekly schedule (which days to exercise, which to rest)
-2. Specific exercises for each day with sets and reps
-3. Warm-up and cool-down routines
-4. Safety considerations based on BMI and gender
-5. Progressive overload suggestions
+OUTPUT FORMAT (exactly this structure):
+{
+  "name": "Week 1 - [Split Name]",
+  "days": [
+    {
+      "day": 1,
+      "focus": "Upper Body - Push",
+      "exercises": [
+        { "name": "Push-ups", "sets": 3, "reps": "10-15", "restSeconds": 60, "notes": "Slow and controlled" }
+      ]
+    }
+  ],
+  "warmup": "5 min light cardio + dynamic stretches",
+  "cooldown": "5 min static stretching",
+  "notes": "Progressive overload guidance"
+}
 
-Format the response in clear sections. Do not use markdown formatting. Use plain text only.`
+RULES:
+1. No equipment needed unless specified.
+2. Choose exercises appropriate for their experience level.
+3. Include rest days based on the split.
+4. Prioritize compound movements.
+5. Only output valid JSON — nothing before, nothing after.`
 }
 
 async function callOllama(
@@ -189,7 +206,10 @@ async function callHuggingFace(
 
 export async function generateWorkoutPlan(
   config: LLMConfig,
-  params: { age: number; gender: string; bmi: number; evaluation: string; lifestyle: string; exerciseLevel: string },
+  params: {
+    age: number; gender: string; bmi: number; evaluation: string;
+    lifestyle: string; exerciseLevel: string; split: string
+  },
   onStream?: (chunk: string) => void
 ): Promise<string> {
   const cfg = config || DEFAULT_LLM_CONFIG
@@ -239,4 +259,19 @@ export async function testConnection(config: LLMConfig): Promise<string> {
   } finally {
     clearTimeout(timeout)
   }
+}
+
+export function extractStructuredPlan(text: string): {
+  plan: string; structured?: StructuredWorkoutPlan
+} {
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0])
+      if (parsed && parsed.days && Array.isArray(parsed.days)) {
+        return { plan: text, structured: parsed as StructuredWorkoutPlan }
+      }
+    }
+  } catch {}
+  return { plan: text }
 }

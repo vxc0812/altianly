@@ -20,6 +20,7 @@ export interface BMIResult {
 export interface QuestionnaireAnswers {
   lifestyle: Lifestyle
   exerciseLevel: ExerciseLevel
+  trainingSplit: TrainingSplit
 }
 
 export interface WorkoutPlan {
@@ -29,6 +30,7 @@ export interface WorkoutPlan {
   bmiResult: BMIResult
   answers: QuestionnaireAnswers
   plan: string
+  structuredPlan?: StructuredWorkoutPlan
 }
 
 export interface LLMConfig {
@@ -45,4 +47,51 @@ export type RootStackParamList = {
   WorkoutPlan: { userInput: UserInput; bmiResult: BMIResult; answers: QuestionnaireAnswers }
   Settings: undefined
   History: undefined
+}
+
+export type ExerciseType = 'strength' | 'cardio' | 'metcon' | 'hiit' | 'combat' | 'stretching' | 'wellness' | 'yoga'
+export type ExerciseFocus = 'full-body' | 'upper-body' | 'lower-body' | 'abs'
+export type Difficulty = 'light' | 'easy' | 'normal' | 'hard' | 'advanced'
+export type Equipment = 'none' | 'dumbbells' | 'bar' | 'bells' | 'barbell' | 'weapons' | 'ball' | 'other'
+export type TrainingSplit = 'ppl' | 'upper_lower' | 'full_body' | 'bro_split'
+
+export interface Exercise {
+  title: string
+  slug: string
+  image: string
+  type: ExerciseType
+  focus: ExerciseFocus
+  difficulty: Difficulty
+  equipment: Equipment
+}
+
+export interface ExerciseFilters {
+  types?: ExerciseType[]
+  focuses?: ExerciseFocus[]
+  difficulties?: Difficulty[]
+  equipments?: Equipment[]
+  search?: string
+}
+
+export interface WorkoutExercise {
+  name: string
+  slug?: string
+  sets: number
+  reps: string
+  restSeconds: number
+  notes?: string
+}
+
+export interface WorkoutDay {
+  day: number
+  focus: string
+  exercises: WorkoutExercise[]
+}
+
+export interface StructuredWorkoutPlan {
+  name: string
+  days: WorkoutDay[]
+  warmup?: string
+  cooldown?: string
+  notes?: string
 }
