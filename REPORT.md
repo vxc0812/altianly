@@ -1,6 +1,6 @@
 # Altianly — Project Report
 
-*Generated: June 13, 2026*
+*Generated: June 13, 2026 (Session end — pick up here)*
 
 ---
 
@@ -8,7 +8,7 @@
 
 Altianly is a privacy-first, offline-capable BMI calculator and AI-powered workout plan generator built with React Native (Expo SDK 56). The app collects anthropometric data (age, gender, height, weight) in either imperial or metric units, calculates BMI, evaluates weight status, and generates personalized workout plans via configurable LLM providers (Ollama, OpenRouter, HuggingFace). All data stays on-device with no account or cloud sync required.
 
-The MVP is functionally complete. Phase 1 foundation features have been delivered, with the notable exception of the exercise database (deprioritized by design decision). The app now supports dual-unit input (imperial/metric), structured workout plans, training split selection, workout logging with actual-vs-planned tracking, and a per-exercise rest timer.
+The MVP is functionally complete. Phase 1 foundation features have been delivered, with the notable exception of the exercise database (deprioritized by design decision). The app now supports dual-unit input (imperial/metric), structured workout plans, training split selection, workout logging with actual-vs-planned tracking, a per-exercise rest timer with auto-start, and a history link to access saved plans.
 
 ---
 
@@ -46,6 +46,8 @@ The MVP is functionally complete. Phase 1 foundation features have been delivere
 | History management | MVP | ✅ Delivered | Save/delete/expand workout plans (max 50 entries) |
 | Secure API key storage | MVP | ✅ Delivered | expo-secure-store with AsyncStorage fallback |
 | Measurement system toggle | Phase 1 | ✅ Delivered | Imperial/metric toggle on HomeScreen; metric values converted to imperial internally; imperial remains default |
+| History navigation link | Phase 1 | ✅ Delivered | "View Saved Workouts" link on HomeScreen (was missing — only orphaned styles existed) |
+| Lenient JSON parser | Phase 1 | ✅ Delivered | `extractStructuredPlan` handles malformed LLM JSON (extra braces, trailing garbage) w/ 3 fallback parse strategies |
 
 ### Key Decisions Log
 
@@ -101,6 +103,24 @@ The MVP is functionally complete. Phase 1 foundation features have been delivere
 └─────────────────────────────────────────────────────────────┘
 ```
 
+### Recent Session (June 13, 2026)
+
+| Change | Files | Description |
+|---|---|---|
+| Per-exercise rest timer | `WorkoutPlanScreen.tsx`, `TimerScreen.tsx` | Replaced standalone timer button with per-exercise ⏱ button; auto-starts with exercise's `restSeconds` |
+| Imperial/metric toggle | `HomeScreen.tsx`, `types/index.ts`, `constants/index.ts` | Unit system toggle; metric→imperial conversion at input boundary; `unitSystem` field on `UserInput` |
+| History navigation | `HomeScreen.tsx` | Added "View Saved Workouts" link below header (was missing from JSX) |
+| Lenient JSON parsing | `llm.ts` (`extractStructuredPlan`) | 3-strategy fallback: raw parse → `}}]`→`}]` repair → trim to last `{}` pair |
+| Report | `REPORT.md` | Updated with session changes |
+
+### Git Log (last 3 commits)
+
+```
+ed03fd8  Fix: lenient JSON parser + add history link to HomeScreen
+aea3b2f  Add imperial/metric measurement system toggle
+bc7b990  Feature D: Workout logging + rest timer attached to exercises
+```
+
 ### Component Tree
 
 ```
@@ -110,6 +130,7 @@ The MVP is functionally complete. Phase 1 foundation features have been delivere
       <Stack.Navigator>
         <Stack.Screen name="Home">
           <HomeScreen>               # BMI input form
+            <HistoryLink />          # "View Saved Workouts"
             <UnitToggle />           # Imperial / Metric selector
             <ScrollView>             # Gender, Age, Height, Weight inputs
           </HomeScreen>
@@ -187,7 +208,10 @@ When metric is selected, values are converted to imperial at input time using co
 #### `src/services/llm.ts`
 - **`generateWorkoutPlan(config, params, onStream?)`** → streams LLM output
 - **`testConnection(config)`** → pings provider health endpoint
-- **`extractStructuredPlan(text)`** → parses JSON from LLM response
+- **`extractStructuredPlan(text)`** → parses JSON from LLM response; uses 3-strategy fallback to handle malformed output
+  - Strategy 1: direct `JSON.parse`
+  - Strategy 2: `}}]`→`}]` repair (fixes LLM extra-brace bug)
+  - Strategy 3: trim to last balanced `{}` pair
 - 3 providers: Ollama (JSON lines), OpenRouter (SSE), HuggingFace (token stream)
 
 #### `src/services/storage.ts`
@@ -247,6 +271,14 @@ Usage pattern: Each screen defines `styles = (t: Theme) => StyleSheet.create({..
 
 **Zero runtime state management libraries, zero AI/LLM SDKs** — all streaming is raw `fetch`.
 
+### Known Issues
+
+| Issue | Status | Notes |
+|---|---|---|
+| LLM JSON sometimes malformed | ✅ Fixed | Extra closing braces `}}]` handled by lenient parser |
+| History nav missing from HomeScreen | ✅ Fixed | "View Saved Workouts" link added |
+| Chrome Private Network Access blocks localhost from HTTPS | 🚫 Unresolved | Browser security feature; use `http://localhost:8081` for dev |
+
 ### Technical Debt & Observations
 
 | Item | Severity | Notes |
@@ -268,6 +300,8 @@ Usage pattern: Each screen defines `styles = (t: Theme) => StyleSheet.create({..
 | SecureStore unavailable (web) | High | Low | AsyncStorage fallback already in place |
 | react-native-screens version conflict | Low | High | Explicitly pinned at 4.24.0 |
 | User data loss on uninstall | High | Medium | Optional export/import possible in future |
+| LLM outputs malformed JSON | Medium | Medium | Lenient parser now handles; may need more patterns |
+| CORS / Private Network Access | Medium | Medium | Use local dev server; configure Ollama origins if deploying |
 
 ### Future Phases (Backlog)
 
@@ -323,4 +357,17 @@ RootStackParamList     { Home, Result, Questionnaire, WorkoutPlan, Settings,
 
 ---
 
-*Document version 2.1 — Updated from APP_PLAN.md v1.0 after Phase 1 feature delivery + dual-unit input*
+## Session Handoff Notes
+
+To continue development:
+
+1. **Run locally:** `npm start` then open `http://localhost:8081`
+2. **Ollama** must be running at `localhost:11434` for plan generation
+3. **Deployed URL** (`https://altianly.vishhalchopra.workers.dev`) won't connect to local Ollama due to Chrome's Private Network Access restriction
+4. **No test suite** exists — services are pure functions ready for Jest tests
+5. **Dead code:** `src/services/exerciseDb.ts`, `src/data/exercises.json` (723KB) — safe to delete
+6. **Next logical step:** Phase 2 features (progress graphs, PR detection, periodization)
+
+---
+
+*Document version 3.0 — Updated after Session 2 (Feature D + measurement system + fixes)*
