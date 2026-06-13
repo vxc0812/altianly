@@ -261,17 +261,33 @@ export async function testConnection(config: LLMConfig): Promise<string> {
   }
 }
 
+function tryParseJson(text: string): StructuredWorkoutPlan | null {
+  const jsonMatch = text.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) return null
+
+  const candidates: string[] = [jsonMatch[0]]
+
+  // Repair 1: }}] -> }] (LLM sometimes adds extra closing brace before array)
+  candidates.push(jsonMatch[0].replace(/\}\}\](?=\s*[,}\]])/g, '}]'))
+
+  // Repair 2: trim trailing garbage after last valid brace pair
+  const braceMatch = jsonMatch[0].match(/^(\{[\s\S]*\})([\s\S]*)$/)
+  if (braceMatch) candidates.push(braceMatch[1])
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate)
+      if (parsed?.days && Array.isArray(parsed.days)) {
+        return parsed as StructuredWorkoutPlan
+      }
+    } catch {}
+  }
+  return null
+}
+
 export function extractStructuredPlan(text: string): {
   plan: string; structured?: StructuredWorkoutPlan
 } {
-  try {
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0])
-      if (parsed && parsed.days && Array.isArray(parsed.days)) {
-        return { plan: text, structured: parsed as StructuredWorkoutPlan }
-      }
-    }
-  } catch {}
-  return { plan: text }
+  const structured = tryParseJson(text)
+  return { plan: text, structured: structured || undefined }
 }

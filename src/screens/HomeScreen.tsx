@@ -80,6 +80,10 @@ export default function HomeScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
+        <TouchableOpacity style={s.historyLink} onPress={() => navigation.navigate('History')}>
+          <Text style={s.historyLinkText}>View Saved Workouts</Text>
+        </TouchableOpacity>
+
         <View style={s.unitToggle}>
           <TouchableOpacity
             style={[s.unitButton, unitSystem === 'imperial' && s.unitButtonActive]}
