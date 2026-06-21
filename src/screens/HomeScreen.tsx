@@ -27,7 +27,7 @@ import {
 } from '../services/storage'
 import { getBadges, checkAndUnlockBadges } from '../services/badges'
 import { getReminderConfig, scheduleDailyReminder, cancelDailyReminder, ReminderConfig } from '../services/notifications'
-import { generateWorkoutPlan } from '../services/workoutGenerator'
+import { generateWorkoutPlan } from '../services/workoutGen'
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Home'> }
 
