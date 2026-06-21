@@ -46,7 +46,9 @@ export default function PlanLogsScreen({ navigation, route }: Props) {
           <Text style={s.backText}>{'< Back'}</Text>
         </TouchableOpacity>
         <Text style={s.heading}>Workout Logs</Text>
-        <View style={{ width: 60 }} />
+        <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+          <Text style={s.homeText}>Home</Text>
+        </TouchableOpacity>
       </View>
 
       {logs.length === 0 ? (
@@ -86,6 +88,7 @@ const styles = (t: Theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: t.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 24, paddingTop: 60 },
   backText: { color: t.accent, fontSize: 16 },
+  homeText: { color: t.accent, fontSize: 16, fontWeight: '600' },
   heading: { color: t.text, fontSize: 20, fontWeight: '700', textAlign: 'center' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   emptyTitle: { color: t.text, fontSize: 18, fontWeight: '600', marginBottom: 8 },

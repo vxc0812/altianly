@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -37,6 +37,34 @@ export default function WorkoutLogScreen({ navigation, route }: Props) {
     }))
   )
 
+  const [activeTimerIdx, setActiveTimerIdx] = useState<number | null>(null)
+  const [timerRemaining, setTimerRemaining] = useState(0)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current) }, [])
+
+  function clearTimerInterval() {
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+  }
+
+  function startTimer(idx: number, restSeconds: number) {
+    clearTimerInterval()
+    setActiveTimerIdx(idx)
+    setTimerRemaining(restSeconds)
+    intervalRef.current = setInterval(() => {
+      setTimerRemaining((prev) => {
+        if (prev <= 1) { clearTimerInterval(); setActiveTimerIdx(null); return 0 }
+        return prev - 1
+      })
+    }, 1000)
+  }
+
+  function stopTimer() {
+    clearTimerInterval()
+    setActiveTimerIdx(null)
+    setTimerRemaining(0)
+  }
+
   function updateEntry(index: number, field: keyof WorkoutLogEntry, value: string | number) {
     setEntries((prev) => {
       const next = [...prev]
@@ -67,7 +95,9 @@ export default function WorkoutLogScreen({ navigation, route }: Props) {
           <Text style={s.backText}>{'< Back'}</Text>
         </TouchableOpacity>
         <Text style={s.heading}>Day {day}: {focus}</Text>
-        <View style={{ width: 60 }} />
+        <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+          <Text style={s.homeText}>Home</Text>
+        </TouchableOpacity>
       </View>
 
       {entries.map((entry, i) => (
@@ -114,6 +144,28 @@ export default function WorkoutLogScreen({ navigation, route }: Props) {
             onChangeText={(v) => updateEntry(i, 'notes', v)}
             multiline
           />
+
+          <View style={s.restRow}>
+            {activeTimerIdx === i ? (
+              <>
+                <Text style={[s.restCountdown, timerRemaining <= 10 && s.restCountdownUrgent]}>
+                  {String(Math.floor(timerRemaining / 60)).padStart(2, '0')}:{String(timerRemaining % 60).padStart(2, '0')}
+                </Text>
+                <TouchableOpacity style={s.restStopBtn} onPress={stopTimer} accessibilityRole="button" accessibilityLabel="Stop rest timer">
+                  <Text style={s.restStopText}>Stop</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity
+                style={s.restBtn}
+                onPress={() => startTimer(i, exercises[i].restSeconds)}
+                accessibilityRole="button"
+                accessibilityLabel={`Start ${exercises[i].restSeconds} second rest timer`}
+              >
+                <Text style={s.restBtnText}>Rest {exercises[i].restSeconds}s</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       ))}
 
@@ -129,6 +181,7 @@ const styles = (t: Theme) => StyleSheet.create({
   content: { padding: 24, paddingTop: 0, paddingBottom: 40 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 24, paddingTop: 60 },
   backText: { color: t.accent, fontSize: 16 },
+  homeText: { color: t.accent, fontSize: 16, fontWeight: '600' },
   heading: { color: t.text, fontSize: 20, fontWeight: '700', flex: 1, textAlign: 'center' },
   card: { backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 16, marginBottom: 16 },
   exerciseName: { fontSize: 16, fontWeight: '700', color: t.text, marginBottom: 2 },
@@ -140,4 +193,11 @@ const styles = (t: Theme) => StyleSheet.create({
   notesInput: { backgroundColor: t.bg, borderWidth: 1, borderColor: t.border, borderRadius: 6, padding: 10, fontSize: 14, color: t.text, minHeight: 60, textAlignVertical: 'top' },
   saveButton: { backgroundColor: t.success, padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 8 },
   saveButtonText: { color: t.successText, fontSize: 16, fontWeight: '700' },
+  restRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 12, gap: 10 },
+  restBtn: { backgroundColor: t.accent + '18', borderWidth: 1, borderColor: t.accent + '40', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6 },
+  restBtnText: { color: t.accent, fontSize: 13, fontWeight: '600' },
+  restCountdown: { fontSize: 22, fontWeight: '800', color: t.accent, fontVariant: ['tabular-nums'] },
+  restCountdownUrgent: { color: t.danger },
+  restStopBtn: { backgroundColor: t.danger + '18', borderWidth: 1, borderColor: t.danger + '40', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
+  restStopText: { color: t.danger, fontSize: 13, fontWeight: '600' },
 })

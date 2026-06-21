@@ -11,7 +11,8 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RouteProp } from '@react-navigation/native'
 import { RootStackParamList, WorkoutPlan, StructuredWorkoutPlan } from '../types'
-import { generateWorkoutPlan, extractStructuredPlan } from '../services/llm'
+import { generateWorkoutPlan as llmGenerate, extractStructuredPlan } from '../services/llm'
+import { generateWorkoutPlan as localGenerate } from '../services/workoutGenerator'
 import { saveWorkoutPlan, getLLMConfig } from '../services/storage'
 import { DEFAULT_LLM_CONFIG } from '../constants'
 import { useTheme } from '../context/ThemeContext'
@@ -25,15 +26,15 @@ type Props = {
 export default function WorkoutPlanScreen({ navigation, route }: Props) {
   const { theme } = useTheme()
   const s = styles(theme)
-  const { userInput, bmiResult, answers } = route.params
+  const { userInput, bmiResult, answers, mode } = route.params
   const [plan, setPlan] = useState('')
   const [structuredPlan, setStructuredPlan] = useState<StructuredWorkoutPlan | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [providerName, setProviderName] = useState<string>('ollama')
   const savedRef = useRef(false)
-  const planId = useRef(Date.now().toString())
   const tokenCount = useRef(0)
 
   useEffect(() => { loadPlan() }, [])
@@ -43,11 +44,29 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
     setError('')
     setProgress(0)
     tokenCount.current = 0
+
+    if (mode === 'instant') {
+      const structured = localGenerate({
+        age: userInput.age,
+        gender: userInput.gender,
+        bmi: bmiResult.bmi,
+        evaluation: bmiResult.evaluation,
+        lifestyle: answers.lifestyle,
+        exerciseLevel: answers.exerciseLevel,
+        split: answers.trainingSplit,
+      })
+      setStructuredPlan(structured)
+      setPlan(JSON.stringify(structured, null, 2))
+      setLoading(false)
+      return
+    }
+
     try {
       const storedConfig = await getLLMConfig()
       const config = storedConfig || DEFAULT_LLM_CONFIG
+      setProviderName(config.provider)
       let fullPlan = ''
-      await generateWorkoutPlan(
+      await llmGenerate(
         config,
         {
           age: userInput.age,
@@ -57,6 +76,7 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
           lifestyle: answers.lifestyle,
           exerciseLevel: answers.exerciseLevel,
           split: answers.trainingSplit,
+          questionnaire: answers,
         },
         (chunk) => {
           fullPlan += chunk
@@ -81,7 +101,7 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
     if (savedRef.current) return
     savedRef.current = true
     const record: WorkoutPlan = {
-      id: planId.current,
+      id: Date.now().toString(),
       timestamp: Date.now(),
       userInput,
       bmiResult,
@@ -93,6 +113,15 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
     setSaved(true)
   }
 
+  function getErrorHint(err: string, provider: string): string {
+    if (err.includes('429') || err.includes('rate limit') || err.includes('rate-limit')) {
+      return 'This model is rate-limited. Try a different free model in Settings, or wait a moment and retry.'
+    }
+    if (provider === 'ollama') return 'Ensure Ollama is running at localhost:11434 and the model is pulled.'
+    if (provider === 'openrouter') return 'Check your API key and model name in Settings.'
+    return 'Check your API key and model name in Settings.'
+  }
+
   return (
     <View style={s.container}>
       <Text style={s.heading}>Your Workout Plan</Text>
@@ -101,14 +130,19 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
         <View style={s.center}>
           <ActivityIndicator size="large" color={theme.accent} />
           <Text style={s.loadingText}>Generating your personalized plan...</Text>
-          <Text style={s.loadingSubtext}>Make sure Ollama is running on your device</Text>
+          {providerName === 'ollama' && (
+            <Text style={s.loadingSubtext}>Make sure Ollama is running on your device</Text>
+          )}
         </View>
       ) : error && !plan ? (
         <View style={s.center}>
           <Text style={s.errorText}>{error}</Text>
-          <Text style={s.errorHint}>Ensure Ollama is running at localhost:11434 and the model is pulled.</Text>
+          <Text style={s.errorHint}>{getErrorHint(error, providerName)}</Text>
           <TouchableOpacity style={s.retryButton} onPress={loadPlan}>
             <Text style={s.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.retryButton} onPress={() => navigation.navigate('Settings')}>
+            <Text style={s.retryButtonText}>Open Settings</Text>
           </TouchableOpacity>
         </View>
       ) : loading ? (
@@ -119,7 +153,9 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
             </View>
             <Text style={s.progressText}>{progress}%</Text>
           </View>
-          <Text style={s.loadingSubtext}>Make sure Ollama is running on your device</Text>
+          {providerName === 'ollama' && (
+            <Text style={s.loadingSubtext}>Make sure Ollama is running on your device</Text>
+          )}
         </View>
       ) : structuredPlan ? (
         <ScrollView style={s.planScroll} contentContainerStyle={s.planContent}>
@@ -128,32 +164,11 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
               <Text style={s.dayHeading}>Day {day.day}: {day.focus}</Text>
               {day.exercises.map((ex, i) => (
                 <View key={i} style={s.exerciseRow}>
-                  <View style={s.exerciseInfo}>
-                    <Text style={s.exerciseName}>{ex.name}</Text>
-                    <Text style={s.exerciseDetail}>{ex.sets}×{ex.reps} · {ex.restSeconds}s rest</Text>
-                    {ex.notes ? <Text style={s.exerciseNotes}>{ex.notes}</Text> : null}
-                  </View>
-                  <TouchableOpacity
-                    style={s.exerciseTimerButton}
-                    onPress={() => navigation.navigate('Timer', { initialSeconds: ex.restSeconds })}
-                  >
-                    <Text style={s.exerciseTimerText}>⏱</Text>
-                  </TouchableOpacity>
+                  <Text style={s.exerciseName}>{ex.name}</Text>
+                  <Text style={s.exerciseDetail}>{ex.sets} x {ex.reps} - {ex.restSeconds}s rest</Text>
+                  {ex.notes ? <Text style={s.exerciseNotes}>{ex.notes}</Text> : null}
                 </View>
               ))}
-              <View style={s.dayActions}>
-                <TouchableOpacity
-                  style={s.logDayButton}
-                  onPress={() => navigation.navigate('WorkoutLog', {
-                    planId: planId.current,
-                    day: day.day,
-                    focus: day.focus,
-                    exercises: day.exercises,
-                  })}
-                >
-                  <Text style={s.logDayButtonText}>Log This Day</Text>
-                </TouchableOpacity>
-              </View>
             </View>
           ))}
           {structuredPlan.warmup ? <Text style={s.planSection}>Warmup: {structuredPlan.warmup}</Text> : null}
@@ -166,13 +181,16 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
         </ScrollView>
       )}
 
-      {plan && !loading && (
+      {!!plan && !loading && (
         <View style={s.actions}>
           <TouchableOpacity style={[s.saveButton, saved && s.savedButton]} onPress={handleSave} disabled={saved}>
             <Text style={s.saveButtonText}>{saved ? 'Saved' : 'Save Plan'}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.newButton} onPress={() => navigation.popToTop()}>
-            <Text style={s.newButtonText}>Start Over</Text>
+<TouchableOpacity style={s.newButton} onPress={() => navigation.goBack()}>
+            <Text style={s.newButtonText}>Back to Questionnaire</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.newButton} onPress={() => navigation.navigate('Home')}>
+            <Text style={s.newButtonText}>Home</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -199,13 +217,10 @@ const styles = (t: Theme) => StyleSheet.create({
   planText: { color: t.text, fontSize: 14, lineHeight: 22, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
   dayCard: { backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 16, marginBottom: 16 },
   dayHeading: { fontSize: 18, fontWeight: '700', color: t.text, marginBottom: 12 },
-  exerciseRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: t.accent },
-  exerciseInfo: { flex: 1 },
+  exerciseRow: { marginBottom: 10, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: t.accent },
   exerciseName: { fontSize: 15, fontWeight: '600', color: t.text },
   exerciseDetail: { fontSize: 13, color: t.textSecondary, marginTop: 2 },
   exerciseNotes: { fontSize: 12, color: t.textMuted, marginTop: 2, fontStyle: 'italic' },
-  exerciseTimerButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
-  exerciseTimerText: { fontSize: 16 },
   planSection: { fontSize: 14, color: t.text, marginBottom: 8, marginTop: 12 },
   planNotes: { fontSize: 13, color: t.textSecondary, marginTop: 12, lineHeight: 20, fontStyle: 'italic' },
   streamRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 },
@@ -216,7 +231,4 @@ const styles = (t: Theme) => StyleSheet.create({
   saveButtonText: { color: t.successText, fontSize: 16, fontWeight: '700' },
   newButton: { padding: 12, alignItems: 'center' },
   newButtonText: { color: t.accent, fontSize: 15 },
-  logDayButton: { backgroundColor: t.accent + '22', padding: 10, borderRadius: 6, borderWidth: 1, borderColor: t.accent, flex: 1, alignItems: 'center' },
-  logDayButtonText: { color: t.accent, fontSize: 13, fontWeight: '600' },
-  dayActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
 })

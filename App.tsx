@@ -1,8 +1,13 @@
 import { StatusBar } from 'expo-status-bar'
+import React from 'react'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { RootStackParamList } from './src/types'
 import { ThemeProvider, useTheme } from './src/context/ThemeContext'
+import { setupNotificationHandler } from './src/services/notifications'
+
+setupNotificationHandler()
+
 import HomeScreen from './src/screens/HomeScreen'
 import ResultScreen from './src/screens/ResultScreen'
 import QuestionnaireScreen from './src/screens/QuestionnaireScreen'

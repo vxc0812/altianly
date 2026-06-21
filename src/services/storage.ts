@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { WorkoutPlan, LLMConfig, WorkoutLog } from '../types'
+import { WorkoutPlan, LLMConfig, WorkoutLog, BMIHistoryEntry } from '../types'
 import { STORAGE_KEYS } from '../constants'
 
 async function secureSet(key: string, value: string): Promise<void> {
@@ -73,4 +73,16 @@ export async function deleteWorkoutLog(id: string): Promise<void> {
   if (!json) return
   const logs: WorkoutLog[] = JSON.parse(json)
   await AsyncStorage.setItem(STORAGE_KEYS.WORKOUT_LOGS, JSON.stringify(logs.filter((l) => l.id !== id)))
+}
+
+export async function saveBMIEntry(entry: BMIHistoryEntry): Promise<void> {
+  const json = await AsyncStorage.getItem(STORAGE_KEYS.BMI_HISTORY)
+  const history: BMIHistoryEntry[] = json ? JSON.parse(json) : []
+  history.unshift(entry)
+  await AsyncStorage.setItem(STORAGE_KEYS.BMI_HISTORY, JSON.stringify(history.slice(0, 100)))
+}
+
+export async function getBMIHistory(): Promise<BMIHistoryEntry[]> {
+  const json = await AsyncStorage.getItem(STORAGE_KEYS.BMI_HISTORY)
+  return json ? JSON.parse(json) : []
 }

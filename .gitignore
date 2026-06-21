@@ -55,3 +55,6 @@ src/services/exerciseDb.ts
 
 # Home dir symlink
 ~/
+
+# Windows reserved name artifact
+nul

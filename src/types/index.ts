@@ -19,10 +19,37 @@ export interface BMIResult {
   evaluation: BMIEvaluation
 }
 
+// Comprehensive questionnaire answers
+export type AgeGroup = 'under18' | '18-24' | '25-34' | '35-44' | '45-54' | '55-64' | '65plus'
+export type PrimaryGoal = 'fat_loss' | 'muscle_gain' | 'strength' | 'endurance' | 'flexibility' | 'health' | 'event' | 'other'
+export type TrainingExperience = 'never' | 'occasional' | 'consistent' | 'always_active'
+export type WorkoutEnvironment = 'home_none' | 'home_basic' | 'gym' | 'crossfit' | 'outdoor'
+export type WorkoutType = 'strength' | 'cardio' | 'hiit' | 'yoga' | 'pilates' | 'functional' | 'sports' | 'circuit' | 'calisthenics' | 'other'
+export type ExcludeExercise = 'none' | 'cardio' | 'squats' | 'lunges' | 'pullups' | 'overhead' | 'other'
+export type ProgressTracking = 'scale' | 'performance' | 'clothes' | 'energy' | 'photos' | 'none'
+export type MotivationDriver = 'changes' | 'performance' | 'health' | 'accountability' | 'milestone' | 'enjoyment'
+
 export interface QuestionnaireAnswers {
   lifestyle: Lifestyle
   exerciseLevel: ExerciseLevel
   trainingSplit: TrainingSplit
+  // Extended questionnaire fields
+  ageGroup?: AgeGroup
+  primaryGoal?: PrimaryGoal
+  targetTimeline?: string
+  trainingExperience?: TrainingExperience
+  workoutEnvironment?: WorkoutEnvironment
+  equipment?: string
+  workoutTypes?: WorkoutType[]
+  healthConditions?: string
+  injuries?: string
+  medications?: string
+  sleepQuality?: string
+  stressLevel?: string
+  challenge?: string
+  excludeExercises?: ExcludeExercise[]
+  motivation?: MotivationDriver
+  progressTracking?: ProgressTracking
 }
 
 export interface WorkoutPlan {
@@ -40,6 +67,29 @@ export interface LLMConfig {
   baseUrl: string
   model: string
   apiKey?: string
+}
+
+export interface Badge {
+  id: string
+  label: string
+  description: string
+  icon: string
+  unlockedAt: number
+}
+
+export interface BadgeDefinition {
+  id: string
+  label: string
+  description: string
+  icon: string
+}
+
+export interface BMIHistoryEntry {
+  bmi: number
+  evaluation: BMIEvaluation
+  timestamp: number
+  age: number
+  gender: Gender
 }
 
 export interface WorkoutLogEntry {
@@ -65,7 +115,7 @@ export type RootStackParamList = {
   Home: undefined
   Result: { userInput: UserInput }
   Questionnaire: { userInput: UserInput; bmiResult: BMIResult }
-  WorkoutPlan: { userInput: UserInput; bmiResult: BMIResult; answers: QuestionnaireAnswers }
+  WorkoutPlan: { userInput: UserInput; bmiResult: BMIResult; answers: QuestionnaireAnswers; mode?: 'instant' | 'ai' }
   Settings: undefined
   History: undefined
   Timer: { initialSeconds?: number }

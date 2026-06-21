@@ -1,10 +1,35 @@
-import { LLMConfig, StructuredWorkoutPlan } from '../types'
+import { LLMConfig, StructuredWorkoutPlan, QuestionnaireAnswers } from '../types'
 import { DEFAULT_LLM_CONFIG } from '../constants'
 
 function buildPrompt(params: {
   age: number; gender: string; bmi: number; evaluation: string;
-  lifestyle: string; exerciseLevel: string; split: string
+  lifestyle: string; exerciseLevel: string; split: string;
+  questionnaire?: QuestionnaireAnswers
 }): string {
+  const qa = params.questionnaire || {} as QuestionnaireAnswers
+  
+  // Map questionnaire values to readable strings
+  const goalText: string = qa.primaryGoal ? {
+    fat_loss: 'Fat Loss', muscle_gain: 'Muscle Building', strength: 'Strength Training',
+    endurance: 'Endurance Improvement', flexibility: 'Flexibility/Mobility',
+    health: 'General Health', event: 'Event Training', other: 'Other'
+  }[qa.primaryGoal] : 'Not specified'
+  
+  const expText: string = qa.trainingExperience ? {
+    never: 'Never trained', occasional: 'Occasionally (less than 6 months)',
+    consistent: 'Consistent training (6+ months)', always_active: 'Always active'
+  }[qa.trainingExperience] : 'Not specified'
+  
+  const envText: string = qa.workoutEnvironment ? {
+    home_none: 'Home (bodyweight only)', home_basic: 'Home (basic equipment)',
+    gym: 'Commercial gym', crossfit: 'CrossFit box', outdoor: 'Outdoor/Park'
+  }[qa.workoutEnvironment] : 'Not specified'
+  
+  const equipText: string = qa.equipment || 'Not specified'
+  const healthText: string = qa.healthConditions || qa.injuries ? `${qa.healthConditions || 'None'}${qa.injuries ? '; Injuries: ' + qa.injuries : ''}` : 'None reported'
+  const timelineText: string = qa.targetTimeline || 'Flexible timeline'
+  const challengeText: string = qa.challenge || 'Not specified'
+  
   return `You are a professional fitness trainer. Generate a weekly workout plan as a JSON object. No markdown, no explanation — only valid JSON.
 
 User Profile:
@@ -14,6 +39,15 @@ User Profile:
 - Lifestyle: ${params.lifestyle}
 - Experience: ${params.exerciseLevel}
 - Training Split: ${params.split}
+
+Questionnaire Details:
+- Primary Goal: ${goalText}
+- Timeline: ${timelineText}
+- Training Experience: ${expText}
+- Workout Environment: ${envText}
+- Equipment Available: ${equipText}
+- Health Considerations: ${healthText}
+- Biggest Challenge: ${challengeText}
 
 OUTPUT FORMAT (exactly this structure):
 {
@@ -33,11 +67,12 @@ OUTPUT FORMAT (exactly this structure):
 }
 
 RULES:
-1. No equipment needed unless specified.
-2. Choose exercises appropriate for their experience level.
-3. Include rest days based on the split.
+1. Choose exercises appropriate for their experience level and equipment availability.
+2. Avoid exercises specified as limitations or injuries.
+3. Structure rest days based on the training split.
 4. Prioritize compound movements.
-5. Only output valid JSON — nothing before, nothing after.`
+5. Include modifications for beginners or those with limitations.
+6. Only output valid JSON — nothing before, nothing after.`
 }
 
 async function callOllama(
@@ -208,7 +243,8 @@ export async function generateWorkoutPlan(
   config: LLMConfig,
   params: {
     age: number; gender: string; bmi: number; evaluation: string;
-    lifestyle: string; exerciseLevel: string; split: string
+    lifestyle: string; exerciseLevel: string; split: string;
+    questionnaire?: QuestionnaireAnswers
   },
   onStream?: (chunk: string) => void
 ): Promise<string> {

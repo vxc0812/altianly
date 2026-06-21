@@ -80,9 +80,14 @@ export default function TimerScreen({ navigation, route }: Props) {
 
   return (
     <View style={s.container}>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-        <Text style={s.backText}>{'< Back'}</Text>
-      </TouchableOpacity>
+      <View style={s.headerRow}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={s.backText}>{'< Back'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+          <Text style={s.homeText}>Home</Text>
+        </TouchableOpacity>
+      </View>
 
       <Text style={s.heading}>Rest Timer</Text>
 
@@ -131,8 +136,9 @@ export default function TimerScreen({ navigation, route }: Props) {
 
 const styles = (t: Theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: t.bg, padding: 24, paddingTop: 60 },
-  backBtn: { marginBottom: 16 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
   backText: { color: t.accent, fontSize: 16 },
+  homeText: { color: t.accent, fontSize: 16, fontWeight: '600' },
   heading: { fontSize: 24, fontWeight: '700', color: t.text, marginBottom: 32, textAlign: 'center' },
   timerSection: { alignItems: 'center', marginBottom: 40 },
   progressBar: { width: '100%', height: 6, borderRadius: 3, overflow: 'hidden', marginBottom: 32 },

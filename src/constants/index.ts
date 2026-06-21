@@ -13,13 +13,56 @@ export const DEFAULT_LLM_CONFIGS = {
   huggingface: { provider: 'huggingface' as const, baseUrl: 'https://api-inference.huggingface.co', model: 'mistralai/Mistral-7B-Instruct-v0.3' },
 }
 
-export const DEFAULT_LLM_CONFIG = DEFAULT_LLM_CONFIGS.ollama
+export const DEFAULT_LLM_CONFIG = DEFAULT_LLM_CONFIGS.openrouter
 
 export const PROVIDER_INFO = {
-  ollama: { label: 'Ollama', needsApiKey: false, needsBaseUrl: true, defaultBaseUrl: 'http://localhost:11434' },
-  openrouter: { label: 'OpenRouter', needsApiKey: true, needsBaseUrl: false, defaultBaseUrl: 'https://openrouter.ai/api/v1' },
-  huggingface: { label: 'HuggingFace', needsApiKey: true, needsBaseUrl: false, defaultBaseUrl: 'https://api-inference.huggingface.co' },
+  ollama: {
+    label: 'Ollama',
+    desc: 'Run AI locally on your machine. Completely free but requires Ollama installed and running.',
+    needsApiKey: false,
+    needsBaseUrl: true,
+    defaultBaseUrl: 'http://localhost:11434',
+    recommended: false,
+  },
+  openrouter: {
+    label: 'OpenRouter',
+    desc: 'Cloud AI with a free tier. Easiest setup — sign up, grab an API key, and you\'re done.',
+    needsApiKey: true,
+    needsBaseUrl: false,
+    defaultBaseUrl: 'https://openrouter.ai/api/v1',
+    recommended: true,
+  },
+  huggingface: {
+    label: 'HuggingFace',
+    desc: 'Open-source models via the Hugging Face Inference API. Free tier available.',
+    needsApiKey: true,
+    needsBaseUrl: false,
+    defaultBaseUrl: 'https://api-inference.huggingface.co',
+    recommended: false,
+  },
 } as const
+
+export const RECOMMENDED_MODELS: Record<'ollama' | 'openrouter' | 'huggingface', { id: string; label: string }[]> = {
+  openrouter: [
+    { id: 'mistralai/mistral-7b-instruct:free', label: 'Mistral 7B (free)' },
+    { id: 'meta-llama/llama-3.2-3b-instruct:free', label: 'Llama 3.2 3B (free)' },
+    { id: 'google/gemma-3-4b-it:free', label: 'Gemma 3 4B (free)' },
+  ],
+  ollama: [
+    { id: 'llama3.2', label: 'Llama 3.2' },
+    { id: 'mistral', label: 'Mistral' },
+    { id: 'gemma2', label: 'Gemma 2' },
+  ],
+  huggingface: [
+    { id: 'mistralai/Mistral-7B-Instruct-v0.3', label: 'Mistral 7B' },
+    { id: 'HuggingFaceH4/zephyr-7b-beta', label: 'Zephyr 7B' },
+  ],
+}
+
+export const API_KEY_HELP: Partial<Record<'ollama' | 'openrouter' | 'huggingface', string>> = {
+  openrouter: 'Get a free API key at openrouter.ai → Keys',
+  huggingface: 'Get a free token at huggingface.co → Settings → Access Tokens',
+}
 
 export const CM_PER_INCH = 2.54
 export const LBS_PER_KG = 2.20462
@@ -28,6 +71,9 @@ export const STORAGE_KEYS = {
   WORKOUT_HISTORY: 'altianly_workout_history',
   LLM_CONFIG: 'altianly_llm_config',
   WORKOUT_LOGS: 'altianly_workout_logs',
+  BMI_HISTORY: 'altianly_bmi_history',
+  BADGES: 'altianly_badges',
+  REMINDER: 'altianly_reminder',
 } as const
 
 export const EXERCISE_TYPES: ExerciseType[] = ['strength', 'cardio', 'metcon', 'hiit', 'combat', 'stretching', 'wellness', 'yoga']
