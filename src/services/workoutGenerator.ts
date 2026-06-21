@@ -6,7 +6,7 @@ import {
   Lifestyle,
   TrainingSplit,
 } from '../types'
-import { pickExercise, MovementPattern } from '../data/exercises'
+import { pickExercise, MovementPattern } from './exercises'
 
 type LevelParams = {
   sets: number

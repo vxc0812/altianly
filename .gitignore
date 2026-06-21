@@ -49,8 +49,9 @@ PROJECT_DOCS.md
 # Obsidian vault copy
 Altianly/
 
-# Exercise DB JSON data file
-src/data/exercises.json
+# Exercise DB - not used directly
+src/data/*.json
+src/services/exerciseDb.ts
 
 # Home dir symlink
 ~/
