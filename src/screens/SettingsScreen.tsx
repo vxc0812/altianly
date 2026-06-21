@@ -23,7 +23,7 @@ type Provider = LLMConfig['provider']
 type ModelEntry = { id: string; name: string }
 type TestResult = { ok: boolean; message: string } | null
 
-const PROVIDERS: Provider[] = ['ollama', 'openrouter', 'huggingface']
+const PROVIDERS: Provider[] = ['ollama', 'openrouter', 'huggingface', 'cloudflare']
 
 export default function SettingsScreen({ navigation }: Props) {
   const { theme } = useTheme()

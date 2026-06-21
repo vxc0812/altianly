@@ -119,7 +119,8 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
     }
     if (provider === 'ollama') return 'Ensure Ollama is running at localhost:11434 and the model is pulled.'
     if (provider === 'openrouter') return 'Check your API key and model name in Settings.'
-    return 'Check your API key and model name in Settings.'
+    if (provider === 'cloudflare') return 'Ensure the Cloudflare AI worker is deployed and the URL is correct in Settings.'
+    return 'Check your provider configuration in Settings.'
   }
 
   return (

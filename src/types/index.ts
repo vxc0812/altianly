@@ -63,7 +63,7 @@ export interface WorkoutPlan {
 }
 
 export interface LLMConfig {
-  provider: 'ollama' | 'openrouter' | 'huggingface'
+  provider: 'ollama' | 'openrouter' | 'huggingface' | 'cloudflare'
   baseUrl: string
   model: string
   apiKey?: string

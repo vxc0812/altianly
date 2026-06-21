@@ -94,7 +94,7 @@ const EXERCISES: ExerciseDef[] = [
   { id: 'burpee-mtn-climber', name: 'Burpee to Mountain Climber', movementPattern: 'hiit', type: 'hiit', focus: 'full-body', difficulty: 'advanced' },
 ]
 
-function pickExercise(
+export function pickExercise(
   pattern: MovementPattern,
   difficulty: Difficulty,
   exclude?: string[]

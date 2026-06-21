@@ -11,6 +11,7 @@ export const DEFAULT_LLM_CONFIGS = {
   ollama: { provider: 'ollama' as const, baseUrl: 'http://localhost:11434', model: 'llama3.2' },
   openrouter: { provider: 'openrouter' as const, baseUrl: 'https://openrouter.ai/api/v1', model: 'mistralai/mistral-7b-instruct:free' },
   huggingface: { provider: 'huggingface' as const, baseUrl: 'https://api-inference.huggingface.co', model: 'mistralai/Mistral-7B-Instruct-v0.3' },
+  cloudflare: { provider: 'cloudflare' as const, baseUrl: 'https://altianly-ai.vishhalchopra.workers.dev', model: '@cf/meta/llama-3.2-3b-instruct' },
 }
 
 export const DEFAULT_LLM_CONFIG = DEFAULT_LLM_CONFIGS.openrouter
@@ -40,9 +41,17 @@ export const PROVIDER_INFO = {
     defaultBaseUrl: 'https://api-inference.huggingface.co',
     recommended: false,
   },
+  cloudflare: {
+    label: 'Cloudflare AI',
+    desc: 'AI via your own Cloudflare Worker. Free, no API key needed — deploy the included worker.',
+    needsApiKey: false,
+    needsBaseUrl: true,
+    defaultBaseUrl: 'https://altianly-ai.vishhalchopra.workers.dev',
+    recommended: false,
+  },
 } as const
 
-export const RECOMMENDED_MODELS: Record<'ollama' | 'openrouter' | 'huggingface', { id: string; label: string }[]> = {
+export const RECOMMENDED_MODELS: Record<'ollama' | 'openrouter' | 'huggingface' | 'cloudflare', { id: string; label: string }[]> = {
   openrouter: [
     { id: 'mistralai/mistral-7b-instruct:free', label: 'Mistral 7B (free)' },
     { id: 'meta-llama/llama-3.2-3b-instruct:free', label: 'Llama 3.2 3B (free)' },
@@ -57,9 +66,14 @@ export const RECOMMENDED_MODELS: Record<'ollama' | 'openrouter' | 'huggingface',
     { id: 'mistralai/Mistral-7B-Instruct-v0.3', label: 'Mistral 7B' },
     { id: 'HuggingFaceH4/zephyr-7b-beta', label: 'Zephyr 7B' },
   ],
+  cloudflare: [
+    { id: '@cf/meta/llama-3.2-3b-instruct', label: 'Llama 3.2 3B' },
+    { id: '@cf/meta/llama-3-8b-instruct', label: 'Llama 3 8B' },
+    { id: '@cf/mistral/mistral-7b-instruct-v0.1', label: 'Mistral 7B' },
+  ],
 }
 
-export const API_KEY_HELP: Partial<Record<'ollama' | 'openrouter' | 'huggingface', string>> = {
+export const API_KEY_HELP: Partial<Record<'ollama' | 'openrouter' | 'huggingface' | 'cloudflare', string>> = {
   openrouter: 'Get a free API key at openrouter.ai → Keys',
   huggingface: 'Get a free token at huggingface.co → Settings → Access Tokens',
 }

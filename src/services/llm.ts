@@ -239,6 +239,28 @@ async function callHuggingFace(
   return fullText
 }
 
+async function callCloudflare(
+  cfg: LLMConfig, prompt: string, _onStream?: (chunk: string) => void
+): Promise<string> {
+  const body = { prompt, model: cfg.model }
+
+  const response = await fetch(cfg.baseUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`Cloudflare AI error ${response.status}: ${text}`)
+  }
+
+  const data = await response.json()
+  const text = data.response || ''
+  if (_onStream) _onStream(text)
+  return text
+}
+
 export async function generateWorkoutPlan(
   config: LLMConfig,
   params: {
@@ -256,6 +278,8 @@ export async function generateWorkoutPlan(
       return callOpenRouter(cfg, prompt, onStream)
     case 'huggingface':
       return callHuggingFace(cfg, prompt, onStream)
+    case 'cloudflare':
+      return callCloudflare(cfg, prompt, onStream)
     default:
       return callOllama(cfg, prompt, onStream)
   }
@@ -290,6 +314,16 @@ export async function testConnection(config: LLMConfig): Promise<string> {
         })
         if (!res.ok) throw new Error(`Status ${res.status}`)
         return 'Connected to HuggingFace'
+      }
+      case 'cloudflare': {
+        const res = await fetch(cfg.baseUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: 'Respond with: OK', model: cfg.model }),
+          signal: controller.signal,
+        })
+        if (!res.ok) throw new Error(`Status ${res.status}`)
+        return 'Connected to Cloudflare AI'
       }
     }
   } finally {
