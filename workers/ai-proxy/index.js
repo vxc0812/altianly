@@ -34,13 +34,15 @@ export default {
     const modelName = model || '@cf/meta/llama-3.2-3b-instruct'
 
     try {
-      const result = await env.AI.run(modelName, {
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 2048,
-        temperature: 0.7,
-      })
+	const result = await env.AI.run(modelName, {
+		messages: [{ role: 'user', content: prompt }],
+		max_tokens: 2048,
+		temperature: 0.7,
+	})
 
-      return new Response(JSON.stringify({ response: result.response }), {
+	const raw = result?.response || result
+	const responseText = typeof raw === 'string' ? raw : JSON.stringify(raw)
+	return new Response(JSON.stringify({ response: responseText }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       })
     } catch (err) {

@@ -255,9 +255,9 @@ async function callCloudflare(
     throw new Error(`Cloudflare AI error ${response.status}: ${text}`)
   }
 
-  const data = await response.json()
-  const text = data.response || ''
-  if (_onStream) _onStream(text)
+	const data = await response.json()
+	const text = typeof data.response === 'string' ? data.response : JSON.stringify(data.response)
+	if (_onStream) _onStream(text)
   return text
 }
 
