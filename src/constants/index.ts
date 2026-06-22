@@ -81,6 +81,8 @@ export const API_KEY_HELP: Partial<Record<'ollama' | 'openrouter' | 'huggingface
 export const CM_PER_INCH = 2.54
 export const LBS_PER_KG = 2.20462
 
+export const SESSION_DURATION_MS = 10 * 60 * 60 * 1000
+
 export const STORAGE_KEYS = {
   WORKOUT_HISTORY: 'altianly_workout_history',
   LLM_CONFIG: 'altianly_llm_config',
@@ -89,6 +91,7 @@ export const STORAGE_KEYS = {
   BADGES: 'altianly_badges',
   REMINDER: 'altianly_reminder',
   USER_PROFILE: 'altianly_user_profile',
+  LAST_ACTIVITY: 'altianly_last_activity',
 } as const
 
 export const EXERCISE_TYPES: ExerciseType[] = ['strength', 'cardio', 'metcon', 'hiit', 'combat', 'stretching', 'wellness', 'yoga']

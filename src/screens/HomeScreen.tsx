@@ -24,6 +24,8 @@ import { calculateBMI } from '../services/bmi'
 import {
   saveBMIEntry, getBMIHistory, getWorkoutHistory,
   saveWorkoutPlan, getWorkoutLogs,
+  updateLastActivity, isSessionExpired, deleteUserProfile,
+  getUserProfile,
 } from '../services/storage'
 import { getBadges, checkAndUnlockBadges } from '../services/badges'
 import { getReminderConfig, scheduleDailyReminder, cancelDailyReminder, ReminderConfig } from '../services/notifications'
@@ -74,6 +76,7 @@ export default function HomeScreen({ navigation }: Props) {
   const [inches, setInches] = useState('')
   const [weight, setWeight] = useState('')
   const [error, setError] = useState('')
+  const [userName, setUserName] = useState('')
 
   const [streak, setStreak] = useState(0)
   const [totalChecks, setTotalChecks] = useState(0)
@@ -88,6 +91,19 @@ export default function HomeScreen({ navigation }: Props) {
 
   useFocusEffect(useCallback(() => {
     (async () => {
+      if (await isSessionExpired()) {
+        await deleteUserProfile()
+        navigation.reset({ index: 0, routes: [{ name: 'Profile' }] })
+        return
+      }
+      const userProfile = await getUserProfile()
+      if (!userProfile) {
+        navigation.reset({ index: 0, routes: [{ name: 'Profile' }] })
+        return
+      }
+      setUserName(userProfile.name.split(' ')[0])
+      await updateLastActivity()
+
       const [entries, history, logs] = await Promise.all([
         getBMIHistory(), getWorkoutHistory(), getWorkoutLogs(),
       ])
@@ -235,6 +251,7 @@ export default function HomeScreen({ navigation }: Props) {
         <View style={s.headerRow}>
           <View style={{ flex: 1 }}>
             <Text style={s.title}>Altianly</Text>
+            {userName ? <Text style={s.greeting}>Welcome back, {userName}!</Text> : null}
           </View>
           <View style={s.headerButtons}>
             <TouchableOpacity
@@ -597,6 +614,7 @@ const styles = (t: Theme) => StyleSheet.create({
   content: { padding: 24, paddingTop: 60 },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
   title: { fontSize: 32, fontWeight: '800', color: t.accent },
+  greeting: { color: t.textSecondary, fontSize: 14, marginTop: 2 },
   headerButtons: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 },
   themeToggle: { fontSize: 20, padding: 4 },
   settingsButton: { padding: 8 },

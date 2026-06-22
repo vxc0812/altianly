@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -17,11 +17,17 @@ import {
   getUserProfile,
   saveUserProfile,
   deleteUserProfile,
+  updateLastActivity,
 } from '../services/storage'
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Profile'> }
+
+function isRootScreen(navigation: Props['navigation']): boolean {
+  const state = navigation.getState()
+  return state ? state.routes[0]?.name === 'Profile' && state.index === 0 : true
+}
 
 function getInitials(name: string): string {
   return name
@@ -50,10 +56,19 @@ export default function ProfileScreen({ navigation }: Props) {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
+  const [showChangePassword, setShowChangePassword] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+
   useFocusEffect(useCallback(() => {
     ;(async () => {
       const p = await getUserProfile()
       setProfile(p)
+      if (p && isRootScreen(navigation)) {
+        navigation.replace('Home')
+        return
+      }
       setLoading(false)
     })()
   }, []))
@@ -90,8 +105,8 @@ export default function ProfileScreen({ navigation }: Props) {
 
     const updated: UserProfile = { ...saved, lastLoginAt: Date.now() }
     await saveUserProfile(updated)
-    setProfile(updated)
-    resetForm()
+    await updateLastActivity()
+    navigation.replace('Home')
   }
 
   async function handleRegister() {
@@ -115,8 +130,35 @@ export default function ProfileScreen({ navigation }: Props) {
       lastLoginAt: Date.now(),
     }
     await saveUserProfile(newProfile)
-    setProfile(newProfile)
-    resetForm()
+    await updateLastActivity()
+    navigation.replace('Home')
+  }
+
+  function resetChangePassword() {
+    setCurrentPassword('')
+    setNewPassword('')
+    setConfirmNewPassword('')
+    setShowChangePassword(false)
+  }
+
+  async function handleChangePassword() {
+    if (!currentPassword) { Alert.alert('Error', 'Enter your current password'); return }
+    if (!newPassword) { Alert.alert('Error', 'Enter a new password'); return }
+    if (newPassword.length < 4) { Alert.alert('Error', 'New password must be at least 4 characters'); return }
+    if (newPassword !== confirmNewPassword) { Alert.alert('Error', 'New passwords do not match'); return }
+
+    const saved = await getUserProfile()
+    if (!saved) return
+    if (saved.password !== currentPassword) {
+      Alert.alert('Error', 'Current password is incorrect')
+      return
+    }
+
+    const updated: UserProfile = { ...saved, password: newPassword }
+    await saveUserProfile(updated)
+    setProfile(updated)
+    resetChangePassword()
+    Alert.alert('Success', 'Password changed successfully')
   }
 
   async function handleLogout() {
@@ -146,9 +188,15 @@ export default function ProfileScreen({ navigation }: Props) {
     return (
       <ScrollView style={s.container} contentContainerStyle={s.content}>
         <View style={s.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={s.backText}>{'< Back'}</Text>
-          </TouchableOpacity>
+          {isRootScreen(navigation) ? (
+            <TouchableOpacity onPress={() => navigation.replace('Home')}>
+              <Text style={s.backText}>Home</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Text style={s.backText}>{'< Back'}</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={s.avatarSection}>
@@ -172,6 +220,59 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
         </View>
 
+        <TouchableOpacity
+          style={s.changePasswordButton}
+          onPress={() => setShowChangePassword(!showChangePassword)}
+        >
+          <Text style={s.changePasswordText}>
+            {showChangePassword ? 'Cancel' : 'Change Password'}
+          </Text>
+        </TouchableOpacity>
+
+        {showChangePassword && (
+          <View style={s.changePasswordSection}>
+            <View style={s.inputGroup}>
+              <Text style={s.label}>Current Password</Text>
+              <TextInput
+                style={s.input}
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                placeholder="Enter current password"
+                placeholderTextColor={theme.textMuted}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+            <View style={s.inputGroup}>
+              <Text style={s.label}>New Password</Text>
+              <TextInput
+                style={s.input}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                placeholder="Enter new password"
+                placeholderTextColor={theme.textMuted}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+            <View style={s.inputGroup}>
+              <Text style={s.label}>Confirm New Password</Text>
+              <TextInput
+                style={s.input}
+                value={confirmNewPassword}
+                onChangeText={setConfirmNewPassword}
+                placeholder="Re-enter new password"
+                placeholderTextColor={theme.textMuted}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+            <TouchableOpacity style={s.savePasswordButton} onPress={handleChangePassword}>
+              <Text style={s.savePasswordText}>Save Password</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <TouchableOpacity style={s.logoutButton} onPress={handleLogout}>
           <Text style={s.logoutText}>Logout</Text>
         </TouchableOpacity>
@@ -182,11 +283,13 @@ export default function ProfileScreen({ navigation }: Props) {
   return (
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-        <View style={s.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={s.backText}>{'< Back'}</Text>
-          </TouchableOpacity>
-        </View>
+        {!isRootScreen(navigation) && (
+          <View style={s.headerRow}>
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Text style={s.backText}>{'< Back'}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={s.formSection}>
           <Text style={s.formTitle}>{isRegister ? 'Create Account' : 'Login'}</Text>
@@ -296,6 +399,21 @@ const styles = (t: Theme) => StyleSheet.create({
   statDivider: { width: 1, backgroundColor: t.border, alignSelf: 'stretch' },
   statValue: { color: t.text, fontSize: 20, fontWeight: '700', marginBottom: 4 },
   statLabel: { color: t.textSecondary, fontSize: 13 },
+  // Change Password
+  changePasswordButton: {
+    backgroundColor: t.surface, borderWidth: 1, borderColor: t.border,
+    borderRadius: 8, padding: 15, alignItems: 'center', minHeight: 50, justifyContent: 'center', marginBottom: 12,
+  },
+  changePasswordText: { color: t.accent, fontSize: 16, fontWeight: '600' },
+  changePasswordSection: {
+    backgroundColor: t.surface, borderWidth: 1, borderColor: t.border,
+    borderRadius: 8, padding: 16, marginBottom: 12,
+  },
+  savePasswordButton: {
+    backgroundColor: t.accent, borderRadius: 8, padding: 14,
+    alignItems: 'center', minHeight: 48, justifyContent: 'center',
+  },
+  savePasswordText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
   // Logout
   logoutButton: {
     backgroundColor: t.surface, borderWidth: 1, borderColor: t.danger,

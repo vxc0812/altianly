@@ -1,133 +1,134 @@
 # Altianly — Session Handoff Document
 
-> **Date:** 2026-06-20
+> **Date:** 2026-06-21
 > **Stack:** React Native (Expo SDK 56), TypeScript, AsyncStorage, SecureStore
 > **Dev server:** `npm start` → Expo Go or `npm run web` for browser preview
+> **Cloudflare:** Pages (web build), Workers (AI proxy), Dashboard (management)
 
 ---
 
 ## What Was Built This Session
 
-### #1 — Progress Visualization (HistoryScreen)
-- **BMI trend chart** — bar chart of last 7 BMI checks, oldest→newest left to right, color-coded by evaluation
-- **Workout activity chart** — bar chart of sets completed per session (last 7 sessions)
-- **Stats cards** — streak, total checks, latest BMI / sessions logged, avg sets, last focus
-- `getWorkoutLogs` fetched alongside BMI history via `Promise.all` in `useFocusEffect`
+### #1 — Profile / Login Page (`src/screens/ProfileScreen.tsx`)
 
-### #2 — "Resume Latest Plan" Quick-Start Card (HomeScreen)
-- Appears on HomeScreen when a structured plan exists in history
-- Horizontal scroll of day chips (Day 1 / Day 2 …) each navigating directly to `WorkoutLog`
-- Fetches latest plan with `structuredPlan` from workout history on screen focus
+- **Register** — name, email, password, confirm password; stored in SecureStore with AsyncStorage fallback
+- **Login** — email + password verification against stored `UserProfile`
+- **Profile view** — avatar (initials circle), name, email, member since date, stats card, logout button
+- **Change password** — inline expandable form (current password, new password, confirm); validates current password before saving
+- **Login page is now the first screen** — `initialRouteName="Profile"` in `App.tsx`
+  - Fresh install → Profile (login form)
+  - Returning user (logged in) → auto-redirect to Home
+  - Session expired → auto-logout redirects to Profile
+  - No "Back" button on the login form (can't escape to other screens without logging in)
 
-### #3 — Wizard-Style Onboarding (ResultScreen)
-- Merged Questionnaire into ResultScreen — flow is now: Home → Result → WorkoutPlan (was: Home → Result → Questionnaire → WorkoutPlan)
-- `QuestionnaireScreen` still exists in the navigator but is no longer navigated to
-- **Auto-derived training split** via `deriveTrainingSplit(lifestyle, exerciseLevel)` — removed from UI:
-  - `high` experience → PPL
-  - `medium` or `active` lifestyle → Upper/Lower
-  - default → Full Body
-- **4 new questionnaire questions** added inline to ResultScreen:
-  - Primary Goal (5 options: Fat Loss / Build Muscle / Strength / Endurance / General Health)
-  - Equipment Available (3 options: No Equipment / Minimal Gear / Full Gym)
-  - Target Timeline (optional toggle chips: 4 weeks / 8 weeks / 12 weeks / Long-term)
-  - Injuries / Limitations (default: None; toggleable chips)
-- **Health Insights** section (Nutrition, Activity, Age-based tip) moved to just below the BMI card — was at the bottom, now gives immediate context before plan settings
-- `canGenerate = !!(lifestyle && exerciseLevel && primaryGoal && workoutEnvironment)` — generate button disabled until required fields are filled
+### #2 — 10-Hour Inactivity Auto-Logout
 
-### #4 — History → Plan → Log Flow (HistoryScreen)
-- Expanding any saved plan now shows day chips if `structuredPlan` exists
-- Tapping a chip navigates to `WorkoutLog` with the correct planId, day, focus, and exercises
-- Raw text plans (AI plans that failed to parse) still show the plan text
-- `View Logs` and `Delete` buttons remain at the bottom of every expanded card
+- `SESSION_DURATION_MS = 10 * 60 * 60 * 1000` defined in `src/constants/index.ts`
+- `SessionManager` component in `App.tsx` listens to `AppState` changes:
+  - On app launch: checks session expiry, deletes profile if expired
+  - On foreground resume: same check; resets navigation stack to Profile if expired
+- `HomeScreen`'s `useFocusEffect` updates `lastActivity` timestamp on every focus (heartbeat)
+- `ProfileScreen` starts the session timer after login/register
+- After 10 consecutive hours without app use, the user is forced to log in again
 
-### #5 — LLM Settings UX Polish (SettingsScreen)
-- **Default provider changed** to OpenRouter everywhere — `DEFAULT_LLM_CONFIG` in `constants/index.ts` now points to `openrouter`
-- **Provider cards** — "Recommended" badge on OpenRouter; description text below the picker updates per provider
-- **Model picker (OpenRouter)** — replaces the text input with a tappable button that opens a bottom-sheet modal:
-  - Fetches all models live from `https://openrouter.ai/api/v1/models`
-  - Splits into **Free Models** and **Paid Models** sections
-  - Falls back to 3 hardcoded RECOMMENDED_MODELS if the fetch fails
-  - Loaded on Settings open; spinner shown while fetching
-- **Model chips (Ollama / HuggingFace)** — unchanged text input + quick-select pills
-- **Inline test result** — replaces Alert dialog; green banner on success, red banner with error message on failure
-- **API key help text** — shown below the key input for OpenRouter and HuggingFace
+### #3 — Auth Gate (other screens protected)
 
-### Inline Rest Timer (WorkoutLogScreen)
-- Moved from WorkoutPlanScreen (where it did nothing) into each exercise card in WorkoutLogScreen
-- Each exercise card has a "Rest Xs" pill button at the bottom
-- Active timer shows MM:SS countdown; turns red at ≤10 seconds
-- Stop button cancels the timer
-- Only one timer can run at a time; starting a new one cancels the previous
+- `HomeScreen` checks for `UserProfile` on every focus; redirects to Profile if missing
+- All other screens are only reachable from Home, so the auth gate at Home protects them
+- Manual logout resets the stack to Profile
 
-### Theme Toggle Moved to HomeScreen
-- Sun/moon emoji button added to HomeScreen header (next to Settings link)
-- Appearance section removed from SettingsScreen — Settings is now purely for LLM config
+### #4 — Cloudflare Infrastructure Documentation
 
-### Error Handling Improvements (WorkoutPlanScreen)
-- Provider-aware error hints — no longer always shows "Ensure Ollama is running..."
-- 429 rate-limit errors show: "This model is rate-limited. Try a different free model in Settings, or wait a moment and retry."
-- "Open Settings" button added alongside "Retry" on error state
+- `ARCHITECTURE.md` created documenting the 3 Cloudflare services and complete app workflow:
+  - **Pages** — serves Expo web build (`044a6f33.altianly.pages.dev`)
+  - **Workers** — AI proxy (`altianly.vishhalchopra.workers.dev`)
+  - **Dashboard** — worker management console
 
-### Bug Fixes
-- `DEFAULT_LLM_CONFIG` was still pointing to Ollama — fixed to OpenRouter
-- `{model && ...}`, `{plan && ...}`, `{opt.desc && ...}` string-based `&&` conditions caused "Unexpected text node" warnings in React Native — fixed with `!!` coercion
-- LLM not using questionnaire extended fields — `WorkoutPlanScreen` was missing `questionnaire: answers` in the `llmGenerate` call — fixed
-- BMI chart rendering newest→oldest — fixed by reversing the slice: `[...bmiHistory.slice(0, 7)].reverse()`
-- OpenRouter model fetch not triggering on initial load — `fetchORModels` only fired on provider *change*, not on initial `loaded = true` — fixed with a separate `[loaded]` effect
+### #5 — Cloudflare AI Proxy Fixes
+
+- Fixed response parsing in `llm.ts` to handle non-string responses from Workers AI
+- Fixed response handling in `workers/ai-proxy/index.js` (wraps result in `{ response: "..." }`)
+- Fixed CORS headers in worker
+
+### #6 — Changelog
+
+- `CHANGELOG_2026-06-21.md` created with all 10 commits, file stats, and descriptions
 
 ---
 
-## Current File Map (Modified This Session)
+## Current File Map (All Changes)
 
 | File | What Changed |
 |------|-------------|
-| `src/screens/HomeScreen.tsx` | Added "Resume Latest Plan" card, theme toggle, `toggleTheme` import |
-| `src/screens/ResultScreen.tsx` | Merged questionnaire, Health Insights moved up, auto-derived split, 4 new questions |
-| `src/screens/WorkoutPlanScreen.tsx` | Provider-aware hints, 429 detection, Open Settings button, `questionnaire: answers` fix |
-| `src/screens/WorkoutLogScreen.tsx` | Inline rest timer per exercise card |
-| `src/screens/HistoryScreen.tsx` | BMI + workout charts, day chips for structured plans, start-day flow |
-| `src/screens/SettingsScreen.tsx` | OpenRouter default, model picker modal, inline test result, removed Appearance section |
-| `src/screens/QuestionnaireScreen.tsx` | `!!opt.desc` fix |
-| `src/constants/index.ts` | `DEFAULT_LLM_CONFIG` → openrouter, `PROVIDER_INFO` desc + recommended, `RECOMMENDED_MODELS`, `API_KEY_HELP` |
-| `src/services/workoutGenerator.ts` | Local workout plan generator (instant mode) |
-| `src/services/badges.ts` | Badge unlock logic |
-| `src/services/notifications.ts` | Daily reminder scheduling |
-| `Questionnaire.md` | Updated implementation status tags |
+| `src/screens/ProfileScreen.tsx` | **New** — login/register form, profile view, change password, logout |
+| `src/screens/HomeScreen.tsx` | Auth gate (redirect to Profile if no profile), session heartbeat, "Profile" header link |
+| `src/services/storage.ts` | `saveUserProfile`, `getUserProfile`, `deleteUserProfile`, `updateLastActivity`, `getLastActivity`, `isSessionExpired` |
+| `src/types/index.ts` | `UserProfile` interface, `Profile` route |
+| `src/constants/index.ts` | `SESSION_DURATION_MS`, `USER_PROFILE` and `LAST_ACTIVITY` storage keys |
+| `App.tsx` | `SessionManager` component, `initialRouteName="Profile"`, `Profile` screen registration |
+| `workers/ai-proxy/index.js` | Fixed response wrapping, CORS fix |
+| `src/services/llm.ts` | Fixed Cloudflare response parsing, syntax error |
+| `ARCHITECTURE.md` | **New** — full architecture and workflow docs |
+| `CHANGELOG_2026-06-21.md` | **New** — daily changelog |
 
 ---
 
 ## Architecture Notes
 
-### Navigation Flow
+### Navigation Flow (Updated)
+
 ```
+Profile (initial route)
+  ├─ Not logged in → login/register form (no back)
+  ├─ Logged in (auto-redirect) → Home
+  └─ After login/register → navigate.replace('Home')
+
 Home → Result (BMI + questionnaire + health insights) → WorkoutPlan
 Home → Settings
 Home → History → WorkoutLog (via day chip on any saved plan)
 Home → WorkoutLog (via "Resume Latest Plan" quick-start card)
+Home → Profile (profile view with logout, change password)
 WorkoutLog → PlanLogs
 ```
 
-### Theme Pattern
-```ts
-const { theme, mode, toggleTheme } = useTheme()
-const s = styles(theme)
-// styles = (t: Theme) => StyleSheet.create({ ... })
+### Auth Flow
+```
+App opens
+  ↓
+Profile screen loads
+  ├─ Profile exists? → navigation.replace('Home')
+  └─ No profile? → Show login form
+                     ├─ Login success → navigation.replace('Home')
+                     └─ Register success → navigation.replace('Home')
+
+HomeScreen focused
+  ├─ isSessionExpired()? → delete profile, reset to Profile
+  ├─ No profile? → reset to Profile
+  └─ OK → updateLastActivity(), load data
+
+App foregrounds (AppState 'active')
+  └─ isSessionExpired()? → delete profile, reset to Profile
 ```
 
-### LLM Generation Modes
-- **Instant** — `src/services/workoutGenerator.ts` local rule-based generator, no network
-- **AI** — `src/services/llm.ts` streaming call to configured provider; `extractStructuredPlan()` parses JSON from response
-
-### Storage Keys
+### Storage Keys (Updated)
 ```ts
 altianly_workout_history  // WorkoutPlan[]
 altianly_workout_logs     // WorkoutLog[]
 altianly_bmi_history      // BMIHistoryEntry[]
-altianly_llm_config       // LLMConfig (SecureStore with AsyncStorage fallback)
+altianly_llm_config       // LLMConfig (SecureStore + AsyncStorage fallback)
 altianly_badges           // Badge[]
 altianly_reminder         // ReminderConfig
 altianly_theme            // 'dark' | 'cream'
+altianly_user_profile     // UserProfile (SecureStore + AsyncStorage fallback)
+altianly_last_activity    // timestamp string (AsyncStorage)
 ```
+
+### Cloudflare Services
+| Service | URL | Purpose |
+|---------|-----|---------|
+| Pages | `044a6f33.altianly.pages.dev` | Serves Expo web build from `dist/` |
+| Workers | `altianly.vishhalchopra.workers.dev` | AI proxy — forwards prompts to Workers AI |
+| Dashboard | `dash.cloudflare.com/.../altianly-ai/production` | Worker logs, secrets, deployments |
 
 ---
 
@@ -136,9 +137,10 @@ altianly_theme            // 'dark' | 'cream'
 | Area | Detail |
 |------|--------|
 | **Daily Reminder on iOS (Expo Go)** | Scheduled background notifications do not fire in Expo Go on iOS. Requires `npx expo run:ios` (development build). Works on Android Expo Go. |
-| **OpenRouter free model rate limits** | Free models share an upstream rate-limit pool. If one is 429'd, switching to another free model works immediately. The error message now correctly tells the user this. |
+| **OpenRouter free model rate limits** | Free models share an upstream rate-limit pool. If one is 429'd, switching to another free model works immediately. |
 | **AI plan parsing** | The LLM is prompted to return JSON but sometimes returns plain text. `extractStructuredPlan()` in `services/llm.ts` uses a lenient parser. Plans that fail to parse show as raw text in History (no day chips). |
 | **Web preview** | `npm run web` works but: notifications disabled, some RNW internal deprecation warnings (`pointerEvents`), `chrome://theme/` browser warnings — all harmless. |
+| **Local auth only** | Password is stored in SecureStore on-device. No backend, no password recovery. If the profile is deleted, data is gone. |
 
 ---
 
@@ -176,8 +178,12 @@ npm start              # Expo dev server (Expo Go on device)
 npm run web            # Browser preview at localhost:8084 (or next available port)
 npx expo run:android   # Full native Android build (needed for full notification support)
 npx expo run:ios       # Full native iOS build
+
+# Cloudflare worker deploy
+cd workers/ai-proxy
+npx wrangler deploy
 ```
 
 ---
 
-*Handoff prepared: 2026-06-20*
+*Handoff prepared: 2026-06-21*

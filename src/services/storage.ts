@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { WorkoutPlan, LLMConfig, WorkoutLog, BMIHistoryEntry, UserProfile } from '../types'
-import { STORAGE_KEYS } from '../constants'
+import { STORAGE_KEYS, SESSION_DURATION_MS } from '../constants'
 
 async function secureSet(key: string, value: string): Promise<void> {
   try {
@@ -103,4 +103,23 @@ export async function deleteUserProfile(): Promise<void> {
   } catch {
     await AsyncStorage.removeItem(STORAGE_KEYS.USER_PROFILE)
   }
+}
+
+export async function updateLastActivity(): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEYS.LAST_ACTIVITY, String(Date.now()))
+}
+
+export async function getLastActivity(): Promise<number | null> {
+  const val = await AsyncStorage.getItem(STORAGE_KEYS.LAST_ACTIVITY)
+  return val ? Number(val) : null
+}
+
+export async function clearLastActivity(): Promise<void> {
+  await AsyncStorage.removeItem(STORAGE_KEYS.LAST_ACTIVITY)
+}
+
+export async function isSessionExpired(): Promise<boolean> {
+  const last = await getLastActivity()
+  if (last === null) return true
+  return Date.now() - last > SESSION_DURATION_MS
 }

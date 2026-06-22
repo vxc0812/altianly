@@ -1,10 +1,12 @@
 import { StatusBar } from 'expo-status-bar'
-import React from 'react'
-import { NavigationContainer } from '@react-navigation/native'
+import React, { useEffect } from 'react'
+import { AppState } from 'react-native'
+import { NavigationContainer, useNavigation } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { RootStackParamList } from './src/types'
 import { ThemeProvider, useTheme } from './src/context/ThemeContext'
 import { setupNotificationHandler } from './src/services/notifications'
+import { isSessionExpired, deleteUserProfile, updateLastActivity } from './src/services/storage'
 
 setupNotificationHandler()
 
@@ -21,12 +23,40 @@ import ProfileScreen from './src/screens/ProfileScreen'
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
+function SessionManager() {
+  const navigation = useNavigation<any>()
+
+  useEffect(() => {
+    ;(async () => {
+      if (await isSessionExpired()) {
+        await deleteUserProfile()
+      } else {
+        await updateLastActivity()
+      }
+    })()
+
+    const sub = AppState.addEventListener('change', async (state) => {
+      if (state === 'active') {
+        if (await isSessionExpired()) {
+          await deleteUserProfile()
+          navigation.reset({ index: 0, routes: [{ name: 'Profile' }] })
+        }
+      }
+    })
+    return () => sub.remove()
+  }, [])
+
+  return null
+}
+
 function AppContent() {
   const { theme } = useTheme()
   return (
     <NavigationContainer>
+      <SessionManager />
       <StatusBar style={theme.isDark ? 'light' : 'dark'} />
       <Stack.Navigator
+        initialRouteName="Profile"
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: theme.bg },
