@@ -17,6 +17,7 @@ import HistoryScreen from './src/screens/HistoryScreen'
 import TimerScreen from './src/screens/TimerScreen'
 import WorkoutLogScreen from './src/screens/WorkoutLogScreen'
 import PlanLogsScreen from './src/screens/PlanLogsScreen'
+import ProfileScreen from './src/screens/ProfileScreen'
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
@@ -41,6 +42,7 @@ function AppContent() {
         <Stack.Screen name="Timer" component={TimerScreen} />
         <Stack.Screen name="WorkoutLog" component={WorkoutLogScreen} />
         <Stack.Screen name="PlanLogs" component={PlanLogsScreen} />
+        <Stack.Screen name="Profile" component={ProfileScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   )

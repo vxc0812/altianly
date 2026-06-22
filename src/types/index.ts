@@ -111,6 +111,14 @@ export interface WorkoutLog {
   entries: WorkoutLogEntry[]
 }
 
+export interface UserProfile {
+  name: string
+  email: string
+  password: string
+  createdAt: number
+  lastLoginAt: number
+}
+
 export type RootStackParamList = {
   Home: undefined
   Result: { userInput: UserInput }
@@ -121,6 +129,7 @@ export type RootStackParamList = {
   Timer: { initialSeconds?: number }
   WorkoutLog: { planId: string; day: number; focus: string; exercises: WorkoutExercise[] }
   PlanLogs: { planId: string }
+  Profile: undefined
 }
 
 export type ExerciseType = 'strength' | 'cardio' | 'metcon' | 'hiit' | 'combat' | 'stretching' | 'wellness' | 'yoga'

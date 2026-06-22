@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { WorkoutPlan, LLMConfig, WorkoutLog, BMIHistoryEntry } from '../types'
+import { WorkoutPlan, LLMConfig, WorkoutLog, BMIHistoryEntry, UserProfile } from '../types'
 import { STORAGE_KEYS } from '../constants'
 
 async function secureSet(key: string, value: string): Promise<void> {
@@ -85,4 +85,22 @@ export async function saveBMIEntry(entry: BMIHistoryEntry): Promise<void> {
 export async function getBMIHistory(): Promise<BMIHistoryEntry[]> {
   const json = await AsyncStorage.getItem(STORAGE_KEYS.BMI_HISTORY)
   return json ? JSON.parse(json) : []
+}
+
+export async function saveUserProfile(profile: UserProfile): Promise<void> {
+  await secureSet(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profile))
+}
+
+export async function getUserProfile(): Promise<UserProfile | null> {
+  const json = await secureGet(STORAGE_KEYS.USER_PROFILE)
+  return json ? JSON.parse(json) : null
+}
+
+export async function deleteUserProfile(): Promise<void> {
+  try {
+    const SecureStore = require('expo-secure-store')
+    await SecureStore.deleteItemAsync(STORAGE_KEYS.USER_PROFILE)
+  } catch {
+    await AsyncStorage.removeItem(STORAGE_KEYS.USER_PROFILE)
+  }
 }

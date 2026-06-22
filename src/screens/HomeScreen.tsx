@@ -246,6 +246,14 @@ export default function HomeScreen({ navigation }: Props) {
             </TouchableOpacity>
             <TouchableOpacity
               style={s.settingsButton}
+              onPress={() => navigation.navigate('Profile')}
+              accessibilityRole="button"
+              accessibilityLabel="Open profile"
+            >
+              <Text style={s.settingsText}>Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.settingsButton}
               onPress={() => navigation.navigate('Settings')}
               accessibilityRole="button"
               accessibilityLabel="Open settings"

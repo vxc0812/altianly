@@ -1,0 +1,43 @@
+f69a3ed Dashboard restructure: HomeScreen is now a training hub with Quick Workout, Start a Split, collapsible BMI card, recent activity
+- HomeScreen converted from pure BMI form to modular dashboard
+- Quick Workout button generates full-body plan with one tap -> WorkoutLog
+- Start a Split modal with PPL/Upper-Lower/Full Body/Bro Split
+- BMI Check collapsed by default, expands inline on tap
+- Recent Activity section shows last 3 logged workouts
+- Streak bar always visible (even at 0)
+- Previous session changes included: progress charts, wizard onboarding merged into ResultScreen, inline rest timer, OpenRouter model picker, provider-aware errors, badges/notifications/workoutGenerator services
+
+e9ee717 Fix CI build: unignore src/data/exercises.ts (workoutGenerator depends on it)
+
+a069d0c Move exercises.ts out of data/ dir to avoid CI gitignore issue
+- Copied src/data/exercises.ts -> src/services/exercises.ts
+- Updated import in workoutGenerator.ts from '../data/exercises' to './exercises'
+- Removed old src/data/exercises.ts from git tracking
+- Updated .gitignore to keep only data/*.json and exerciseDb.ts ignored
+
+48e2899 Inline exercise picker into workoutGenerator.ts, remove external dependencies
+- Moved EXERCISES data array and pickExercise() into workoutGenerator.ts
+- Deleted src/services/exercises.ts (no longer needed)
+- workoutGenerator.ts is now fully self-contained with zero file imports
+- Updated build command to clear .expo cache before each build
+
+98bd505 Rename workoutGenerator.ts -> workoutGen.ts to bust CI cache
+- Renamed to a filename the CI cache has never seen
+- The build output cache was restoring the old workoutGenerator.ts with the original import path
+- A fresh filename forces the CI to use the committed version
+- Updated imports in HomeScreen.tsx and WorkoutPlanScreen.tsx
+
+6081d60 Add barrel files for cached import paths
+- src/data/exercises.ts re-exports pickExercise from workoutGen.ts
+- src/services/workoutGenerator.ts re-exports generateWorkoutPlan from workoutGen.ts
+- These barrel files resolve old import paths that may exist in CI cache,
+  ensuring the build works regardless of whether cached or fresh source files are used
+
+6b0bfbb Trigger fresh CI deployment
+
+4534861 Add Cloudflare AI provider with proxy worker
+
+738015a Fix CORS in AI proxy worker
+
+df1a4d3 Fix Cloudflare response handling; fix syntax error in _onStream
+

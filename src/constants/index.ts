@@ -88,6 +88,7 @@ export const STORAGE_KEYS = {
   BMI_HISTORY: 'altianly_bmi_history',
   BADGES: 'altianly_badges',
   REMINDER: 'altianly_reminder',
+  USER_PROFILE: 'altianly_user_profile',
 } as const
 
 export const EXERCISE_TYPES: ExerciseType[] = ['strength', 'cardio', 'metcon', 'hiit', 'combat', 'stretching', 'wellness', 'yoga']
