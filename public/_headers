@@ -1,0 +1,5 @@
+/altianly-homepage.html
+  Content-Security-Policy: script-src 'self'; object-src 'none'
+
+/app*
+  Content-Security-Policy: script-src 'self' 'unsafe-eval' 'unsafe-inline'; object-src 'none'
