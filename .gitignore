@@ -58,3 +58,9 @@ src/services/exerciseDb.ts
 
 # Windows reserved name artifact
 nul
+
+# Project docs / specs (not part of the app)
+Apple Integration/
+POCKETPAL_*.md
+brand-spec.md
+workout_liability_warning.html
