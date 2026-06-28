@@ -4,6 +4,7 @@
 > **Stack:** React Native (Expo SDK 56), TypeScript, AsyncStorage, SecureStore
 > **Dev server:** `npm start` → Expo Go, `npm run web` → browser preview
 > **Cloudflare:** Pages (web build), Workers (AI proxy), Dashboard (management)
+> **Routing:** Filesystem-based — `dist/index.html` (landing page at `/`), `dist/app/index.html` (Expo app at `/app/`)
 
 ---
 
@@ -28,7 +29,17 @@
 
 - **Landing page** (`public/altianly-homepage.html`) — marketing homepage in the app's dark theme colors with hero, 9 feature cards, "How It Works" steps, 6 app screen mockups, signup form (name + email), and CTA buttons
 - **Signup form** — submits to `/app?name=...&email=...` so the app receives pre-filled values; eliminates the need for a separate signup page inside the app
-- **Production routing** (`public/_redirects`) — Cloudflare Pages rewrites `/` to landing page, `/app*` to Expo `index.html`
+- **Production routing** (`public/_redirects`) — initial attempt using `_redirects` file with 200 proxy rewrites
+
+### Session 4 — Cloudflare Pages routing rewrite
+
+- **Removed `_redirects`** — the `_redirects` file approach was unreliable because `/` is a prefix match (matches all paths), Cloudflare auto-strips `.html` extensions with 308 redirects, and dashboard-level rules can't be removed on free accounts
+- **Filesystem-based routing** — build script restructures `dist/`:
+  - Expo app moves to `dist/app/index.html` → served at `/app/`
+  - Landing page copied to `dist/index.html` → served at `/`
+  - `_headers` simplified to only target `/app/*` (removed bare `/` rule that would collide)
+- **"Get Started Free"** — scrolls to `#signup` form on landing page; form submits `GET /app/?name=X&email=Y`; ProfileScreen reads URL params and pre-fills inputs
+- **ProfileScreen copy** — updated to match the landing page messaging
 
 ---
 
@@ -107,20 +118,25 @@
 | `src/screens/ProfileScreen.tsx` | Modified — logout preserves profile, `window.confirm()` on web, `setSessionToken(null)` |
 | `src/services/auth.ts` | Modified — local fallback for passkey register/login |
 | `public/altianly-homepage.html` | **New** — landing page with signup form, dark theme |
-| `public/_redirects` | **New** — Cloudflare Pages routing rules |
+| `public/_redirects` | **New then deleted** — replaced by filesystem-based routing |
+| `public/_headers` | **Modified** — simplified to only `/app/*` CSP rule |
+| `package.json` | **Modified** — build script restructures `dist/` (Expo in `app/`, landing page at root) |
 | `scripts/dev.js` | **New then removed** — dev server proxy was unstable |
+| `.gitignore` | **Modified** — added docs/spec exclusions |
 
 ---
 
 ## Architecture Notes
 
-### Navigation Flow (Updated)
+### Navigation Flow
 
 ```
-Profile (initial route)
-  ├─ Not logged in → login/register form (no back)
+Landing page (altianly.pages.dev/) → signup form → GET /app/?name=X&email=Y
+                                                         ↓
+App Profile Screen (initial route inside Expo app)
+  ├─ Not logged in → passkey register form (pre-filled from URL params)
   ├─ Logged in (auto-redirect) → Home
-  └─ After login/register → navigate.replace('Home')
+  └─ After register/login → navigate.replace('Home')
 
 Home → Result (BMI + questionnaire + health insights) → WorkoutPlan
 Home → Settings
@@ -167,7 +183,7 @@ altianly_notion_config    // { apiKey: string; databaseId: string } (AsyncStorag
 ### Cloudflare Services
 | Service | URL | Purpose |
 |---------|-----|---------|
-| Pages | `044a6f33.altianly.pages.dev` | Serves Expo web build from `dist/` |
+| Pages | `altianly.pages.dev` | Serves landing page at `/`, Expo app at `/app/` |
 | Workers | `altianly.vishhalchopra.workers.dev` | AI proxy — forwards prompts to Workers AI |
 | Dashboard | `dash.cloudflare.com/.../altianly-ai/production` | Worker logs, secrets, deployments |
 
@@ -185,6 +201,7 @@ altianly_notion_config    // { apiKey: string; databaseId: string } (AsyncStorag
 | **Notion export: web only** | The Notion API call uses `fetch()` which works on all platforms, but clipboard Copy uses `navigator.clipboard` (web only). Share uses React Native `Share.share()` (cross-platform). |
 | **Notion API key stored in plaintext** | The Notion API key is stored in AsyncStorage, not SecureStore. SecureStore would fail on web (requires `expo-secure-store` with `authenticationType` configured for web fallback). |
 | **Passkey needs Cloudflare Worker deployed** | WebAuthn endpoints (`/auth/register/*`, `/auth/login/*`) require the worker at `workers/ai-proxy/` to be deployed. Until then, passkey operations fall back to local profile. |
+| **Routing via filesystem** | Expo app lives at `/app/` (not `/app`). Cloudflare auto-adds trailing slash via 308 redirect. The `_redirects` file was abandoned due to prefix-matching issues and Cloudflare dashboard-level 308 redirects that free accounts can't remove. |
 
 ---
 
@@ -221,7 +238,7 @@ altianly_notion_config    // { apiKey: string; databaseId: string } (AsyncStorag
 ```bash
 npm start              # Expo dev server (Expo Go on device)
 npm run web            # Browser preview
-npm run build          # Production export to dist/ (for Cloudflare Pages)
+npm run build          # Production export to dist/ — restructures: Expo app at app/, landing page at index.html
 npx expo run:android   # Full native Android build
 npx expo run:ios       # Full native iOS build
 
@@ -229,6 +246,14 @@ npx expo run:ios       # Full native iOS build
 cd workers/ai-proxy
 npx wrangler deploy
 ```
+
+## Deployed URLs
+
+| URL | Serves |
+|-----|--------|
+| `https://altianly.pages.dev/` | Landing page (`dist/index.html`) |
+| `https://altianly.pages.dev/app/` | Expo app (`dist/app/index.html`) |
+| `https://altianly.pages.dev/app` | 308 redirect → `/app/` |
 
 ---
 

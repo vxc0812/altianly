@@ -1,6 +1,6 @@
 # Changelog — 2026-06-28
 
-**Notion export, Copy/Share buttons, Remove Daily Reminder · 10 files changed**
+**Notion export, Copy/Share buttons, Remove Daily Reminder, Cloudflare Pages routing rewrite**
 
 ---
 
@@ -130,3 +130,69 @@ The custom dev server proxy was removed shortly after — it wasn't integrating 
 | `scripts/dev.js` | **New** — dev server with landing page + proxy |
 | `package.json` | modified — `npm run web` uses custom dev server (removed same session; reverted to `expo start --web`) |
 | `scripts/dev.js` | **New then deleted** — dev server proxy was not stable; removed integration |
+
+---
+
+## Session 4 — Cloudflare Pages routing rewrite + landing page polish
+
+### Problem
+
+The `_redirects` file with status `200` (proxy) was unreliable on Cloudflare Pages:
+- `/` is a **prefix match** in `_redirects`, matching ALL paths including `/app*`
+- Reordering rules didn't help because a 308 redirect rule at the Cloudflare dashboard level (or default behavior) overrode the `_redirects` file
+- Cloudflare auto-strips `.html` extensions with 308 redirects (e.g. `/index.html` → `/`), which interfered with proxy targets
+
+### Solution — Filesystem-based routing (no `_redirects`)
+
+Replaced `_redirects` with a build-script restructuring approach:
+
+**`package.json` build script** — After `expo export --platform web`:
+1. Creates `dist/app/` directory
+2. Renames `dist/index.html` → `dist/app/index.html` (Expo app moves to subdirectory)
+3. Copies `public/altianly-homepage.html` → `dist/index.html` (landing page at root)
+4. Copies `public/` files (including `_headers`) to `dist/`
+
+Result:
+- `/` → `dist/index.html` → **landing page**
+- `/app/` → `dist/app/index.html` → **Expo app** (Cloudflare auto-trailing-slash adds 308 from `/app` to `/app/`)
+- `/app/*` → served from `dist/app/` directory
+
+**`public/_headers`** — Simplified to only target `/app/*`:
+```
+/app/*
+  Content-Security-Policy: script-src 'self' 'unsafe-eval' 'unsafe-inline'; object-src 'none'
+```
+
+Removed the bare `/` rule (which was a prefix match that would collide with `/app/*`).
+
+**`public/_redirects`** — Deleted entirely (no longer needed; routing is via filesystem).
+
+**`public/altianly-homepage.html`** — All `/app` links changed to `/app/` (trailing slash for directory index).
+
+### Landing page signup flow
+
+- "Get Started Free" button scrolls to `#signup` section on the landing page
+- User fills name + email, clicks "Get Started" → `GET /app/?name=X&email=Y`
+- Expo ProfileScreen reads `window.location.search` params and pre-fills the form
+- User clicks "Register with Passkey" to complete registration
+
+### ProfileScreen copy update
+
+- Title: "Create your account"
+- Subtitle: "Enter your name and email to begin your fitness journey. No password needed — we use passkeys for secure login."
+
+### Cleanup
+
+- `.gitignore` updated to exclude `Apple Integration/`, `POCKETPAL_*.md`, `brand-spec.md`, `workout_liability_warning.html`
+- Unintentionally committed spec/docs files removed from git tracking
+
+## Files changed (Session 4)
+
+| File | Status |
+|------|--------|
+| `package.json` | modified — build script now moves Expo to `dist/app/`, landing page to `dist/index.html` |
+| `public/_headers` | modified — only `/app/*` CSP rule (removed bare `/` collision) |
+| `public/_redirects` | **deleted** — replaced by filesystem structure |
+| `public/altianly-homepage.html` | modified — "Get Started Free" → `#signup`; all `/app` → `/app/` |
+| `src/screens/ProfileScreen.tsx` | modified — updated title/subtitle copy |
+| `.gitignore` | modified — added docs/spec exclusions |
