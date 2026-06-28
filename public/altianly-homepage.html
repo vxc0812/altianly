@@ -450,7 +450,7 @@
       <span class="section-label">Get Started</span>
       <h2 class="section-title">Create your account</h2>
       <p class="section-desc mx-auto">Enter your name and email to begin your fitness journey. No password needed — we use passkeys for secure login.</p>
-      <form class="signup-form" onsubmit="var n=this.querySelector('[name=name]'),e=this.querySelector('[name=email]');if(n.value&&e.value){this.action='/app?name='+encodeURIComponent(n.value)+'&email='+encodeURIComponent(e.value);return true;}return false;">
+      <form class="signup-form" onsubmit="var n=this.querySelector('[name=name]'),e=this.querySelector('[name=email]');if(n.value&&e.value){sessionStorage.setItem('altianly_signup_name',n.value);sessionStorage.setItem('altianly_signup_email',e.value);window.location.href='/app';}return false;">
         <div class="field">
           <label for="signup-name">Name</label>
           <input id="signup-name" name="name" type="text" placeholder="Your name" required>

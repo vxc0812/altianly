@@ -70,6 +70,12 @@ export default function ProfileScreen({ navigation }: Props) {
         navigation.replace('Home')
         return
       }
+      if (Platform.OS === 'web' && typeof sessionStorage !== 'undefined') {
+        const sn = sessionStorage.getItem('altianly_signup_name')
+        const se = sessionStorage.getItem('altianly_signup_email')
+        if (sn) { setName(sn); sessionStorage.removeItem('altianly_signup_name') }
+        if (se) { setEmail(se); sessionStorage.removeItem('altianly_signup_email') }
+      }
       setLoading(false)
     })()
   }, []))
