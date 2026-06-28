@@ -206,9 +206,9 @@ export default function ProfileScreen({ navigation }: Props) {
         )}
 
         <View style={s.formSection}>
-          <Text style={s.formTitle}>Create Account</Text>
+          <Text style={s.formTitle}>Create your account</Text>
           <Text style={s.formSubtitle}>
-            Create your profile to personalize your experience
+            Enter your name and email to begin your fitness journey. No password needed — we use passkeys for secure login.
           </Text>
 
           <View style={s.inputGroup}>
