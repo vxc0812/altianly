@@ -480,17 +480,6 @@
     <p>&copy; 2026 Altianly &middot; Built with React Native + Expo &middot; <a href="https://github.com/vishhalchopra/altianly" target="_blank">GitHub</a></p>
   </footer>
 
-  <script>
-    document.getElementById('signup-form').addEventListener('submit', function(e) {
-      e.preventDefault()
-      var name = this.querySelector('[name=name]').value
-      var email = this.querySelector('[name=email]').value
-      if (name && email) {
-        sessionStorage.setItem('altianly_signup_name', name)
-        sessionStorage.setItem('altianly_signup_email', email)
-        window.location.href = '/app'
-      }
-    })
-  </script>
+  <script src="/signup.js"></script>
 </body>
 </html>
