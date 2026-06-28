@@ -450,14 +450,14 @@
       <span class="section-label">Get Started</span>
       <h2 class="section-title">Create your account</h2>
       <p class="section-desc mx-auto">Enter your name and email to begin your fitness journey. No password needed — we use passkeys for secure login.</p>
-      <form class="signup-form" onsubmit="var n=this.querySelector('[name=name]'),e=this.querySelector('[name=email]');if(n.value&&e.value){sessionStorage.setItem('altianly_signup_name',n.value);sessionStorage.setItem('altianly_signup_email',e.value);window.location.href='/app';}return false;">
+      <form id="signup-form" class="signup-form" action="/app" method="GET">
         <div class="field">
           <label for="signup-name">Name</label>
-          <input id="signup-name" name="name" type="text" placeholder="Your name" required>
+          <input id="signup-name" name="name" type="text" placeholder="Your name" autocomplete="name" required>
         </div>
         <div class="field">
           <label for="signup-email">Email</label>
-          <input id="signup-email" name="email" type="email" placeholder="you@example.com" required>
+          <input id="signup-email" name="email" type="email" placeholder="you@example.com" autocomplete="email" required>
         </div>
         <button type="submit" class="btn btn-primary">Get Started</button>
       </form>
@@ -480,5 +480,17 @@
     <p>&copy; 2026 Altianly &middot; Built with React Native + Expo &middot; <a href="https://github.com/vishhalchopra/altianly" target="_blank">GitHub</a></p>
   </footer>
 
+  <script>
+    document.getElementById('signup-form').addEventListener('submit', function(e) {
+      e.preventDefault()
+      var name = this.querySelector('[name=name]').value
+      var email = this.querySelector('[name=email]').value
+      if (name && email) {
+        sessionStorage.setItem('altianly_signup_name', name)
+        sessionStorage.setItem('altianly_signup_email', email)
+        window.location.href = '/app'
+      }
+    })
+  </script>
 </body>
 </html>
