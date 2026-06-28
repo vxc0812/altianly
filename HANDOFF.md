@@ -1,13 +1,38 @@
 # Altianly — Session Handoff Document
 
-> **Date:** 2026-06-21
+> **Date:** 2026-06-28
 > **Stack:** React Native (Expo SDK 56), TypeScript, AsyncStorage, SecureStore
-> **Dev server:** `npm start` → Expo Go or `npm run web` for browser preview
+> **Dev server:** `npm start` → Expo Go, `npm run web` → browser preview
 > **Cloudflare:** Pages (web build), Workers (AI proxy), Dashboard (management)
 
 ---
 
-## What Was Built This Session
+## What Was Built This Session (2026-06-28)
+
+### Session 1 — Notion Export + Copy/Share (previous agent)
+
+- **WorkoutPlanScreen** — three action buttons below Save: Copy (clipboard), Share (native OS share sheet), Notion (export to Notion database)
+- **HistoryScreen** — Copy / Share / Notion chips on every expanded workout plan card
+- **SettingsScreen** — Notion Integration section with API key + database ID fields, Save/Remove buttons
+- Backed by existing `exportToNotion()` in `src/services/notion.ts` and `getNotionConfig`/`saveNotionConfig`/`deleteNotionConfig` in storage
+- Platform-safe: clipboard calls wrapped in `Platform.OS === 'web'` guard; Notion export uses direct fetch to `api.notion.com`
+
+### Session 2 — Remove Daily Reminder, fix logout, local passkey fallback
+
+- **Remove Daily Reminder** — deleted `src/services/notifications.ts`, removed `expo-notifications` dependency, removed reminder UI from HomeScreen, removed `REMINDER` storage key
+- **Logout preserves profile** — no longer calls `deleteUserProfile()` so returning users can log back in without re-registering; on web uses `window.confirm()` instead of `Alert.alert` (which was unreliable on web)
+- **Session token cleared on logout** — `setSessionToken(null)` called so stale cookies don't linger
+- **Local passkey fallback** — `registerWithPasskey()` and `loginWithPasskey()` both fall back to the local saved profile when the Cloudflare Worker is unreachable
+
+### Session 3 — Landing page, signup form, dev server proxy
+
+- **Landing page** (`public/altianly-homepage.html`) — marketing homepage in the app's dark theme colors with hero, 9 feature cards, "How It Works" steps, 6 app screen mockups, signup form (name + email), and CTA buttons
+- **Signup form** — submits to `/app?name=...&email=...` so the app receives pre-filled values; eliminates the need for a separate signup page inside the app
+- **Production routing** (`public/_redirects`) — Cloudflare Pages rewrites `/` to landing page, `/app*` to Expo `index.html`
+
+---
+
+## What Was Built This Session (2026-06-21)
 
 ### #1 — Profile / Login Page (`src/screens/ProfileScreen.tsx`)
 
@@ -70,6 +95,20 @@
 | `src/services/llm.ts` | Fixed Cloudflare response parsing, syntax error |
 | `ARCHITECTURE.md` | **New** — full architecture and workflow docs |
 | `CHANGELOG_2026-06-21.md` | **New** — daily changelog |
+| `src/screens/WorkoutPlanScreen.tsx` | Copy, Share, Notion export buttons added |
+| `src/screens/HistoryScreen.tsx` | Copy/Share/Notion chips on expanded plan cards |
+| `src/screens/SettingsScreen.tsx` | Notion Integration section (API key + DB ID fields) |
+| `src/constants/index.ts` | `NOTION_API_VERSION` added; `REMINDER` removed |
+| `CHANGELOG_2026-06-28.md` | **New** — daily changelog |
+| `src/services/notifications.ts` | **Deleted** — Daily Reminder removed |
+| `src/screens/HomeScreen.tsx` | Modified — removed reminder UI and dependencies |
+| `App.tsx` | Modified — removed `setupNotificationHandler` |
+| `package.json` | Modified — removed `expo-notifications` |
+| `src/screens/ProfileScreen.tsx` | Modified — logout preserves profile, `window.confirm()` on web, `setSessionToken(null)` |
+| `src/services/auth.ts` | Modified — local fallback for passkey register/login |
+| `public/altianly-homepage.html` | **New** — landing page with signup form, dark theme |
+| `public/_redirects` | **New** — Cloudflare Pages routing rules |
+| `scripts/dev.js` | **New then removed** — dev server proxy was unstable |
 
 ---
 
@@ -87,7 +126,7 @@ Home → Result (BMI + questionnaire + health insights) → WorkoutPlan
 Home → Settings
 Home → History → WorkoutLog (via day chip on any saved plan)
 Home → WorkoutLog (via "Resume Latest Plan" quick-start card)
-Home → Profile (profile view with logout, change password)
+Home → Profile (profile view with logout)
 WorkoutLog → PlanLogs
 ```
 
@@ -96,6 +135,8 @@ WorkoutLog → PlanLogs
 App opens
   ↓
 Profile screen loads
+  ├─ Web: WebAuthn passkey register/login (no password fields)
+  ├─ Native: auto-login from saved profile; name/email form for new users
   ├─ Profile exists? → navigation.replace('Home')
   └─ No profile? → Show login form
                      ├─ Login success → navigation.replace('Home')
@@ -117,10 +158,10 @@ altianly_workout_logs     // WorkoutLog[]
 altianly_bmi_history      // BMIHistoryEntry[]
 altianly_llm_config       // LLMConfig (SecureStore + AsyncStorage fallback)
 altianly_badges           // Badge[]
-altianly_reminder         // ReminderConfig
 altianly_theme            // 'dark' | 'cream'
 altianly_user_profile     // UserProfile (SecureStore + AsyncStorage fallback)
 altianly_last_activity    // timestamp string (AsyncStorage)
+altianly_notion_config    // { apiKey: string; databaseId: string } (AsyncStorage)
 ```
 
 ### Cloudflare Services
@@ -136,11 +177,14 @@ altianly_last_activity    // timestamp string (AsyncStorage)
 
 | Area | Detail |
 |------|--------|
-| **Daily Reminder on iOS (Expo Go)** | Scheduled background notifications do not fire in Expo Go on iOS. Requires `npx expo run:ios` (development build). Works on Android Expo Go. |
 | **OpenRouter free model rate limits** | Free models share an upstream rate-limit pool. If one is 429'd, switching to another free model works immediately. |
 | **AI plan parsing** | The LLM is prompted to return JSON but sometimes returns plain text. `extractStructuredPlan()` in `services/llm.ts` uses a lenient parser. Plans that fail to parse show as raw text in History (no day chips). |
-| **Web preview** | `npm run web` works but: notifications disabled, some RNW internal deprecation warnings (`pointerEvents`), `chrome://theme/` browser warnings — all harmless. |
-| **Local auth only** | Password is stored in SecureStore on-device. No backend, no password recovery. If the profile is deleted, data is gone. |
+| **Web preview** | `npm run web` works but: some RNW internal deprecation warnings (`pointerEvents`), `chrome://theme/` browser warnings — all harmless. |
+| **Local auth only** | Profile is stored in SecureStore on-device. No backend, no password recovery. If the profile is deleted, data is gone. |
+| **Notion setup friction** | Users must create their own Notion integration at https://www.notion.so/my-integrations, copy the API key, create a database, share it with the integration, and paste the database ID into Settings. There's no guided setup flow. |
+| **Notion export: web only** | The Notion API call uses `fetch()` which works on all platforms, but clipboard Copy uses `navigator.clipboard` (web only). Share uses React Native `Share.share()` (cross-platform). |
+| **Notion API key stored in plaintext** | The Notion API key is stored in AsyncStorage, not SecureStore. SecureStore would fail on web (requires `expo-secure-store` with `authenticationType` configured for web fallback). |
+| **Passkey needs Cloudflare Worker deployed** | WebAuthn endpoints (`/auth/register/*`, `/auth/login/*`) require the worker at `workers/ai-proxy/` to be deployed. Until then, passkey operations fall back to local profile. |
 
 ---
 
@@ -151,23 +195,24 @@ altianly_last_activity    // timestamp string (AsyncStorage)
 |---|---------|-------|
 | A | **Micro-interactions + animations** | Staggered card entrance in WorkoutPlanScreen, set-completion pulse in WorkoutLogScreen, haptic feedback via `expo-haptics` |
 | B | **One-tap "Mark Set Done"** | Replace typed reps with a checkbox per set; auto-advance to next exercise |
-| C | **Native share sheet** | Share workout plan as text via OS share dialog (`Share.share()` from react-native) |
 
 ### Medium Priority
 | # | Feature | Notes |
 |---|---------|-------|
-| D | **Badge visibility improvements** | Inline celebration animation when badge unlocked; badge showcase on HomeScreen |
-| E | **PlanLogsScreen polish** | Currently minimal; show exercise-level detail per log entry |
-| F | **Adaptive AI re-plan** | After logging N sessions, surface a "Re-generate plan based on your logs" button |
+| C | **Badge visibility improvements** | Inline celebration animation when badge unlocked; badge showcase on HomeScreen |
+| D | **PlanLogsScreen polish** | Currently minimal; show exercise-level detail per log entry |
+| E | **Adaptive AI re-plan** | After logging N sessions, surface a "Re-generate plan based on your logs" button |
+| F | **Notion guided setup** | Show a step-by-step wizard in Settings for creating/sharing a Notion database and getting the API key |
+| G | **Notion API key in SecureStore** | Move Notion API key to SecureStore; add web fallback to AsyncStorage |
 
 ### Longer Term (needs backend or native build)
 | # | Feature | Notes |
 |---|---------|-------|
-| G | **Apple Health / Google Fit sync** | HealthKit + Google Fit OAuth; pull steps, HRV |
-| H | **Social sharing** | "Share on Instagram Story" with workout overlay |
-| I | **Premium subscription** | RevenueCat integration; free tier = 3 AI plans/month |
-| J | **SQLite migration** | Replace AsyncStorage with SQLite + TypeORM for relational queries |
-| K | **Remote push notifications** | Firebase Cloud Messaging for premium weekly plan reminders |
+| H | **Apple Health / Google Fit sync** | HealthKit + Google Fit OAuth; pull steps, HRV |
+| I | **Social sharing** | "Share on Instagram Story" with workout overlay |
+| J | **Premium subscription** | RevenueCat integration; free tier = 3 AI plans/month |
+| K | **SQLite migration** | Replace AsyncStorage with SQLite + TypeORM for relational queries |
+| L | **Remote push notifications** | Firebase Cloud Messaging for premium weekly plan reminders |
 
 ---
 
@@ -175,8 +220,9 @@ altianly_last_activity    // timestamp string (AsyncStorage)
 
 ```bash
 npm start              # Expo dev server (Expo Go on device)
-npm run web            # Browser preview at localhost:8084 (or next available port)
-npx expo run:android   # Full native Android build (needed for full notification support)
+npm run web            # Browser preview
+npm run build          # Production export to dist/ (for Cloudflare Pages)
+npx expo run:android   # Full native Android build
 npx expo run:ios       # Full native iOS build
 
 # Cloudflare worker deploy
@@ -186,4 +232,4 @@ npx wrangler deploy
 
 ---
 
-*Handoff prepared: 2026-06-21*
+*Handoff prepared: 2026-06-28*

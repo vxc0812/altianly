@@ -89,10 +89,12 @@ export const STORAGE_KEYS = {
   WORKOUT_LOGS: 'altianly_workout_logs',
   BMI_HISTORY: 'altianly_bmi_history',
   BADGES: 'altianly_badges',
-  REMINDER: 'altianly_reminder',
   USER_PROFILE: 'altianly_user_profile',
   LAST_ACTIVITY: 'altianly_last_activity',
+  NOTION_CONFIG: 'altianly_notion_config',
 } as const
+
+export const NOTION_API_VERSION = '2022-06-28'
 
 export const EXERCISE_TYPES: ExerciseType[] = ['strength', 'cardio', 'metcon', 'hiit', 'combat', 'stretching', 'wellness', 'yoga']
 export const EXERCISE_FOCUSES: ExerciseFocus[] = ['full-body', 'upper-body', 'lower-body', 'abs']

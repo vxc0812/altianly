@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  Platform,
 } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RouteProp } from '@react-navigation/native'
@@ -25,6 +26,7 @@ export default function WorkoutLogScreen({ navigation, route }: Props) {
   const s = styles(theme)
   const { planId, day, focus, exercises } = route.params
 
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false)
   const [entries, setEntries] = useState<WorkoutLogEntry[]>(
     exercises.map((ex) => ({
       exerciseName: ex.name,
@@ -100,6 +102,25 @@ export default function WorkoutLogScreen({ navigation, route }: Props) {
         </TouchableOpacity>
       </View>
 
+      {!disclaimerAccepted ? (
+        <View style={s.disclaimerCard}>
+          <Text style={s.disclaimerTitle}>Before You Begin</Text>
+          <Text style={s.disclaimerText}>
+            These exercises are designed for general fitness. If you have a medical condition, recent injury, chronic pain, or haven't been active in a while, consult a healthcare professional before starting. Stop immediately if you feel chest pain, dizziness, or shortness of breath.
+          </Text>
+          <TouchableOpacity
+            style={s.checkboxRow}
+            onPress={() => setDisclaimerAccepted(true)}
+            activeOpacity={0.7}
+          >
+            <View style={[s.checkbox, disclaimerAccepted && s.checkboxChecked]}>
+              {disclaimerAccepted && <Text style={s.checkmark}>✓</Text>}
+            </View>
+            <Text style={s.checkboxLabel}>I understand and agree to proceed</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+      <>
       {entries.map((entry, i) => (
         <View key={i} style={s.card}>
           <Text style={s.exerciseName}>{entry.exerciseName}</Text>
@@ -172,6 +193,7 @@ export default function WorkoutLogScreen({ navigation, route }: Props) {
       <TouchableOpacity style={s.saveButton} onPress={handleSave}>
         <Text style={s.saveButtonText}>Save Log</Text>
       </TouchableOpacity>
+      </>)}
     </ScrollView>
   )
 }
@@ -200,4 +222,21 @@ const styles = (t: Theme) => StyleSheet.create({
   restCountdownUrgent: { color: t.danger },
   restStopBtn: { backgroundColor: t.danger + '18', borderWidth: 1, borderColor: t.danger + '40', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
   restStopText: { color: t.danger, fontSize: 13, fontWeight: '600' },
+  disclaimerCard: {
+    backgroundColor: t.surface, borderWidth: 1, borderColor: t.danger + '50',
+    borderRadius: 12, padding: 24, marginTop: 16,
+  },
+  disclaimerTitle: { fontSize: 18, fontWeight: '800', color: t.text, textAlign: 'center', marginBottom: 16 },
+  disclaimerText: {
+    fontSize: 14, color: t.textSecondary, lineHeight: 22, textAlign: 'center',
+    marginBottom: 24,
+  },
+  checkboxRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  checkbox: {
+    width: 24, height: 24, borderRadius: 4, borderWidth: 2, borderColor: t.accent,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  checkboxChecked: { backgroundColor: t.accent },
+  checkmark: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  checkboxLabel: { color: t.text, fontSize: 15, fontWeight: '600' },
 })

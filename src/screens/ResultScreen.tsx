@@ -6,6 +6,7 @@ import { RootStackParamList, UserInput, Lifestyle, ExerciseLevel, TrainingSplit,
 import { calculateBMI } from '../services/bmi'
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
+import { Button, Card } from '../components'
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Result'>
@@ -79,7 +80,7 @@ interface Recommendation {
 }
 
 function getRecommendations(evaluation: string, userInput: UserInput): Recommendation[] {
-  const { age, gender } = userInput
+  const { age } = userInput
   const tips: Recommendation[] = []
 
   const nutritionMap: Record<string, string> = {
@@ -162,13 +163,13 @@ export default function ResultScreen({ navigation, route }: Props) {
 
       <Text style={s.sectionTitle}>Health Insights</Text>
       {recommendations.map((rec, i) => (
-        <View key={i} style={s.actionCard} accessibilityRole="text" accessibilityLabel={`${rec.title}: ${rec.body}`}>
+        <Card key={i} style={{ marginBottom: 12 }} accessibilityRole="text" accessibilityLabel={`${rec.title}: ${rec.body}`}>
           <View style={s.actionHeader}>
             <Text style={s.actionIcon}>{rec.icon}</Text>
             <Text style={s.actionTitle}>{rec.title}</Text>
           </View>
           <Text style={s.actionBody}>{rec.body}</Text>
-        </View>
+        </Card>
       ))}
 
       <View style={s.divider} />
@@ -291,24 +292,27 @@ export default function ResultScreen({ navigation, route }: Props) {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity
-        style={[s.primaryButton, !canGenerate && s.primaryButtonDisabled]}
+      <Button
+        title={mode === 'instant' ? 'Generate Quick Plan' : 'Generate AI Plan'}
         onPress={handleGenerate}
         disabled={!canGenerate}
-        accessibilityRole="button"
+        style={{ marginTop: 8, marginBottom: 12 }}
         accessibilityLabel="Generate your personalized workout plan"
-      >
-        <Text style={s.primaryButtonText}>{mode === 'instant' ? 'Generate Quick Plan' : 'Generate AI Plan'}</Text>
-      </TouchableOpacity>
+      />
 
-      <TouchableOpacity
-        style={s.secondaryButton}
+      <Button
+        title="Re-enter Measurements"
+        variant="ghost"
         onPress={() => navigation.goBack()}
-        accessibilityRole="button"
         accessibilityLabel="Go back and re-enter your measurements"
-      >
-        <Text style={s.secondaryButtonText}>Re-enter Measurements</Text>
-      </TouchableOpacity>
+      />
+
+      <Button
+        title="Detailed Questionnaire →"
+        variant="ghost"
+        onPress={() => navigation.navigate('Questionnaire', { userInput, bmiResult: { bmi, evaluation } })}
+        accessibilityLabel="Open detailed questionnaire"
+      />
 
     </ScrollView>
   )
@@ -323,23 +327,10 @@ const styles = (t: Theme) => StyleSheet.create({
   badge: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20, marginTop: 12 },
   badgeText: { fontSize: 16, fontWeight: '700' },
   sectionTitle: { fontSize: 20, fontWeight: '700', color: t.text, marginBottom: 16, marginTop: 8 },
-  actionCard: {
-    backgroundColor: t.surface,
-    borderWidth: 1,
-    borderColor: t.border,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
   actionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   actionIcon: { fontSize: 20, marginRight: 10 },
   actionTitle: { fontSize: 16, fontWeight: '700', color: t.text },
   actionBody: { fontSize: 14, color: t.textSecondary, lineHeight: 20 },
-  primaryButton: { backgroundColor: t.success, padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 8, marginBottom: 12 },
-  primaryButtonDisabled: { opacity: 0.5 },
-  primaryButtonText: { color: t.successText, fontSize: 16, fontWeight: '700' },
-  secondaryButton: { padding: 16, alignItems: 'center' },
-  secondaryButtonText: { color: t.accent, fontSize: 15 },
   questionLabel: { fontSize: 14, fontWeight: '600', color: t.textSecondary, marginBottom: 8, marginTop: 16 },
   optionsRow: { gap: 8, marginBottom: 4 },
   optionCard: { backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 14 },

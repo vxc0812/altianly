@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  Modal,
 } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useFocusEffect } from '@react-navigation/native'
@@ -16,11 +18,12 @@ import { RootStackParamList, UserProfile } from '../types'
 import {
   getUserProfile,
   saveUserProfile,
-  deleteUserProfile,
   updateLastActivity,
 } from '../services/storage'
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
+import { isWebAuthnAvailable } from '../services/webauthn'
+import { registerWithPasskey, loginWithPasskey, setSessionToken } from '../services/auth'
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Profile'> }
 
@@ -50,16 +53,14 @@ export default function ProfileScreen({ navigation }: Props) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const [isRegister, setIsRegister] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
 
-  const [showChangePassword, setShowChangePassword] = useState(false)
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const [passkeyBusy, setPasskeyBusy] = useState(false)
+  const passkeyWebAvailable = Platform.OS === 'web' && isWebAuthnAvailable()
+
+  const [showDisclaimer, setShowDisclaimer] = useState(false)
+  const [disclaimerChecked, setDisclaimerChecked] = useState(false)
 
   useFocusEffect(useCallback(() => {
     ;(async () => {
@@ -73,59 +74,13 @@ export default function ProfileScreen({ navigation }: Props) {
     })()
   }, []))
 
-  function resetForm() {
-    setName('')
-    setEmail('')
-    setPassword('')
-    setConfirmPassword('')
-  }
-
-  function switchMode() {
-    resetForm()
-    setIsRegister((prev) => !prev)
-  }
-
-  async function handleLogin() {
-    if (!email.trim()) { Alert.alert('Error', 'Email is required'); return }
-    if (!password.trim()) { Alert.alert('Error', 'Password is required'); return }
-
-    const saved = await getUserProfile()
-    if (!saved) {
-      Alert.alert('Error', 'No account found. Please register first.')
-      return
-    }
-    if (saved.email.toLowerCase() !== email.trim().toLowerCase()) {
-      Alert.alert('Error', 'No account found with that email.')
-      return
-    }
-    if (saved.password !== password) {
-      Alert.alert('Error', 'Incorrect password.')
-      return
-    }
-
-    const updated: UserProfile = { ...saved, lastLoginAt: Date.now() }
-    await saveUserProfile(updated)
-    await updateLastActivity()
-    navigation.replace('Home')
-  }
-
-  async function handleRegister() {
+  async function handleNativeRegister() {
     if (!name.trim()) { Alert.alert('Error', 'Name is required'); return }
     if (!email.trim()) { Alert.alert('Error', 'Email is required'); return }
-    if (!password.trim()) { Alert.alert('Error', 'Password is required'); return }
-    if (password.length < 4) { Alert.alert('Error', 'Password must be at least 4 characters'); return }
-    if (password !== confirmPassword) { Alert.alert('Error', 'Passwords do not match'); return }
-
-    const existing = await getUserProfile()
-    if (existing) {
-      Alert.alert('Error', 'An account already exists on this device.')
-      return
-    }
 
     const newProfile: UserProfile = {
       name: name.trim(),
       email: email.trim().toLowerCase(),
-      password,
       createdAt: Date.now(),
       lastLoginAt: Date.now(),
     }
@@ -134,46 +89,51 @@ export default function ProfileScreen({ navigation }: Props) {
     navigation.replace('Home')
   }
 
-  function resetChangePassword() {
-    setCurrentPassword('')
-    setNewPassword('')
-    setConfirmNewPassword('')
-    setShowChangePassword(false)
+  async function handleWebRegister() {
+    if (!name.trim()) { Alert.alert('Error', 'Name is required'); return }
+    if (!email.trim()) { Alert.alert('Error', 'Email is required'); return }
+    setDisclaimerChecked(false)
+    setShowDisclaimer(true)
   }
 
-  async function handleChangePassword() {
-    if (!currentPassword) { Alert.alert('Error', 'Enter your current password'); return }
-    if (!newPassword) { Alert.alert('Error', 'Enter a new password'); return }
-    if (newPassword.length < 4) { Alert.alert('Error', 'New password must be at least 4 characters'); return }
-    if (newPassword !== confirmNewPassword) { Alert.alert('Error', 'New passwords do not match'); return }
-
-    const saved = await getUserProfile()
-    if (!saved) return
-    if (saved.password !== currentPassword) {
-      Alert.alert('Error', 'Current password is incorrect')
-      return
+  async function completeWebRegister() {
+    setShowDisclaimer(false)
+    setPasskeyBusy(true)
+    const result = await registerWithPasskey(name.trim(), email.trim())
+    setPasskeyBusy(false)
+    if (result.ok) {
+      navigation.replace('Home')
+    } else if (result.error) {
+      Alert.alert('Registration Failed', result.error)
     }
-
-    const updated: UserProfile = { ...saved, password: newPassword }
-    await saveUserProfile(updated)
-    setProfile(updated)
-    resetChangePassword()
-    Alert.alert('Success', 'Password changed successfully')
   }
 
-  async function handleLogout() {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteUserProfile()
-          setProfile(null)
-          resetForm()
-        },
-      },
-    ])
+  async function handleWebLogin() {
+    setPasskeyBusy(true)
+    const result = await loginWithPasskey()
+    setPasskeyBusy(false)
+    if (result.ok) {
+      navigation.replace('Home')
+    } else if (result.error) {
+      Alert.alert('Login Failed', result.error)
+    }
+  }
+
+  function doLogout() {
+    setSessionToken(null)
+    setProfile(null)
+  }
+
+  function handleLogout() {
+    if (Platform.OS === 'web') {
+      const ok = window.confirm('Are you sure you want to logout?')
+      if (ok) doLogout()
+    } else {
+      Alert.alert('Logout', 'Are you sure you want to logout?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Logout', style: 'destructive', onPress: doLogout },
+      ])
+    }
   }
 
   if (loading) {
@@ -210,8 +170,8 @@ export default function ProfileScreen({ navigation }: Props) {
 
         <View style={s.statsRow}>
           <View style={s.statCard}>
-            <Text style={s.statValue}>1</Text>
-            <Text style={s.statLabel}>Profile</Text>
+            <Text style={s.statValue}>{Math.max(1, Math.floor((Date.now() - profile.createdAt) / 86400000))}</Text>
+            <Text style={s.statLabel}>Days Active</Text>
           </View>
           <View style={s.statDivider} />
           <View style={s.statCard}>
@@ -219,59 +179,6 @@ export default function ProfileScreen({ navigation }: Props) {
             <Text style={s.statLabel}>Logged In</Text>
           </View>
         </View>
-
-        <TouchableOpacity
-          style={s.changePasswordButton}
-          onPress={() => setShowChangePassword(!showChangePassword)}
-        >
-          <Text style={s.changePasswordText}>
-            {showChangePassword ? 'Cancel' : 'Change Password'}
-          </Text>
-        </TouchableOpacity>
-
-        {showChangePassword && (
-          <View style={s.changePasswordSection}>
-            <View style={s.inputGroup}>
-              <Text style={s.label}>Current Password</Text>
-              <TextInput
-                style={s.input}
-                value={currentPassword}
-                onChangeText={setCurrentPassword}
-                placeholder="Enter current password"
-                placeholderTextColor={theme.textMuted}
-                secureTextEntry
-                autoCapitalize="none"
-              />
-            </View>
-            <View style={s.inputGroup}>
-              <Text style={s.label}>New Password</Text>
-              <TextInput
-                style={s.input}
-                value={newPassword}
-                onChangeText={setNewPassword}
-                placeholder="Enter new password"
-                placeholderTextColor={theme.textMuted}
-                secureTextEntry
-                autoCapitalize="none"
-              />
-            </View>
-            <View style={s.inputGroup}>
-              <Text style={s.label}>Confirm New Password</Text>
-              <TextInput
-                style={s.input}
-                value={confirmNewPassword}
-                onChangeText={setConfirmNewPassword}
-                placeholder="Re-enter new password"
-                placeholderTextColor={theme.textMuted}
-                secureTextEntry
-                autoCapitalize="none"
-              />
-            </View>
-            <TouchableOpacity style={s.savePasswordButton} onPress={handleChangePassword}>
-              <Text style={s.savePasswordText}>Save Password</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         <TouchableOpacity style={s.logoutButton} onPress={handleLogout}>
           <Text style={s.logoutText}>Logout</Text>
@@ -292,27 +199,23 @@ export default function ProfileScreen({ navigation }: Props) {
         )}
 
         <View style={s.formSection}>
-          <Text style={s.formTitle}>{isRegister ? 'Create Account' : 'Login'}</Text>
+          <Text style={s.formTitle}>Create Account</Text>
           <Text style={s.formSubtitle}>
-            {isRegister
-              ? 'Create your profile to personalize your experience'
-              : 'Sign in to your account'}
+            Create your profile to personalize your experience
           </Text>
 
-          {isRegister && (
-            <View style={s.inputGroup}>
-              <Text style={s.label}>Name</Text>
-              <TextInput
-                style={s.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="Your name"
-                placeholderTextColor={theme.textMuted}
-                autoCapitalize="words"
-                autoCorrect={false}
-              />
-            </View>
-          )}
+          <View style={s.inputGroup}>
+            <Text style={s.label}>Name</Text>
+            <TextInput
+              style={s.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="Your name"
+              placeholderTextColor={theme.textMuted}
+              autoCapitalize="words"
+              autoCorrect={false}
+            />
+          </View>
 
           <View style={s.inputGroup}>
             <Text style={s.label}>Email</Text>
@@ -328,48 +231,106 @@ export default function ProfileScreen({ navigation }: Props) {
             />
           </View>
 
-          <View style={s.inputGroup}>
-            <Text style={s.label}>Password</Text>
-            <TextInput
-              style={s.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder={isRegister ? 'Create a password' : 'Your password'}
-              placeholderTextColor={theme.textMuted}
-              secureTextEntry
-              autoCapitalize="none"
-            />
-          </View>
-
-          {isRegister && (
-            <View style={s.inputGroup}>
-              <Text style={s.label}>Confirm Password</Text>
-              <TextInput
-                style={s.input}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="Re-enter password"
-                placeholderTextColor={theme.textMuted}
-                secureTextEntry
-                autoCapitalize="none"
-              />
-            </View>
+          {passkeyWebAvailable ? (
+            <TouchableOpacity
+              style={s.primaryButton}
+              onPress={handleWebRegister}
+              disabled={passkeyBusy}
+            >
+              {passkeyBusy
+                ? <ActivityIndicator color="#FFF" size="small" />
+                : <Text style={s.primaryButtonText}>Register with Passkey</Text>
+              }
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={s.primaryButton} onPress={handleNativeRegister}>
+              <Text style={s.primaryButtonText}>Create Account</Text>
+            </TouchableOpacity>
           )}
 
-          <TouchableOpacity
-            style={s.primaryButton}
-            onPress={isRegister ? handleRegister : handleLogin}
-          >
-            <Text style={s.primaryButtonText}>{isRegister ? 'Create Account' : 'Login'}</Text>
-          </TouchableOpacity>
+          {passkeyWebAvailable && (
+            <>
+              <View style={s.dividerRow}>
+                <View style={s.dividerLine} />
+                <Text style={s.dividerText}>or</Text>
+                <View style={s.dividerLine} />
+              </View>
 
-          <TouchableOpacity style={s.switchButton} onPress={switchMode}>
-            <Text style={s.switchText}>
-              {isRegister ? 'Already have an account? Login' : "Don't have an account? Register"}
-            </Text>
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={s.secondaryButton}
+                onPress={handleWebLogin}
+                disabled={passkeyBusy}
+              >
+                {passkeyBusy
+                  ? <ActivityIndicator color={theme.accent} size="small" />
+                  : <Text style={s.secondaryButtonText}>Login with Passkey</Text>
+                }
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </ScrollView>
+
+      <Modal visible={showDisclaimer} animationType="slide" transparent>
+        <View style={s.modalOverlay}>
+          <View style={s.disclaimerModal}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={s.disclaimerHeader}>
+                <Text style={s.disclaimerHeaderText}>Before you begin — read this</Text>
+                <TouchableOpacity onPress={() => setShowDisclaimer(false)}>
+                  <Text style={s.disclaimerDismiss}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={s.disclaimerBody}>
+                <Text style={s.disclaimerSectionLabel}>Medical disclaimer</Text>
+                <Text style={s.disclaimerSectionText}>
+                  This app provides general fitness content for informational purposes only. Nothing here constitutes medical advice, diagnosis, or treatment. Consult a licensed physician or qualified healthcare professional before starting any exercise program, especially if you have a pre-existing medical condition, injury, disability, or have been physically inactive.
+                </Text>
+
+                <Text style={s.disclaimerSectionLabel}>Assumption of risk</Text>
+                <Text style={s.disclaimerSectionText}>
+                  Physical exercise carries inherent risk of injury or harm. By using this app, you voluntarily assume full responsibility for any injury, loss, or damage that may result from participating in these workouts. This app and its creators are not liable for any harm arising from your use of this content.
+                </Text>
+
+                <Text style={s.disclaimerSectionLabel}>No guarantee of results</Text>
+                <Text style={s.disclaimerSectionText}>
+                  Results vary by individual based on factors including fitness level, diet, consistency, and genetics. We make no guarantee that any workout will help you achieve a specific goal. Any results shown or described are illustrative and not typical.
+                </Text>
+
+                <View style={s.disclaimerDangerBox}>
+                  <Text style={s.disclaimerDangerText}>
+                    <Text style={{ fontWeight: '700' }}>Stop exercising immediately</Text> if you experience chest pain, dizziness, shortness of breath, or severe discomfort. Seek emergency medical attention if needed.
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={s.disclaimerCheckRow}
+                  onPress={() => setDisclaimerChecked(!disclaimerChecked)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[s.disclaimerCheckbox, disclaimerChecked && s.disclaimerCheckboxChecked]}>
+                    {disclaimerChecked && <Text style={s.disclaimerCheckmark}>✓</Text>}
+                  </View>
+                  <Text style={s.disclaimerCheckLabel}>
+                    I have read and understood this disclaimer. I accept full responsibility for my participation and acknowledge that results are not guaranteed.
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[s.disclaimerCta, !disclaimerChecked && s.disclaimerCtaDisabled]}
+                  disabled={!disclaimerChecked}
+                  onPress={completeWebRegister}
+                >
+                  <Text style={[s.disclaimerCtaText, !disclaimerChecked && s.disclaimerCtaTextDisabled]}>
+                    I understand, let's start
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   )
 }
@@ -399,21 +360,6 @@ const styles = (t: Theme) => StyleSheet.create({
   statDivider: { width: 1, backgroundColor: t.border, alignSelf: 'stretch' },
   statValue: { color: t.text, fontSize: 20, fontWeight: '700', marginBottom: 4 },
   statLabel: { color: t.textSecondary, fontSize: 13 },
-  // Change Password
-  changePasswordButton: {
-    backgroundColor: t.surface, borderWidth: 1, borderColor: t.border,
-    borderRadius: 8, padding: 15, alignItems: 'center', minHeight: 50, justifyContent: 'center', marginBottom: 12,
-  },
-  changePasswordText: { color: t.accent, fontSize: 16, fontWeight: '600' },
-  changePasswordSection: {
-    backgroundColor: t.surface, borderWidth: 1, borderColor: t.border,
-    borderRadius: 8, padding: 16, marginBottom: 12,
-  },
-  savePasswordButton: {
-    backgroundColor: t.accent, borderRadius: 8, padding: 14,
-    alignItems: 'center', minHeight: 48, justifyContent: 'center',
-  },
-  savePasswordText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
   // Logout
   logoutButton: {
     backgroundColor: t.surface, borderWidth: 1, borderColor: t.danger,
@@ -435,6 +381,59 @@ const styles = (t: Theme) => StyleSheet.create({
     alignItems: 'center', minHeight: 50, justifyContent: 'center', marginTop: 8,
   },
   primaryButtonText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
-  switchButton: { alignItems: 'center', marginTop: 20, padding: 8 },
-  switchText: { color: t.accent, fontSize: 14, fontWeight: '500' },
+  secondaryButton: {
+    backgroundColor: t.surface, borderWidth: 1, borderColor: t.accent,
+    borderRadius: 8, padding: 15, alignItems: 'center', minHeight: 50,
+    justifyContent: 'center', marginTop: 8,
+  },
+  secondaryButtonText: { color: t.accent, fontSize: 15, fontWeight: '600' },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 20, gap: 12 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: t.border },
+  dividerText: { color: t.textSecondary, fontSize: 13 },
+  // Disclaimer
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  disclaimerModal: {
+    backgroundColor: t.bg, borderTopLeftRadius: 16, borderTopRightRadius: 16,
+    maxHeight: '90%', paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  disclaimerHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    padding: 16, paddingHorizontal: 20,
+    borderBottomWidth: 1, borderBottomColor: t.border,
+  },
+  disclaimerHeaderText: { fontSize: 16, fontWeight: '700', color: t.text },
+  disclaimerDismiss: { color: t.accent, fontSize: 15, fontWeight: '600' },
+  disclaimerBody: { padding: 20 },
+  disclaimerSectionLabel: {
+    fontSize: 11, fontWeight: '700', color: t.textSecondary,
+    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6, marginTop: 16,
+  },
+  disclaimerSectionText: {
+    fontSize: 13, color: t.textSecondary, lineHeight: 20, marginBottom: 4,
+  },
+  disclaimerDangerBox: {
+    backgroundColor: t.danger + '18', borderWidth: 1, borderColor: t.danger + '50',
+    borderRadius: 8, padding: 12, marginTop: 20, marginBottom: 20,
+  },
+  disclaimerDangerText: { fontSize: 13, color: t.danger, lineHeight: 20 },
+  disclaimerCheckRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    marginBottom: 20, paddingRight: 4,
+  },
+  disclaimerCheckbox: {
+    width: 22, height: 22, borderRadius: 4, borderWidth: 2, borderColor: t.accent,
+    alignItems: 'center', justifyContent: 'center', marginTop: 1, flexShrink: 0,
+  },
+  disclaimerCheckboxChecked: { backgroundColor: t.accent },
+  disclaimerCheckmark: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+  disclaimerCheckLabel: {
+    flex: 1, fontSize: 13, color: t.textSecondary, lineHeight: 19,
+  },
+  disclaimerCta: {
+    backgroundColor: t.accent, borderRadius: 8, padding: 14,
+    alignItems: 'center', minHeight: 48, justifyContent: 'center',
+  },
+  disclaimerCtaDisabled: { opacity: 0.4 },
+  disclaimerCtaText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  disclaimerCtaTextDisabled: { color: '#FFF' },
 })

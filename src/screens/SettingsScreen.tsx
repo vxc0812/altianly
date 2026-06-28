@@ -9,10 +9,14 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Linking,
 } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RootStackParamList, LLMConfig } from '../types'
-import { getLLMConfig, saveLLMConfig } from '../services/storage'
+import {
+  getLLMConfig, saveLLMConfig,
+  getNotionConfig, saveNotionConfig, deleteNotionConfig,
+} from '../services/storage'
 import { testConnection } from '../services/llm'
 import { PROVIDER_INFO, DEFAULT_LLM_CONFIGS, RECOMMENDED_MODELS, API_KEY_HELP } from '../constants'
 import { useTheme } from '../context/ThemeContext'
@@ -40,8 +44,10 @@ export default function SettingsScreen({ navigation }: Props) {
   const [loadingModels, setLoadingModels] = useState(false)
   const [showPicker, setShowPicker] = useState(false)
   const [testResult, setTestResult] = useState<TestResult>(null)
+  const [notionApiKey, setNotionApiKey] = useState('')
+  const [notionDbId, setNotionDbId] = useState('')
 
-  useEffect(() => { loadConfig() }, [])
+  useEffect(() => { loadConfig(); loadNotionConfig() }, [])
 
   // Fetch models once config is loaded and provider is openrouter
   useEffect(() => {
@@ -79,7 +85,7 @@ export default function SettingsScreen({ navigation }: Props) {
     try {
       const res = await fetch('https://openrouter.ai/api/v1/models')
       const json = await res.json()
-      const all: any[] = json.data || []
+      const all: { id: string; name?: string }[] = json.data || []
       const free = all
         .filter((m) => m.id.endsWith(':free'))
         .map((m) => ({ id: m.id, name: m.name || m.id }))
@@ -108,6 +114,30 @@ export default function SettingsScreen({ navigation }: Props) {
     await saveLLMConfig(config)
     setSaving(false)
     Alert.alert('Saved', 'LLM configuration saved successfully')
+  }
+
+  async function loadNotionConfig() {
+    const cfg = await getNotionConfig()
+    if (cfg) {
+      setNotionApiKey(cfg.apiKey)
+      setNotionDbId(cfg.databaseId)
+    }
+  }
+
+  async function handleSaveNotion() {
+    if (!notionApiKey.trim() || !notionDbId.trim()) {
+      Alert.alert('Error', 'Both API key and Database ID are required')
+      return
+    }
+    await saveNotionConfig({ apiKey: notionApiKey.trim(), databaseId: notionDbId.trim() })
+    Alert.alert('Saved', 'Notion integration configured')
+  }
+
+  async function handleRemoveNotion() {
+    await deleteNotionConfig()
+    setNotionApiKey('')
+    setNotionDbId('')
+    Alert.alert('Removed', 'Notion integration removed')
   }
 
   async function handleTest() {
@@ -271,6 +301,73 @@ export default function SettingsScreen({ navigation }: Props) {
       </View>
 
       {/* Model Picker Modal (OpenRouter only) */}
+      <Text style={s.sectionTitle}>Data</Text>
+      <TouchableOpacity
+        style={s.featureCard}
+        onPress={() => navigation.navigate('HistoryGraph')}
+      >
+        <Text style={s.featureCardTitle}>BMI & Weight Graphs</Text>
+        <Text style={s.featureCardDesc}>View line charts of your BMI and weight over time, by day, week, month, or year</Text>
+      </TouchableOpacity>
+
+      <Text style={s.sectionTitle}>Notion Integration</Text>
+      <TouchableOpacity
+        style={s.notionSetupRow}
+        onPress={() => Linking.openURL('https://www.notion.so/my-integrations').catch(() => {})}
+        activeOpacity={0.7}
+      >
+        <Text style={s.notionSetupText}>
+          Create an integration at{' '}
+          <Text style={s.notionLinkText}>notion.so/my-integrations</Text>
+          , then share a database with it.
+        </Text>
+      </TouchableOpacity>
+      <View style={s.inputGroup}>
+        <Text style={s.label}>Notion API Key</Text>
+        <TextInput
+          style={s.input}
+          value={notionApiKey}
+          onChangeText={setNotionApiKey}
+          placeholder="secret_..."
+          placeholderTextColor={theme.textMuted}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </View>
+      <View style={s.inputGroup}>
+        <Text style={s.label}>Database ID</Text>
+        <TextInput
+          style={s.input}
+          value={notionDbId}
+          onChangeText={setNotionDbId}
+          placeholder="e.g. a1b2c3d4e5f6..."
+          placeholderTextColor={theme.textMuted}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <Text style={s.hint}>Share your database with the integration at Notion → Share.</Text>
+      </View>
+      <View style={s.notionActions}>
+        <TouchableOpacity style={s.buttonSaveNotion} onPress={handleSaveNotion}>
+          <Text style={s.buttonSaveNotionText}>Save Notion Config</Text>
+        </TouchableOpacity>
+        {!!notionApiKey && !!notionDbId && (
+          <TouchableOpacity style={s.removeButton} onPress={handleRemoveNotion}>
+            <Text style={s.removeButtonText}>Remove</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <Text style={s.sectionTitle}>AI Features</Text>
+      <TouchableOpacity
+        style={s.featureCard}
+        onPress={() => navigation.navigate('ConversationalWorkout')}
+      >
+        <Text style={s.featureCardTitle}>Conversational Workout</Text>
+        <Text style={s.featureCardDesc}>Chat with your AI trainer to generate a personalized workout plan</Text>
+      </TouchableOpacity>
+
       <Modal visible={showPicker} animationType="slide" transparent>
         <View style={s.modalOverlay}>
           <View style={s.modalSheet}>
@@ -373,6 +470,21 @@ const styles = (t: Theme) => StyleSheet.create({
   testResultTextFail: { color: t.danger },
   saveButton: { backgroundColor: t.success },
   saveButtonText: { color: t.successText, fontSize: 16, fontWeight: '700' },
+  notionSetupRow: { marginBottom: 16 },
+  notionSetupText: { fontSize: 13, color: t.textSecondary, lineHeight: 18 },
+  notionLinkText: { color: t.accent, textDecorationLine: 'underline' },
+  notionActions: { gap: 8, marginBottom: 24 },
+  buttonSaveNotion: { backgroundColor: t.accent, padding: 14, borderRadius: 8, alignItems: 'center' },
+  buttonSaveNotionText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  removeButton: { padding: 10, alignItems: 'center' },
+  removeButtonText: { color: t.danger, fontSize: 14, fontWeight: '600' },
+  // AI Features
+  featureCard: {
+    backgroundColor: t.surface, borderWidth: 1, borderColor: t.border,
+    borderRadius: 12, padding: 16, marginBottom: 24,
+  },
+  featureCardTitle: { color: t.text, fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  featureCardDesc: { color: t.textSecondary, fontSize: 13, lineHeight: 18 },
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalSheet: { backgroundColor: t.bg, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '85%' },

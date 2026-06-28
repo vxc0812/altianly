@@ -7,16 +7,19 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
+  Share,
+  Alert,
 } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useFocusEffect } from '@react-navigation/native'
 import { RootStackParamList, WorkoutPlan, BMIHistoryEntry, WorkoutLog } from '../types'
 import {
   getWorkoutHistory, deleteWorkoutPlan, getWorkoutLogsForPlan,
-  getBMIHistory, getWorkoutLogs,
+  getBMIHistory, getWorkoutLogs, getNotionConfig,
 } from '../services/storage'
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
+import { exportToNotion, buildPlanName } from '../services/notion'
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'History'> }
 
@@ -93,6 +96,46 @@ export default function HistoryScreen({ navigation }: Props) {
 
   function formatDate(ts: number): string {
     return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  }
+
+  async function handleCopyPlan(text: string) {
+    if (Platform.OS === 'web') {
+      try { await navigator.clipboard.writeText(text) } catch {}
+    }
+    Alert.alert('Copied', 'Workout plan copied to clipboard')
+  }
+
+  async function handleSharePlan(text: string) {
+    await Share.share({ message: text, title: 'Workout Plan' })
+  }
+
+  async function handleExportNotion(plan: WorkoutPlan) {
+    try {
+      if (!plan.structuredPlan) {
+        Alert.alert('Not Available', 'Export to Notion requires a structured workout plan.')
+        return
+      }
+      const cfg = await getNotionConfig()
+      if (!cfg) {
+        Alert.alert('Not Connected', 'Set up your Notion integration in Settings first.')
+        return
+      }
+      const result = await exportToNotion(
+        cfg,
+        buildPlanName(plan.structuredPlan),
+        plan.structuredPlan,
+        plan.plan,
+        plan.bmiResult?.bmi?.toString() ?? '',
+        plan.bmiResult?.evaluation ?? '',
+      )
+      if (result.ok) {
+        Alert.alert('Exported', 'Workout plan saved to Notion!')
+      } else {
+        Alert.alert('Export Failed', result.error || 'Unknown error')
+      }
+    } catch (e: any) {
+      Alert.alert('Export Failed', e?.message || 'An unexpected error occurred')
+    }
   }
 
   function formatShortDate(ts: number): string {
@@ -245,6 +288,13 @@ export default function HistoryScreen({ navigation }: Props) {
 
           <Text style={s.sectionTitle}>Saved Workouts</Text>
 
+          <TouchableOpacity
+            style={s.graphsLink}
+            onPress={() => navigation.navigate('HistoryGraph')}
+          >
+            <Text style={s.graphsLinkText}>View BMI & Weight Graphs →</Text>
+          </TouchableOpacity>
+
           {plans.length === 0 ? (
             <View style={s.emptySection}>
               <Text style={s.emptyTitle}>No saved workouts yet</Text>
@@ -308,6 +358,28 @@ export default function HistoryScreen({ navigation }: Props) {
                         ) : (
                           <Text style={s.planText}>{plan.plan}</Text>
                         )}
+                        <View style={s.exportRow}>
+                          <TouchableOpacity
+                            style={s.exportChip}
+                            onPress={() => handleCopyPlan(plan.structuredPlan ? plan.structuredPlan.days.map((d) =>
+                              `Day ${d.day}: ${d.focus}\n${d.exercises.map((e) => `  ${e.name}: ${e.sets} x ${e.reps}${e.restSeconds ? ` (${e.restSeconds}s rest)` : ''}`).join('\n')}`
+                            ).join('\n\n') : plan.plan)}
+                          >
+                            <Text style={s.exportChipText}>Copy</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={s.exportChip}
+                            onPress={() => handleSharePlan(plan.plan)}
+                          >
+                            <Text style={s.exportChipText}>Share</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={s.exportChip}
+                            onPress={() => handleExportNotion(plan)}
+                          >
+                            <Text style={s.exportChipText}>Notion</Text>
+                          </TouchableOpacity>
+                        </View>
                         <View style={s.cardActions}>
                           <TouchableOpacity
                             style={s.logsButton}
@@ -393,6 +465,11 @@ const styles = (t: Theme) => StyleSheet.create({
   recentMeta: { color: t.textSecondary, fontSize: 12, marginTop: 2 },
   recentDate: { color: t.textMuted, fontSize: 12 },
 
+  graphsLink: {
+    marginBottom: 16, padding: 14, alignItems: 'center', borderRadius: 10,
+    backgroundColor: t.surface, borderWidth: 1, borderColor: t.accent + '40',
+  },
+  graphsLinkText: { color: t.accent, fontSize: 15, fontWeight: '700' },
   emptySection: { alignItems: 'center', paddingVertical: 32 },
   emptyTitle: { color: t.text, fontSize: 18, fontWeight: '600', marginBottom: 8 },
   emptySubtitle: { color: t.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
@@ -416,7 +493,13 @@ const styles = (t: Theme) => StyleSheet.create({
   dayChipNumber: { color: t.accent, fontSize: 12, fontWeight: '700' },
   dayChipFocus: { color: t.text, fontSize: 11, marginTop: 3, textAlign: 'center' },
   planText: { color: t.text, fontSize: 13, lineHeight: 20, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
-  cardActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 },
+  exportRow: { flexDirection: 'row', gap: 6, marginTop: 12 },
+  exportChip: {
+    flex: 1, paddingVertical: 8, borderRadius: 6, alignItems: 'center',
+    backgroundColor: t.surface, borderWidth: 1, borderColor: t.accent,
+  },
+  exportChipText: { color: t.accent, fontSize: 12, fontWeight: '600' },
+  cardActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
   logsButton: { paddingVertical: 8, paddingHorizontal: 12, backgroundColor: t.accent + '22', borderRadius: 6 },
   logsButtonText: { color: t.accent, fontSize: 13, fontWeight: '600' },
   deleteButton: {},

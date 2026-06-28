@@ -28,7 +28,6 @@ import {
   getUserProfile,
 } from '../services/storage'
 import { getBadges, checkAndUnlockBadges } from '../services/badges'
-import { getReminderConfig, scheduleDailyReminder, cancelDailyReminder, ReminderConfig } from '../services/notifications'
 import { generateWorkoutPlan } from '../services/workoutGen'
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Home'> }
@@ -83,9 +82,6 @@ export default function HomeScreen({ navigation }: Props) {
   const [badges, setBadges] = useState<Badge[]>([])
   const [latestPlan, setLatestPlan] = useState<WorkoutPlan | null>(null)
   const [recentLogs, setRecentLogs] = useState<WorkoutLog[]>([])
-  const [reminder, setReminder] = useState<ReminderConfig>({ hour: 8, minute: 0, enabled: false })
-  const [settingReminder, setSettingReminder] = useState(false)
-
   const [bmiExpanded, setBmiExpanded] = useState(false)
   const [splitModalVisible, setSplitModalVisible] = useState(false)
 
@@ -112,7 +108,6 @@ export default function HomeScreen({ navigation }: Props) {
       setTotalChecks(entries.length)
       await checkAndUnlockBadges(entries, s)
       setBadges(await getBadges())
-      setReminder(await getReminderConfig())
       setLatestPlan(history.find((p) => !!p.structuredPlan) ?? null)
       setRecentLogs(logs.slice(0, 3))
     })()
@@ -148,7 +143,7 @@ export default function HomeScreen({ navigation }: Props) {
 
     const userInput = { age: a, gender: g, unitSystem, heightFeet: f, heightInches: i, weightLbs: Math.round(w) }
     const { bmi, evaluation } = calculateBMI(userInput.weightLbs, userInput.heightFeet, userInput.heightInches)
-    await saveBMIEntry({ bmi, evaluation, timestamp: Date.now(), age: a, gender: g })
+    await saveBMIEntry({ bmi, weightLbs: Math.round(w), evaluation, timestamp: Date.now(), age: a, gender: g })
 
     const entries = await getBMIHistory()
     const s = computeStreak(entries)
@@ -170,15 +165,9 @@ export default function HomeScreen({ navigation }: Props) {
     const entries = await getBMIHistory()
     const latest = entries[0]
     const ageVal = latest?.age ?? 30
-    const genderVal = latest?.gender ?? 'male' as Gender
-    const bmiVal = latest?.bmi ?? 22
-    const evalVal = latest?.evaluation ?? 'normal'
 
     const plan = generateWorkoutPlan({
       age: ageVal,
-      gender: genderVal,
-      bmi: bmiVal,
-      evaluation: evalVal,
       lifestyle: 'moderate',
       exerciseLevel: 'medium',
       split: 'full_body',
@@ -188,8 +177,8 @@ export default function HomeScreen({ navigation }: Props) {
     const workoutPlan: WorkoutPlan = {
       id,
       timestamp: Date.now(),
-      userInput: { age: ageVal, gender: genderVal, unitSystem: 'imperial', heightFeet: 5, heightInches: 9, weightLbs: 160 },
-      bmiResult: { bmi: bmiVal, evaluation: evalVal as any },
+      userInput: { age: ageVal, gender: 'male', unitSystem: 'imperial', heightFeet: 5, heightInches: 9, weightLbs: 160 },
+      bmiResult: { bmi: 22, evaluation: 'normal' },
       answers: { lifestyle: 'moderate', exerciseLevel: 'medium', trainingSplit: 'full_body' },
       plan: plan.name,
       structuredPlan: plan,
@@ -210,15 +199,9 @@ export default function HomeScreen({ navigation }: Props) {
     const entries = await getBMIHistory()
     const latest = entries[0]
     const ageVal = latest?.age ?? 30
-    const genderVal = latest?.gender ?? 'male' as Gender
-    const bmiVal = latest?.bmi ?? 22
-    const evalVal = latest?.evaluation ?? 'normal'
 
     const plan = generateWorkoutPlan({
       age: ageVal,
-      gender: genderVal,
-      bmi: bmiVal,
-      evaluation: evalVal,
       lifestyle: 'moderate',
       exerciseLevel: 'medium',
       split,
@@ -228,8 +211,8 @@ export default function HomeScreen({ navigation }: Props) {
     const workoutPlan: WorkoutPlan = {
       id,
       timestamp: Date.now(),
-      userInput: { age: ageVal, gender: genderVal, unitSystem: 'imperial', heightFeet: 5, heightInches: 9, weightLbs: 160 },
-      bmiResult: { bmi: bmiVal, evaluation: evalVal as any },
+      userInput: { age: ageVal, gender: 'male', unitSystem: 'imperial', heightFeet: 5, heightInches: 9, weightLbs: 160 },
+      bmiResult: { bmi: 22, evaluation: 'normal' },
       answers: { lifestyle: 'moderate', exerciseLevel: 'medium', trainingSplit: split },
       plan: plan.name,
       structuredPlan: plan,
@@ -529,53 +512,6 @@ export default function HomeScreen({ navigation }: Props) {
           </View>
         )}
 
-        <View style={s.reminderSection}>
-          <Text style={s.reminderTitle}>
-            {reminder.enabled ? `Reminder set for ${reminder.hour % 12 || 12}:${reminder.minute.toString().padStart(2, '0')} ${reminder.hour < 12 ? 'AM' : 'PM'}` : 'Daily Reminder'}
-          </Text>
-          {reminder.enabled ? (
-            <TouchableOpacity
-              style={s.reminderCancelButton}
-              onPress={async () => {
-                await cancelDailyReminder()
-                setReminder({ hour: 8, minute: 0, enabled: false })
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Cancel daily reminder"
-            >
-              <Text style={s.reminderCancelText}>Cancel Reminder</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={s.reminderPresets}>
-              {[
-                { label: '8 AM', hour: 8, minute: 0 },
-                { label: '12 PM', hour: 12, minute: 0 },
-                { label: '6 PM', hour: 18, minute: 0 },
-                { label: '9 PM', hour: 21, minute: 0 },
-              ].map((preset) => (
-                <TouchableOpacity
-                  key={preset.label}
-                  style={[s.reminderPresetButton, settingReminder && s.reminderPresetDisabled]}
-                  disabled={settingReminder}
-                  onPress={async () => {
-                    setSettingReminder(true)
-                    const ok = await scheduleDailyReminder(preset.hour, preset.minute)
-                    setSettingReminder(false)
-                    if (ok) {
-                      setReminder({ hour: preset.hour, minute: preset.minute, enabled: true })
-                    } else {
-                      Alert.alert('Permission Denied', 'Please enable notifications in your device settings to receive reminders.')
-                    }
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Set daily reminder for ${preset.label}`}
-                >
-                  <Text style={s.reminderPresetText}>{preset.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
       </ScrollView>
 
       <Modal visible={splitModalVisible} transparent animationType="fade" onRequestClose={() => setSplitModalVisible(false)}>
@@ -771,34 +707,6 @@ const styles = (t: Theme) => StyleSheet.create({
   error: { color: t.danger, textAlign: 'center', marginBottom: 16 },
   button: { backgroundColor: t.success, padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 8 },
   buttonText: { color: t.successText, fontSize: 16, fontWeight: '700' },
-
-  reminderSection: {
-    backgroundColor: t.surface,
-    borderWidth: 1,
-    borderColor: t.border,
-    borderRadius: 10,
-    padding: 16,
-    marginTop: 20,
-    marginBottom: 40,
-  },
-  reminderTitle: { color: t.text, fontSize: 14, fontWeight: '700', marginBottom: 10 },
-  reminderPresets: { flexDirection: 'row', gap: 8 },
-  reminderPresetButton: {
-    flex: 1,
-    backgroundColor: t.accent + '22',
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  reminderPresetDisabled: { opacity: 0.5 },
-  reminderPresetText: { color: t.accent, fontSize: 13, fontWeight: '600' },
-  reminderCancelButton: {
-    backgroundColor: t.danger + '22',
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  reminderCancelText: { color: t.danger, fontSize: 13, fontWeight: '600' },
 
   modalOverlay: {
     flex: 1,

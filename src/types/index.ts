@@ -86,11 +86,15 @@ export interface BadgeDefinition {
 
 export interface BMIHistoryEntry {
   bmi: number
+  weightLbs: number
   evaluation: BMIEvaluation
   timestamp: number
   age: number
   gender: Gender
 }
+
+export type GraphTimeUnit = 'days' | 'weeks' | 'months' | 'years'
+export type GraphMetric = 'bmi' | 'weight'
 
 export interface WorkoutLogEntry {
   exerciseName: string
@@ -114,9 +118,9 @@ export interface WorkoutLog {
 export interface UserProfile {
   name: string
   email: string
-  password: string
   createdAt: number
   lastLoginAt: number
+  disclaimerAccepted?: boolean
 }
 
 export type RootStackParamList = {
@@ -130,6 +134,8 @@ export type RootStackParamList = {
   WorkoutLog: { planId: string; day: number; focus: string; exercises: WorkoutExercise[] }
   PlanLogs: { planId: string }
   Profile: undefined
+  ConversationalWorkout: undefined
+  HistoryGraph: undefined
 }
 
 export type ExerciseType = 'strength' | 'cardio' | 'metcon' | 'hiit' | 'combat' | 'stretching' | 'wellness' | 'yoga'

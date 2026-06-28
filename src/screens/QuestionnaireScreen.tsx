@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RouteProp } from '@react-navigation/native'
 import { RootStackParamList, Lifestyle, ExerciseLevel, TrainingSplit, QuestionnaireAnswers, AgeGroup, PrimaryGoal, TrainingExperience, WorkoutEnvironment, WorkoutType, ExcludeExercise, MotivationDriver, ProgressTracking } from '../types'
@@ -60,27 +60,6 @@ const workoutEnvOptions: { value: WorkoutEnvironment; label: string }[] = [
   { value: 'outdoor', label: 'Outdoor/Park' },
 ]
 
-const workoutTypeOptions: { value: WorkoutType; label: string }[] = [
-  { value: 'strength', label: 'Strength Training' },
-  { value: 'cardio', label: 'Cardio' },
-  { value: 'hiit', label: 'HIIT' },
-  { value: 'yoga', label: 'Yoga' },
-  { value: 'pilates', label: 'Pilates' },
-  { value: 'functional', label: 'Functional Fitness' },
-  { value: 'sports', label: 'Sports-Specific' },
-  { value: 'circuit', label: 'Circuit Training' },
-  { value: 'calisthenics', label: 'Calisthenics' },
-]
-
-const excludeExerciseOptions: { value: ExcludeExercise; label: string }[] = [
-  { value: 'none', label: 'None' },
-  { value: 'cardio', label: 'High-intensity cardio' },
-  { value: 'squats', label: 'Squats/Lunges' },
-  { value: 'pullups', label: 'Pull-ups/Rows' },
-  { value: 'overhead', label: 'Overhead presses' },
-  { value: 'other', label: 'Other' },
-]
-
 const motivationOptions: { value: MotivationDriver; label: string }[] = [
   { value: 'changes', label: 'Seeing physical changes' },
   { value: 'performance', label: 'Improving performance' },
@@ -108,15 +87,15 @@ export default function QuestionnaireScreen({ navigation, route }: Props) {
   const [trainingExperience, setTrainingExperience] = useState<TrainingExperience | null>(null)
   const [workoutEnvironment, setWorkoutEnvironment] = useState<WorkoutEnvironment | null>(null)
   const [equipment, setEquipment] = useState<string>('')
-  const [workoutTypes, setWorkoutTypes] = useState<WorkoutType[]>([])
+  const [workoutTypes, _setWorkoutTypes] = useState<WorkoutType[]>([])
   const [healthConditions, setHealthConditions] = useState<string>('')
   const [injuries, setInjuries] = useState<string>('')
-  const [sleepQuality, setSleepQuality] = useState<string>('good')
-  const [stressLevel, setStressLevel] = useState<string>('moderate')
+  const [sleepQuality, _setSleepQuality] = useState<string>('good')
+  const [stressLevel, _setStressLevel] = useState<string>('moderate')
   const [challenge, setChallenge] = useState<string>('')
-  const [excludeExercises, setExcludeExercises] = useState<ExcludeExercise[]>(['none'])
+  const [excludeExercises, _setExcludeExercises] = useState<ExcludeExercise[]>(['none'])
   const [motivation, setMotivation] = useState<MotivationDriver | null>(null)
-  const [progressTracking, setProgressTracking] = useState<ProgressTracking | null>(null)
+  const [progressTracking, _setProgressTracking] = useState<ProgressTracking | null>(null)
 
   function handleGenerate() {
     if (!lifestyle || !exerciseLevel || !trainingSplit) return
@@ -201,27 +180,58 @@ export default function QuestionnaireScreen({ navigation, route }: Props) {
 
       <Text style={s.sectionTitle}>Equipment Available</Text>
       <Text style={s.inputHint}>e.g., dumbbells, barbell, kettlebells, resistance bands</Text>
-      <View style={s.inputContainer}>
-        <Text style={s.input}>{equipment || ' '}</Text>
-      </View>
+      <TextInput
+        style={s.input}
+        value={equipment}
+        onChangeText={(t) => setEquipment(t)}
+        placeholder="List your available equipment"
+        placeholderTextColor={theme.textMuted}
+        autoCapitalize="none"
+      />
 
       <Text style={s.sectionTitle}>Target Timeline</Text>
       <Text style={s.inputHint}>e.g., "8 weeks", "3 months", "Flexible"</Text>
-      <View style={s.inputContainer}>
-        <Text style={s.input}>{targetTimeline || ' '}</Text>
-      </View>
+      <TextInput
+        style={s.input}
+        value={targetTimeline}
+        onChangeText={(t) => setTargetTimeline(t)}
+        placeholder="e.g., 8 weeks"
+        placeholderTextColor={theme.textMuted}
+        autoCapitalize="none"
+      />
 
-      <Text style={s.sectionTitle}>Health Considerations</Text>
-      <Text style={s.inputHint}>Any conditions, injuries, or limitations (optional)</Text>
-      <View style={s.inputContainer}>
-        <Text style={s.input}>{healthConditions || injuries || ' '}</Text>
-      </View>
+      <Text style={s.sectionTitle}>Health Conditions</Text>
+      <Text style={s.inputHint}>Any medical conditions or medications (optional)</Text>
+      <TextInput
+        style={s.input}
+        value={healthConditions}
+        onChangeText={(t) => setHealthConditions(t)}
+        placeholder="e.g., asthma, hypertension"
+        placeholderTextColor={theme.textMuted}
+        autoCapitalize="none"
+      />
+
+      <Text style={s.sectionTitle}>Injuries or Limitations</Text>
+      <Text style={s.inputHint}>Any injuries or physical limitations (optional)</Text>
+      <TextInput
+        style={s.input}
+        value={injuries}
+        onChangeText={(t) => setInjuries(t)}
+        placeholder="e.g., lower back, knee pain"
+        placeholderTextColor={theme.textMuted}
+        autoCapitalize="none"
+      />
 
       <Text style={s.sectionTitle}>Biggest Challenge</Text>
       <Text style={s.inputHint}>e.g., time, motivation, consistency</Text>
-      <View style={s.inputContainer}>
-        <Text style={s.input}>{challenge || ' '}</Text>
-      </View>
+      <TextInput
+        style={s.input}
+        value={challenge}
+        onChangeText={(t) => setChallenge(t)}
+        placeholder="What's your biggest obstacle?"
+        placeholderTextColor={theme.textMuted}
+        autoCapitalize="none"
+      />
 
       <Text style={s.sectionTitle}>What motivates you?</Text>
       {renderOptionGrid(motivationOptions, motivation, setMotivation)}
@@ -277,7 +287,10 @@ const styles = (t: Theme) => StyleSheet.create({
   button: { backgroundColor: t.success, padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 12 },
   buttonDisabled: { opacity: 0.5 },
   buttonText: { color: t.successText, fontSize: 16, fontWeight: '700' },
-  inputContainer: { backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 12, marginBottom: 16 },
-  input: { fontSize: 16, color: t.text, minHeight: 20 },
+  input: {
+    backgroundColor: t.surface, borderWidth: 1, borderColor: t.border,
+    borderRadius: 10, padding: 14, fontSize: 16, color: t.text,
+    marginBottom: 16,
+  },
   inputHint: { fontSize: 12, color: t.textMuted, marginBottom: 4 },
 })

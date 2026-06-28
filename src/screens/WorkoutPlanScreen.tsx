@@ -7,16 +7,19 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
+  Share,
+  Alert,
 } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RouteProp } from '@react-navigation/native'
 import { RootStackParamList, WorkoutPlan, StructuredWorkoutPlan } from '../types'
 import { generateWorkoutPlan as llmGenerate, extractStructuredPlan } from '../services/llm'
 import { generateWorkoutPlan as localGenerate } from '../services/workoutGen'
-import { saveWorkoutPlan, getLLMConfig } from '../services/storage'
+import { saveWorkoutPlan, getLLMConfig, getNotionConfig } from '../services/storage'
 import { DEFAULT_LLM_CONFIG } from '../constants'
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
+import { exportToNotion, buildPlanName } from '../services/notion'
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'WorkoutPlan'>
@@ -34,7 +37,9 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
   const [saved, setSaved] = useState(false)
   const [progress, setProgress] = useState(0)
   const [providerName, setProviderName] = useState<string>('ollama')
+  const [notionMsg, setNotionMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const savedRef = useRef(false)
+  const [notionBusy, setNotionBusy] = useState(false)
   const tokenCount = useRef(0)
 
   useEffect(() => { loadPlan() }, [])
@@ -48,9 +53,6 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
     if (mode === 'instant') {
       const structured = localGenerate({
         age: userInput.age,
-        gender: userInput.gender,
-        bmi: bmiResult.bmi,
-        evaluation: bmiResult.evaluation,
         lifestyle: answers.lifestyle,
         exerciseLevel: answers.exerciseLevel,
         split: answers.trainingSplit,
@@ -66,7 +68,7 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
       const config = storedConfig || DEFAULT_LLM_CONFIG
       setProviderName(config.provider)
       let fullPlan = ''
-      await llmGenerate(
+      const resultText = await llmGenerate(
         config,
         {
           age: userInput.age,
@@ -87,7 +89,12 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
         }
       )
       setProgress(100)
-      const result = extractStructuredPlan(fullPlan)
+      const finalText = fullPlan || resultText || ''
+      if (!finalText.trim()) {
+        setError('The AI returned an empty response. Check your provider settings or try a different model.')
+        return
+      }
+      const result = extractStructuredPlan(finalText)
       setPlan(result.plan)
       setStructuredPlan(result.structured || null)
     } catch (e) {
@@ -111,6 +118,69 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
     }
     await saveWorkoutPlan(record)
     setSaved(true)
+  }
+
+  async function handleCopy() {
+    const text = structuredPlan
+      ? structuredPlan.days.map((d) =>
+          `Day ${d.day}: ${d.focus}\n${
+            d.exercises.map((e) => `  ${e.name}: ${e.sets} x ${e.reps}${e.restSeconds ? ` (${e.restSeconds}s rest)` : ''}`).join('\n')
+          }`
+        ).join('\n\n')
+      : plan
+    if (Platform.OS === 'web') {
+      try { await navigator.clipboard.writeText(text) } catch {}
+    }
+    Alert.alert('Copied', 'Workout plan copied to clipboard')
+  }
+
+  async function handleShare() {
+    const text = structuredPlan
+      ? `# ${structuredPlan.name || 'Workout Plan'}\n\n${
+          structuredPlan.days.map((d) =>
+            `## Day ${d.day}: ${d.focus}\n${
+              d.exercises.map((e) => `- ${e.name}: ${e.sets} x ${e.reps}${e.restSeconds ? ` (${e.restSeconds}s rest)` : ''}${e.notes ? ` — ${e.notes}` : ''}`).join('\n')
+            }`
+          ).join('\n\n')
+        }${structuredPlan.warmup ? `\n\n## Warm-up\n${structuredPlan.warmup}` : ''}${structuredPlan.cooldown ? `\n\n## Cool-down\n${structuredPlan.cooldown}` : ''}${structuredPlan.notes ? `\n\n## Notes\n${structuredPlan.notes}` : ''}`
+      : plan
+    await Share.share({ message: text, title: 'Workout Plan' })
+  }
+
+  async function handleExportNotion() {
+    setNotionBusy(true)
+    setNotionMsg(null)
+    try {
+      if (!structuredPlan) {
+        setNotionMsg({ type: 'err', text: 'No structured plan — generate with AI mode.' })
+        setNotionBusy(false)
+        return
+      }
+      const cfg = await getNotionConfig()
+      if (!cfg) {
+        setNotionMsg({ type: 'err', text: 'Set up Notion in Settings first.' })
+        setNotionBusy(false)
+        return
+      }
+      setNotionMsg({ type: 'ok', text: 'Exporting...' })
+      const result = await exportToNotion(
+        cfg,
+        buildPlanName(structuredPlan),
+        structuredPlan,
+        plan,
+        bmiResult.bmi.toString(),
+        bmiResult.evaluation,
+      )
+      setNotionBusy(false)
+      if (result.ok) {
+        setNotionMsg({ type: 'ok', text: 'Saved to Notion!' })
+      } else {
+        setNotionMsg({ type: 'err', text: result.error || 'Unknown error' })
+      }
+    } catch (e: any) {
+      setNotionBusy(false)
+      setNotionMsg({ type: 'err', text: e?.message || 'Unexpected error' })
+    }
   }
 
   function getErrorHint(err: string, provider: string): string {
@@ -183,15 +253,39 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
       )}
 
       {!!plan && !loading && (
+        <Text style={s.disclaimer}>
+          These exercises are designed for general fitness. If you have a medical condition, recent injury, chronic pain, or haven't been active in a while, consult a healthcare professional before starting. Stop immediately if you feel chest pain, dizziness, or shortness of breath.
+        </Text>
+      )}
+
+      {!!plan && !loading && (
         <View style={s.actions}>
           <TouchableOpacity style={[s.saveButton, saved && s.savedButton]} onPress={handleSave} disabled={saved}>
             <Text style={s.saveButtonText}>{saved ? 'Saved' : 'Save Plan'}</Text>
           </TouchableOpacity>
-<TouchableOpacity style={s.newButton} onPress={() => navigation.goBack()}>
-            <Text style={s.newButtonText}>Back to Questionnaire</Text>
+          <View style={s.exportRow}>
+            <TouchableOpacity style={s.exportButton} onPress={handleCopy}>
+              <Text style={s.exportButtonText}>Copy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.exportButton} onPress={handleShare}>
+              <Text style={s.exportButtonText}>Share</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.exportButton} onPress={handleExportNotion}>
+              <Text style={s.exportButtonText}>{notionBusy ? '...' : 'Notion'}</Text>
+            </TouchableOpacity>
+          </View>
+          {notionMsg && (
+            <View style={[s.notionBanner, notionMsg.type === 'ok' ? s.notionBannerOk : s.notionBannerErr]}>
+              <Text style={[s.notionBannerText, notionMsg.type === 'ok' ? s.notionBannerTextOk : s.notionBannerTextErr]}>
+                {notionMsg.text}
+              </Text>
+            </View>
+          )}
+          <TouchableOpacity style={s.secondaryButton} onPress={() => navigation.goBack()}>
+            <Text style={s.secondaryButtonText}>Back to Questionnaire</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.newButton} onPress={() => navigation.navigate('Home')}>
-            <Text style={s.newButtonText}>Home</Text>
+          <TouchableOpacity style={s.secondaryButton} onPress={() => navigation.navigate('Home')}>
+            <Text style={s.secondaryButtonText}>Home</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -226,10 +320,27 @@ const styles = (t: Theme) => StyleSheet.create({
   planNotes: { fontSize: 13, color: t.textSecondary, marginTop: 12, lineHeight: 20, fontStyle: 'italic' },
   streamRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 },
   streamText: { color: t.textSecondary, fontSize: 13 },
+  disclaimer: {
+    fontSize: 12, color: t.danger, lineHeight: 17, textAlign: 'center',
+    paddingHorizontal: 8, paddingVertical: 16, marginTop: 16,
+    borderTopWidth: 1, borderTopColor: t.border,
+  },
   actions: { gap: 10, paddingTop: 16, borderTopWidth: 1, borderTopColor: t.border },
   saveButton: { backgroundColor: t.success, padding: 16, borderRadius: 8, alignItems: 'center' },
   savedButton: { opacity: 0.6 },
   saveButtonText: { color: t.successText, fontSize: 16, fontWeight: '700' },
-  newButton: { padding: 12, alignItems: 'center' },
-  newButtonText: { color: t.accent, fontSize: 15 },
+  exportRow: { flexDirection: 'row', gap: 8 },
+  exportButton: {
+    flex: 1, padding: 12, alignItems: 'center', borderRadius: 8,
+    backgroundColor: t.surface, borderWidth: 1, borderColor: t.accent,
+  },
+  exportButtonText: { color: t.accent, fontSize: 14, fontWeight: '600' },
+  secondaryButton: { padding: 12, alignItems: 'center' },
+  secondaryButtonText: { color: t.accent, fontSize: 15 },
+  notionBanner: { borderRadius: 6, padding: 10, alignItems: 'center' },
+  notionBannerOk: { backgroundColor: t.success + '20' },
+  notionBannerErr: { backgroundColor: t.danger + '20' },
+  notionBannerText: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  notionBannerTextOk: { color: t.success },
+  notionBannerTextErr: { color: t.danger },
 })

@@ -440,14 +440,11 @@ function planNotes(level: ExerciseLevel, split: TrainingSplit, age: number): str
 
 export function generateWorkoutPlan(params: {
   age: number
-  gender: string
-  bmi: number
-  evaluation: string
   lifestyle: Lifestyle
   exerciseLevel: ExerciseLevel
   split: TrainingSplit
 }): StructuredWorkoutPlan {
-  const { age, exerciseLevel, lifestyle, split, evaluation, gender } = params
+  const { age, exerciseLevel, lifestyle, split } = params
   const p = getLevelParams(exerciseLevel, lifestyle, age)
 
   const splitName: Record<TrainingSplit, string> = {

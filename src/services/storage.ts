@@ -1,23 +1,35 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as SecureStore from 'expo-secure-store'
+import { Platform } from 'react-native'
 import { WorkoutPlan, LLMConfig, WorkoutLog, BMIHistoryEntry, UserProfile } from '../types'
 import { STORAGE_KEYS, SESSION_DURATION_MS } from '../constants'
 
+function secureStoreAvailable(): boolean {
+  return Platform.OS !== 'web'
+}
+
 async function secureSet(key: string, value: string): Promise<void> {
-  try {
-    const SecureStore = require('expo-secure-store')
+  if (secureStoreAvailable()) {
     await SecureStore.setItemAsync(key, value)
-  } catch {
-    await AsyncStorage.setItem(key, value)
+    return
   }
+  console.warn(`SecureStore unavailable on ${Platform.OS}; storing "${key}" in AsyncStorage (unencrypted)`)
+  await AsyncStorage.setItem(key, value)
 }
 
 async function secureGet(key: string): Promise<string | null> {
-  try {
-    const SecureStore = require('expo-secure-store')
+  if (secureStoreAvailable()) {
     return await SecureStore.getItemAsync(key)
-  } catch {
-    return await AsyncStorage.getItem(key)
   }
+  return await AsyncStorage.getItem(key)
+}
+
+async function secureDelete(key: string): Promise<void> {
+  if (secureStoreAvailable()) {
+    await SecureStore.deleteItemAsync(key)
+    return
+  }
+  await AsyncStorage.removeItem(key)
 }
 
 export async function saveWorkoutPlan(plan: WorkoutPlan): Promise<void> {
@@ -87,6 +99,20 @@ export async function getBMIHistory(): Promise<BMIHistoryEntry[]> {
   return json ? JSON.parse(json) : []
 }
 
+export async function deleteBMIEntry(timestamp: number): Promise<void> {
+  const json = await AsyncStorage.getItem(STORAGE_KEYS.BMI_HISTORY)
+  if (!json) return
+  const history: BMIHistoryEntry[] = JSON.parse(json)
+  await AsyncStorage.setItem(
+    STORAGE_KEYS.BMI_HISTORY,
+    JSON.stringify(history.filter((e) => e.timestamp !== timestamp))
+  )
+}
+
+export async function clearBMIHistory(): Promise<void> {
+  await AsyncStorage.removeItem(STORAGE_KEYS.BMI_HISTORY)
+}
+
 export async function saveUserProfile(profile: UserProfile): Promise<void> {
   await secureSet(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profile))
 }
@@ -97,12 +123,8 @@ export async function getUserProfile(): Promise<UserProfile | null> {
 }
 
 export async function deleteUserProfile(): Promise<void> {
-  try {
-    const SecureStore = require('expo-secure-store')
-    await SecureStore.deleteItemAsync(STORAGE_KEYS.USER_PROFILE)
-  } catch {
-    await AsyncStorage.removeItem(STORAGE_KEYS.USER_PROFILE)
-  }
+  await secureDelete(STORAGE_KEYS.USER_PROFILE)
+  await clearLastActivity()
 }
 
 export async function updateLastActivity(): Promise<void> {
@@ -116,6 +138,24 @@ export async function getLastActivity(): Promise<number | null> {
 
 export async function clearLastActivity(): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEYS.LAST_ACTIVITY)
+}
+
+export interface NotionConfig {
+  apiKey: string
+  databaseId: string
+}
+
+export async function getNotionConfig(): Promise<NotionConfig | null> {
+  const json = await secureGet(STORAGE_KEYS.NOTION_CONFIG)
+  return json ? JSON.parse(json) : null
+}
+
+export async function saveNotionConfig(config: NotionConfig): Promise<void> {
+  await secureSet(STORAGE_KEYS.NOTION_CONFIG, JSON.stringify(config))
+}
+
+export async function deleteNotionConfig(): Promise<void> {
+  await secureDelete(STORAGE_KEYS.NOTION_CONFIG)
 }
 
 export async function isSessionExpired(): Promise<boolean> {

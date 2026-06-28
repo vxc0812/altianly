@@ -4,3 +4,11 @@ compatibility_date = "2026-06-21"
 
 [ai]
 binding = "AI"
+
+[[kv_namespaces]]
+binding = "ALTIANLY_DATA"
+id = "altianly-data"
+preview_id = "altianly-data-preview"
+
+[vars]
+RP_ORIGIN = "http://localhost:8081"
