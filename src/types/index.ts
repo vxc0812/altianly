@@ -180,6 +180,14 @@ export interface RDITarget {
   fiber: number
 }
 
+export interface ParsedFoodItem {
+  name: string
+  servings: number
+  tier: 1 | 2 | 3
+  food?: Food | null
+  estimatedNutrients?: FoodNutrients | null
+}
+
 export type RootStackParamList = {
   Home: undefined
   Result: { userInput: UserInput }

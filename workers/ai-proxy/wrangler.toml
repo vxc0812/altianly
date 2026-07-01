@@ -7,8 +7,8 @@ binding = "AI"
 
 [[kv_namespaces]]
 binding = "ALTIANLY_DATA"
-id = "altianly-data"
-preview_id = "altianly-data-preview"
+id = "5c5e455f39a84c71b83eb38bb2643e58"
+preview_id = "5c5e455f39a84c71b83eb38bb2643e58"
 
 [vars]
 RP_ORIGIN = "http://localhost:8081"

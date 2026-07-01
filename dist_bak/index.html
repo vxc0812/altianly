@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Altianly — AI-Powered Workout Generator</title>
+  <style>
+    :root {
+      --bg:         #0D1117;
+      --surface:    #161B22;
+      --border:     #30363D;
+      --text:       #C9D1D9;
+      --textSec:    #8B949E;
+      --textMuted:  #666;
+      --accent:     #58A6FF;
+      --success:    #238636;
+      --successTxt: #FFF;
+      --danger:     #F85149;
+      --warning:    #D29922;
+      --green:      #3FB950;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    h1, h2, h3, h4 { font-weight: 700; line-height: 1.2; }
+    h1 { font-size: clamp(2.5rem, 6vw, 4rem); letter-spacing: -0.03em; }
+    h2 { font-size: clamp(1.75rem, 4vw, 2.75rem); letter-spacing: -0.02em; }
+    h3 { font-size: 1.25rem; }
+    p  { color: var(--textSec); max-width: 65ch; }
+    a  { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+    }
+
+    /* ---- Buttons ---- */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      font-family: var(--font);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary {
+      background: var(--success);
+      color: var(--successTxt);
+    }
+    .btn-primary:hover {
+      background: #2D9F40;
+      text-decoration: none;
+    }
+    .btn-outline {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+    .btn-outline:hover {
+      background: var(--accent);
+      color: var(--bg);
+      text-decoration: none;
+    }
+
+    /* ---- Nav ---- */
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    nav .logo {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+    nav .logo span { color: var(--accent); }
+    nav .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+    nav .nav-links a { color: var(--textSec); font-size: 0.925rem; }
+    nav .nav-links a:hover { color: var(--text); text-decoration: none; }
+
+    /* ---- Hero ---- */
+    .hero {
+      min-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 4rem 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-glow {
+      position: absolute;
+      width: 700px;
+      height: 700px;
+      border-radius: 50%;
+      background: radial-gradient(circle at center, rgba(88, 166, 255, 0.08) 0%, transparent 60%);
+      top: -200px;
+      right: -200px;
+      pointer-events: none;
+    }
+    .hero h1 { margin-bottom: 1rem; }
+    .hero p {
+      font-size: 1.2rem;
+      margin-bottom: 2rem;
+      max-width: 600px;
+    }
+    .hero .btn-group { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+    .hero .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(88, 166, 255, 0.12);
+      color: var(--accent);
+      font-size: 0.825rem;
+      font-weight: 600;
+      padding: 0.35rem 0.85rem;
+      border-radius: 20px;
+      margin-bottom: 1.5rem;
+      border: 1px solid rgba(88, 166, 255, 0.2);
+    }
+
+    /* ---- Section ---- */
+    section { padding: 5rem 0; }
+    .section-label {
+      display: inline-block;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin-bottom: 0.75rem;
+    }
+    .section-title {
+      margin-bottom: 0.75rem;
+    }
+    .section-desc {
+      font-size: 1.1rem;
+      margin-bottom: 3rem;
+      max-width: 600px;
+    }
+
+    /* ---- Features grid ---- */
+    .features-grid {
+      display: grid;
+      gap: 1.5rem;
+    }
+    @media (min-width: 640px) { .features-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (min-width: 960px) { .features-grid { grid-template-columns: repeat(3, 1fr); } }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.75rem;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .feature-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-3px);
+    }
+    .feature-card .icon {
+      font-size: 1.75rem;
+      margin-bottom: 0.75rem;
+      display: block;
+    }
+    .feature-card h3 {
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+    .feature-card p {
+      font-size: 0.925rem;
+      margin: 0;
+    }
+
+    /* ---- How it works ---- */
+    .steps {
+      display: grid;
+      gap: 2rem;
+      counter-reset: step;
+    }
+    @media (min-width: 640px) { .steps { grid-template-columns: repeat(3, 1fr); } }
+    .step {
+      text-align: center;
+      counter-increment: step;
+    }
+    .step .num {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(88, 166, 255, 0.12);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 1.15rem;
+      margin: 0 auto 1rem;
+      border: 1px solid rgba(88, 166, 255, 0.2);
+    }
+    .step h3 { margin-bottom: 0.5rem; }
+    .step p  { font-size: 0.925rem; margin: 0 auto; }
+
+    /* ---- Screens / Mockup section ---- */
+    .screens-grid {
+      display: grid;
+      gap: 1rem;
+    }
+    @media (min-width: 600px) { .screens-grid { grid-template-columns: repeat(3, 1fr); } }
+    .screen-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 2rem 1.5rem;
+      text-align: center;
+    }
+    .screen-card .mock-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+      display: block;
+    }
+    .screen-card h4 { margin-bottom: 0.35rem; font-size: 1rem; }
+    .screen-card p  { font-size: 0.85rem; margin: 0; }
+
+    /* ---- CTA ---- */
+    .cta-section {
+      text-align: center;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .cta-section h2 { margin-bottom: 0.75rem; }
+    .cta-section p { margin: 0 auto 2rem; }
+    .cta-section .btn-group { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
+    /* ---- Signup form ---- */
+    .signup-form { max-width: 400px; margin: 0 auto; }
+    .signup-form .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      margin-bottom: 1rem;
+      text-align: left;
+    }
+    .signup-form label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--textSec);
+    }
+    .signup-form input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      font-family: var(--font);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .signup-form input:focus { border-color: var(--accent); }
+    .signup-form .btn { width: 100%; justify-content: center; }
+
+    /* ---- Footer ---- */
+    footer {
+      text-align: center;
+      padding: 2rem 1.5rem;
+      color: var(--textMuted);
+      font-size: 0.85rem;
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--textSec); }
+
+    /* ---- Utility ---- */
+    .text-center { text-align: center; }
+    .mx-auto    { margin-left: auto; margin-right: auto; }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="logo">altianly<span>.</span></div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how">How It Works</a>
+      <a href="https://github.com/vishhalchopra/altianly" target="_blank">GitHub</a>
+      <a href="/app/" class="btn btn-primary" style="padding:0.5rem 1.25rem;font-size:0.875rem;">Launch App</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-glow"></div>
+    <div class="badge">&#9889; AI-Powered Workout Plans</div>
+    <h1>Your personal<br>fitness AI</h1>
+    <p>Altianly generates science-based workout plans tailored to your body metrics, fitness goals, and lifestyle. Track progress, log workouts, and export to Notion.</p>
+    <div class="btn-group">
+      <a href="#signup" class="btn btn-primary">Get Started Free</a>
+      <a href="#features" class="btn btn-outline">Explore Features</a>
+    </div>
+  </header>
+
+  <!-- Features -->
+  <section id="features">
+    <div class="container text-center">
+      <span class="section-label">Features</span>
+      <h2 class="section-title">Everything you need to stay on track</h2>
+      <p class="section-desc mx-auto">From BMI tracking to AI-generated workouts, Altianly is your all-in-one fitness companion.</p>
+    </div>
+    <div class="container features-grid">
+      <div class="feature-card">
+        <span class="icon">&#9878;</span>
+        <h3>BMI Calculator</h3>
+        <p>Instant BMI with CDC-standard evaluation. Supports imperial and metric units. Auto-saves every entry with weight tracking and streak counter.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#9762;</span>
+        <h3>AI Workout Plans</h3>
+        <p>Generate structured plans via OpenRouter, Ollama, HuggingFace, or Cloudflare Workers AI. Warmup, sets, reps, rest, cooldown — fully personalized.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#9783;</span>
+        <h3>Smart Questionnaire</h3>
+        <p>Tell us about your lifestyle, experience, equipment, injuries, goals, and more. Every answer shapes a hyper-personalized workout plan.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#9776;</span>
+        <h3>Progress Graphs</h3>
+        <p>SVG line charts with BMI/Weight toggle and time aggregation (Days/Weeks/Months/Years). Min, max, average stats at a glance.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#128203;</span>
+        <h3>Notion Export</h3>
+        <p>Export structured workout plans directly to your Notion database. Includes name, date, BMI, warmup, exercises, cooldown, and notes.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#128274;</span>
+        <h3>Passkey Auth (Web)</h3>
+        <p>Register and login with Windows Hello, Touch ID, or Face ID via WebAuthn. No passwords. Local fallback when offline.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#127912;</span>
+        <h3>Dual Theme</h3>
+        <p>Dark mode (GitHub-dark inspired) and warm Cream mode. Toggle anytime — your preference is persisted across sessions.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#127942;</span>
+        <h3>Badges &amp; Streaks</h3>
+        <p>Earn badges for daily check-ins and workout milestones. Stay motivated with gamified progress tracking.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#128221;</span>
+        <h3>Workout Logging</h3>
+        <p>Log actual sets, reps, and weight per exercise. Day-by-day tracking tied to saved plans. Review past logs anytime.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section id="how" style="background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+    <div class="container text-center">
+      <span class="section-label">How It Works</span>
+      <h2 class="section-title">Three steps to your perfect workout</h2>
+      <p class="section-desc mx-auto">No account setup required. Enter your metrics, answer a few questions, and let AI do the rest.</p>
+    </div>
+    <div class="container steps">
+      <div class="step">
+        <div class="num">1</div>
+        <h3>Enter Your Metrics</h3>
+        <p>Age, gender, height, weight. Altianly calculates your BMI and evaluates your current fitness level.</p>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <h3>Answer the Questionnaire</h3>
+        <p>Select your goals, experience, available equipment, training split preference, and any health considerations.</p>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <h3>Get Your AI Plan</h3>
+        <p>A structured workout plan with warmup, exercises, sets, reps, rest, cooldown, and notes. Save, share, or export it.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Screens -->
+  <section>
+    <div class="container text-center">
+      <span class="section-label">App Screens</span>
+      <h2 class="section-title">Built for the web, ready for mobile</h2>
+      <p class="section-desc mx-auto">React Native (Expo SDK 56) powers every screen — from your first BMI entry to your tenth logged workout.</p>
+    </div>
+    <div class="container screens-grid">
+      <div class="screen-card">
+        <span class="mock-icon">&#127968;</span>
+        <h4>Home</h4>
+        <p>BMI calculator, stats, badges, quick-start cards, and training split picker.</p>
+      </div>
+      <div class="screen-card">
+        <span class="mock-icon">&#128202;</span>
+        <h4>History &amp; Graphs</h4>
+        <p>Past workout plans, BMI/weight charts, individual entry deletion, clear all.</p>
+      </div>
+      <div class="screen-card">
+        <span class="mock-icon">&#128170;</span>
+        <h4>Workout Plan</h4>
+        <p>Full structured plan with copy, share, Notion export, and medical disclaimer.</p>
+      </div>
+      <div class="screen-card">
+        <span class="mock-icon">&#128221;</span>
+        <h4>Workout Log</h4>
+        <p>Day-by-day logging of sets, reps, and weight with disclaimer acknowledgment.</p>
+      </div>
+      <div class="screen-card">
+        <span class="mock-icon">&#9881;</span>
+        <h4>Settings</h4>
+        <p>LLM provider config, Notion integration, theme toggle, graph link.</p>
+      </div>
+      <div class="screen-card">
+        <span class="mock-icon">&#128100;</span>
+        <h4>Profile</h4>
+        <p>Passkey login/register, name/email, member stats, logout with confirmation.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Signup -->
+  <section id="signup" style="background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+    <div class="container text-center">
+      <span class="section-label">Get Started</span>
+      <h2 class="section-title">Create your account</h2>
+      <p class="section-desc mx-auto">Enter your name and email to begin your fitness journey. No password needed — we use passkeys for secure login.</p>
+      <form class="signup-form" action="/app/" method="GET">
+        <div class="field">
+          <label for="signup-name">Name</label>
+          <input id="signup-name" name="name" type="text" placeholder="Your name" autocomplete="name" required>
+        </div>
+        <div class="field">
+          <label for="signup-email">Email</label>
+          <input id="signup-email" name="email" type="email" placeholder="you@example.com" autocomplete="email" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Get Started</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <div class="container">
+      <h2>Ready to dive in?</h2>
+      <p>Already have an account? Launch the app and log in with your passkey.</p>
+      <div class="btn-group">
+        <a href="/app/" class="btn btn-primary">Launch Web App</a>
+        <a href="https://github.com/vishhalchopra/altianly" target="_blank" class="btn btn-outline">View on GitHub</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>&copy; 2026 Altianly &middot; Built with React Native + Expo &middot; <a href="https://github.com/vishhalchopra/altianly" target="_blank">GitHub</a></p>
+  </footer>
+
+</body>
+</html>

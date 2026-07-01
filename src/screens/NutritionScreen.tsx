@@ -7,7 +7,9 @@ import { useFocusEffect } from '@react-navigation/native'
 import type { RootStackParamList, Food, Meal, MealEntry, MealType, RDITarget } from '../types'
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
-import { searchFoods, createMeal, getMealsForDate, getDailyTotals, deleteMeal, DEFAULT_RDI } from '../services/nutrition'
+import { searchFoods, createMeal, getMealsForDate, getDailyTotals, deleteMeal, DEFAULT_RDI, parseFoodText, searchFoodByBarcode } from '../services/nutrition'
+import type { ParsedFoodItem } from '../types'
+import BarcodeScanner from '../components/BarcodeScanner'
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Nutrition'> }
 
@@ -81,6 +83,11 @@ export default function NutritionScreen({ navigation }: Props) {
   const [selectedFood, setSelectedFood] = useState<Food | null>(null)
   const [servings, setServings] = useState('1')
   const [saving, setSaving] = useState(false)
+  const [nlpText, setNlpText] = useState('')
+  const [parsedItems, setParsedItems] = useState<ParsedFoodItem[]>([])
+  const [parsing, setParsing] = useState(false)
+  const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set())
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
 
   const totals = getDailyTotals(meals)
   const rdi = DEFAULT_RDI
@@ -113,6 +120,92 @@ export default function NutritionScreen({ navigation }: Props) {
       setSearchError((e as Error).message || 'Search failed. Try a different query.')
     } finally {
       setSearching(false)
+    }
+  }
+
+  async function handleParse() {
+    if (!nlpText.trim()) return
+    setParsing(true)
+    try {
+      const items = await parseFoodText(nlpText.trim())
+      setParsedItems(items)
+      setCheckedItems(new Set(items.map((_, i) => i)))
+    } catch (e) {
+      Alert.alert('Parse error', (e as Error).message || 'Could not parse food text')
+    } finally {
+      setParsing(false)
+    }
+  }
+
+  function toggleItem(idx: number) {
+    const next = new Set(checkedItems)
+    if (next.has(idx)) { next.delete(idx) } else { next.add(idx) }
+    setCheckedItems(next)
+  }
+
+  async function handleAddParsed() {
+    if (!addingToMeal || checkedItems.size === 0) return
+    setSaving(true)
+    try {
+      const existing = getMealForType(addingToMeal)
+      const mealDate = formatDate(currentDate)
+      const entries: { food: Food; servings: number; servingSize: number; servingUnit: string }[] = []
+      for (const idx of checkedItems) {
+        const item = parsedItems[idx]
+        const f = item.food || {
+          id: `est_${item.name}`,
+          name: item.name,
+          brandName: null,
+          servingSize: 100,
+          servingUnit: 'g',
+          nutrients: item.estimatedNutrients || { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 },
+        }
+        entries.push({ food: f, servings: item.servings, servingSize: f.servingSize ?? 100, servingUnit: f.servingUnit || 'g' })
+      }
+      if (existing) {
+        await deleteMeal(existing.id)
+        await createMeal(mealDate, addingToMeal, [...existing.entries.map(mapMealEntryToInput), ...entries])
+      } else {
+        await createMeal(mealDate, addingToMeal, entries)
+      }
+      setParsedItems([])
+      setNlpText('')
+      setAddingToMeal(null)
+      await loadMealsForDate(mealDate)
+    } catch (e) {
+      Alert.alert('Error adding food', (e as Error).message || 'Unknown error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleBarcodeScanned(barcode: string) {
+    setShowBarcodeScanner(false)
+    if (!addingToMeal || !barcode) return
+    setSaving(true)
+    try {
+      const food = await searchFoodByBarcode(barcode)
+      if (!food) {
+        Alert.alert('Not found', `No product found for barcode ${barcode}. Try searching manually.`)
+        return
+      }
+      const existing = getMealForType(addingToMeal)
+      const mealDate = formatDate(currentDate)
+      if (existing) {
+        await deleteMeal(existing.id)
+        await createMeal(mealDate, addingToMeal, [
+          ...existing.entries.map(mapMealEntryToInput),
+          { food, servings: 1, servingSize: 100, servingUnit: 'g' },
+        ])
+      } else {
+        await createMeal(mealDate, addingToMeal, [{ food, servings: 1, servingSize: 100, servingUnit: 'g' }])
+      }
+      setAddingToMeal(null)
+      await loadMealsForDate(mealDate)
+    } catch (e) {
+      Alert.alert('Error', (e as Error).message || 'Failed to add scanned food')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -267,18 +360,79 @@ export default function NutritionScreen({ navigation }: Props) {
       </ScrollView>
 
       {/* Food search modal */}
-      <Modal visible={!!addingToMeal} animationType="slide" transparent onRequestClose={() => setAddingToMeal(null)}>
+      <Modal visible={!!addingToMeal} animationType="slide" transparent onRequestClose={() => { setAddingToMeal(null); setParsedItems([]); setNlpText('') }}>
         <View style={s.modalOverlay}>
           <View style={s.modalSheet}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>Add to {MEAL_TYPES.find((mt) => mt.key === addingToMeal)?.label}</Text>
-              <TouchableOpacity onPress={() => { setAddingToMeal(null); setSelectedFood(null); setFoodResults([] as Food[]); setSearchQuery('') }}>
+              <TouchableOpacity onPress={() => { setAddingToMeal(null); setSelectedFood(null); setFoodResults([] as Food[]); setSearchQuery(''); setParsedItems([]); setNlpText('') }}>
                 <Text style={s.modalClose}>Done</Text>
               </TouchableOpacity>
             </View>
 
             {!selectedFood ? (
               <View style={s.modalBody}>
+                {/* Natural language input */}
+                <Text style={s.sectionLabel}>Quick add</Text>
+                <View style={s.nlpRow}>
+                  <TextInput
+                    style={s.searchInput}
+                    value={nlpText}
+                    onChangeText={(t) => { setNlpText(t); setParsedItems([]) }}
+                    placeholder='e.g. "Chicken sandwich + latte"'
+                    placeholderTextColor={theme.textMuted}
+                    returnKeyType="go"
+                    onSubmitEditing={handleParse}
+                  />
+                  <TouchableOpacity style={s.searchButton} onPress={handleParse} disabled={parsing}>
+                    {parsing ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={s.searchButtonText}>Parse</Text>}
+                  </TouchableOpacity>
+                </View>
+
+                {/* Parsed results */}
+                {parsedItems.length > 0 && (
+                  <View style={s.parsedSection}>
+                    {parsedItems.map((item, idx) => {
+                      const checked = checkedItems.has(idx)
+                      const tierLabel = item.tier === 1 ? 'Verified' : item.tier === 2 ? 'Estimated' : 'AI guess'
+                      const tierColor = item.tier === 1 ? theme.success : item.tier === 2 ? '#FBBF24' : theme.textMuted
+                      const kcal = item.food?.nutrients.calories ?? item.estimatedNutrients?.calories ?? 0
+                      const protein = item.food?.nutrients.protein ?? item.estimatedNutrients?.protein ?? 0
+                      const carbs = item.food?.nutrients.carbs ?? item.estimatedNutrients?.carbs ?? 0
+                      const fat = item.food?.nutrients.fat ?? item.estimatedNutrients?.fat ?? 0
+                      return (
+                        <TouchableOpacity key={idx} style={s.parsedRow} onPress={() => toggleItem(idx)}>
+                          <View style={[s.checkbox, checked && s.checkboxChecked]}>
+                            {checked && <Text style={s.checkmark}>✓</Text>}
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Text style={s.parsedName}>{item.name}</Text>
+                              <View style={[s.tierBadge, { backgroundColor: tierColor + '20', borderColor: tierColor }]}>
+                                <Text style={[s.tierText, { color: tierColor }]}>{tierLabel}</Text>
+                              </View>
+                            </View>
+                            <Text style={s.parsedDetail}>
+                              {item.servings} serving{item.servings !== 1 ? 's' : ''}
+                              {' · '}{Math.round(kcal * item.servings)} kcal · P {(protein * item.servings).toFixed(1)}g · C {(carbs * item.servings).toFixed(1)}g · F {(fat * item.servings).toFixed(1)}g
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      )
+                    })}
+                    <TouchableOpacity
+                      style={[s.confirmButton, checkedItems.size === 0 && { opacity: 0.4 }]}
+                      onPress={handleAddParsed}
+                      disabled={saving || checkedItems.size === 0}
+                    >
+                      {saving ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={s.confirmButtonText}>Add {checkedItems.size} item{checkedItems.size !== 1 ? 's' : ''}</Text>}
+                    </TouchableOpacity>
+                    <View style={s.divider} />
+                  </View>
+                )}
+
+                {/* Search input */}
+                <Text style={s.sectionLabel}>Search USDA database</Text>
                 <View style={s.searchRow}>
                   <TextInput
                     style={s.searchInput}
@@ -288,10 +442,12 @@ export default function NutritionScreen({ navigation }: Props) {
                     placeholderTextColor={theme.textMuted}
                     returnKeyType="search"
                     onSubmitEditing={handleSearch}
-                    autoFocus
                   />
                   <TouchableOpacity style={s.searchButton} onPress={handleSearch} disabled={searching}>
                     {searching ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={s.searchButtonText}>Search</Text>}
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.scanButton} onPress={() => setShowBarcodeScanner(true)}>
+                    <Text style={s.scanButtonText}>📷</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -348,6 +504,12 @@ export default function NutritionScreen({ navigation }: Props) {
           </View>
         </View>
       </Modal>
+
+      <BarcodeScanner
+        visible={showBarcodeScanner}
+        onScanned={handleBarcodeScanned}
+        onClose={() => setShowBarcodeScanner(false)}
+      />
     </View>
   )
 }
@@ -474,6 +636,12 @@ const styles = (t: Theme) => StyleSheet.create({
     justifyContent: 'center', minWidth: 70, alignItems: 'center',
   },
   searchButtonText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
+  scanButton: {
+    width: 44, height: 44, borderRadius: 8,
+    backgroundColor: t.surface, borderWidth: 1, borderColor: t.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  scanButtonText: { fontSize: 20 },
   foodResults: { maxHeight: 350 },
   foodRow: {
     flexDirection: 'row', alignItems: 'center', padding: 14,
@@ -486,6 +654,20 @@ const styles = (t: Theme) => StyleSheet.create({
   foodCheck: { color: t.accent, fontSize: 16, fontWeight: '700', marginLeft: 8 },
   noResults: { color: t.textSecondary, fontSize: 14, textAlign: 'center', padding: 24 },
   searchErrorText: { color: t.danger, fontSize: 14, textAlign: 'center', padding: 24 },
+
+  // NLP section
+  sectionLabel: { color: t.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+  nlpRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
+  parsedSection: { marginBottom: 8 },
+  parsedRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10 },
+  checkbox: { width: 22, height: 22, borderRadius: 4, borderWidth: 2, borderColor: t.border, alignItems: 'center', justifyContent: 'center' },
+  checkboxChecked: { backgroundColor: t.accent, borderColor: t.accent },
+  checkmark: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+  parsedName: { color: t.text, fontSize: 14, fontWeight: '600', flex: 1 },
+  parsedDetail: { color: t.textSecondary, fontSize: 11, marginTop: 2 },
+  tierBadge: { borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1 },
+  tierText: { fontSize: 10, fontWeight: '700' },
+  divider: { height: 1, backgroundColor: t.border, marginVertical: 12 },
 
   // Selected food
   selectedFoodCard: {

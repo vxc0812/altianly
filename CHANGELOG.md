@@ -4,6 +4,45 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 
 ---
 
+## 2026-07-01 — NLP food parsing + barcode scanning (Open Food Facts)
+
+### Natural language food parsing
+- **Worker `POST /food/parse`** — Accepts plain text (e.g. "Chicken sandwich + latte"), uses Cloudflare AI (LLaMA 3.2 3B) to extract structured food items, looks up each in USDA, returns items with tier classification.
+- **`src/types/index.ts`** — Added `ParsedFoodItem { name, servings, tier (1|2|3), food?, estimatedNutrients? }`.
+- **`src/services/nutrition.ts`** — Added `parseFoodText(text)` → calls worker endpoint and returns parsed items array.
+- **Tier system**: Tier 1 (Verified) = exact USDA match, Tier 2 (Transformed) = partial USDA match, Tier 3 (Estimated) = LLM estimate with no USDA result.
+- **NutritionScreen** — Added "Quick add" text input in the search modal. Shows parsed results with checkboxes, tier badges (Verified/Estimated/AI guess), per-item macros, and "Add N items" button. Batch-adds all checked items to the selected meal.
+
+### Barcode scanning (Open Food Facts)
+- **`src/services/nutrition.ts`** — Added `searchFoodByBarcode(barcode)` → calls `world.openfoodfacts.org/api/v2/product/{barcode}.json`, maps response to `Food` type.
+- **`src/components/BarcodeScanner.tsx`** — Camera-based barcode scanner using `expo-camera`. Requests camera permission, scans EAN-13/EAN-8/UPC/Code-128 barcodes. On scan, looks up product and auto-adds to current meal with 1 serving.
+- **NutritionScreen** — Added 📷 scan button next to the search bar. Shows BarcodeScanner as a full-screen overlay.
+
+### Tier badges in UI
+- **Verified** (green) — exact USDA name match
+- **Estimated** (yellow) — partial USDA match
+- **AI guess** (gray) — no USDA data, LLM estimated
+
+---
+
+## 2026-07-01 — (continued) Cloudflare Pages build fix + worker cleanup
+
+### Cloudflare Pages build fix
+- **`database.web.ts`** — Created mock SQLite for web builds. Metro auto-selects `.web.ts` over `.ts` on web, so `expo-sqlite`'s WASM import (`wa-sqlite.wasm`) is never bundled. This fixes the Cloudflare Pages build which was failing because Metro couldn't resolve the `.wasm` file. On native, the real `database.ts` with SQLite is used.
+
+### Worker code trimmed (~276 lines removed)
+- Removed unused WebAuthn/passkey code: CBOR decoder, COSE key parser, `extractPublicKey`, `handleRegisterBegin`, `handleRegisterComplete`, `handleLoginBegin`, `handleLoginComplete`, `generateChallenge`, `bytesToBase64url`, `base64urlToBytes`.
+- Retained: password auth (PBKDF2 register/login), session validate, logout, food search, AI endpoint, data CRUD.
+- USDA API key changed from hardcoded `DEMO_KEY` to `env.USDA_API_KEY` secret variable (settable in Cloudflare dashboard → Settings → Variables).
+
+### KV namespace configured
+- `wrangler.toml` updated with real KV namespace ID: `5c5e455f39a84c71b83eb38bb2643e58`.
+
+### Deployment notes
+- Worker must be deployed as a **Worker** (not Pages project). Use Cloudflare dashboard → Create application → Worker → paste `index.js`. Set KV binding `ALTIANLY_DATA` + variable `USDA_API_KEY` in Settings → Variables.
+
+---
+
 ## 2026-07-01 — Email/password auth + Nutrition bugfixes + web SQLite → AsyncStorage migration
 
 ### Email + password authentication (cross-browser/cross-device)

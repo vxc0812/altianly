@@ -1,8 +1,8 @@
 import { Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { getDb } from './database'
-import type { Food, FoodNutrients, Meal, MealEntry, MealType, RDITarget } from '../types'
-import { DEFAULT_LLM_CONFIGS } from '../constants'
+import { getSyncUrl } from './cloudSync'
+import type { Food, FoodNutrients, Meal, MealEntry, MealType, RDITarget, ParsedFoodItem } from '../types'
 
 const isWeb = Platform.OS === 'web'
 const WEB_MEALS_KEY = 'altianly_meals'
@@ -43,6 +43,50 @@ export async function searchFoods(query: string, pageSize = 25): Promise<Food[]>
     },
   }))
   return foods
+}
+
+export async function searchFoodByBarcode(barcode: string): Promise<Food | null> {
+  try {
+    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`)
+    if (!res.ok) return null
+    const data = await res.json()
+    if (data.status_verbose !== 'product found') return null
+    const p = data.product
+    const n = p.nutriments || {}
+    return {
+      id: barcode,
+      name: p.product_name || `Product ${barcode}`,
+      brandName: p.brands || null,
+      servingSize: null,
+      servingUnit: 'g',
+      nutrients: {
+        calories: Math.round((n['energy-kcal_100g'] || 0) * 10) / 10,
+        protein: Math.round((n.proteins_100g || 0) * 10) / 10,
+        carbs: Math.round((n.carbohydrates_100g || 0) * 10) / 10,
+        fat: Math.round((n.fat_100g || 0) * 10) / 10,
+        fiber: Math.round((n.fiber_100g || 0) * 10) / 10,
+        sugar: Math.round((n.sugars_100g || 0) * 10) / 10,
+        sodium: Math.round((n.sodium_100g || 0) * 10) / 10,
+      },
+    }
+  } catch {
+    return null
+  }
+}
+
+export async function parseFoodText(text: string): Promise<ParsedFoodItem[]> {
+  const base = await getSyncUrl()
+  const res = await fetch(`${base}/food/parse`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Parse failed' }))
+    throw new Error(err.error || `Server error (${res.status})`)
+  }
+  const data = await res.json()
+  return data.items || []
 }
 
 export function computeMealCalories(entry: {
