@@ -244,7 +244,7 @@ async function callCloudflare(
 ): Promise<string> {
   const body = { prompt, model: cfg.model }
 
-  const response = await fetch(cfg.baseUrl, {
+  const response = await fetch(`${cfg.baseUrl}/ai`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -316,7 +316,7 @@ export async function testConnection(config: LLMConfig): Promise<string> {
         return 'Connected to HuggingFace'
       }
       case 'cloudflare': {
-        const res = await fetch(cfg.baseUrl, {
+        const res = await fetch(`${cfg.baseUrl}/ai`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt: 'Respond with: OK', model: cfg.model }),

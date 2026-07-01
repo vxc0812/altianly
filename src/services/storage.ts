@@ -140,24 +140,6 @@ export async function clearLastActivity(): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEYS.LAST_ACTIVITY)
 }
 
-export interface NotionConfig {
-  apiKey: string
-  databaseId: string
-}
-
-export async function getNotionConfig(): Promise<NotionConfig | null> {
-  const json = await secureGet(STORAGE_KEYS.NOTION_CONFIG)
-  return json ? JSON.parse(json) : null
-}
-
-export async function saveNotionConfig(config: NotionConfig): Promise<void> {
-  await secureSet(STORAGE_KEYS.NOTION_CONFIG, JSON.stringify(config))
-}
-
-export async function deleteNotionConfig(): Promise<void> {
-  await secureDelete(STORAGE_KEYS.NOTION_CONFIG)
-}
-
 export async function isSessionExpired(): Promise<boolean> {
   const last = await getLastActivity()
   if (last === null) return true

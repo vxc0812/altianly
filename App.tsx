@@ -21,6 +21,8 @@ import PlanLogsScreen from './src/screens/PlanLogsScreen'
 import ProfileScreen from './src/screens/ProfileScreen'
 import { ConversationalWorkoutScreen } from './src/screens/ConversationalWorkoutScreen'
 import HistoryGraphScreen from './src/screens/HistoryGraphScreen'
+import HabitsScreen from './src/screens/HabitsScreen'
+import NutritionScreen from './src/screens/NutritionScreen'
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
@@ -78,6 +80,8 @@ function AppContent() {
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="ConversationalWorkout" component={ConversationalWorkoutScreen} />
         <Stack.Screen name="HistoryGraph" component={HistoryGraphScreen} />
+        <Stack.Screen name="Habits" component={HabitsScreen} />
+        <Stack.Screen name="Nutrition" component={NutritionScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   )

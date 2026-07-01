@@ -6,6 +6,7 @@ import {
   Lifestyle,
   TrainingSplit,
   Difficulty,
+  WorkoutChoice,
 } from '../types'
 
 type MovementPattern =
@@ -92,6 +93,37 @@ const EXERCISES: ExerciseDef[] = [
   { id: 'skater-hop', name: 'Skater Hops', movementPattern: 'hiit', type: 'hiit', focus: 'lower-body', difficulty: 'normal' },
   { id: 'plank-jack', name: 'Plank Jacks', movementPattern: 'hiit', type: 'hiit', focus: 'full-body', difficulty: 'normal' },
   { id: 'burpee-mtn-climber', name: 'Burpee to Mountain Climber', movementPattern: 'hiit', type: 'hiit', focus: 'full-body', difficulty: 'advanced' },
+  // ── Gym equipment exercises ────────────────────────────────
+  { id: 'barbell-bench', name: 'Barbell Bench Press', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2' },
+  { id: 'incline-db-press', name: 'Incline Dumbbell Press', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2' },
+  { id: 'db-fly', name: 'Dumbbell Chest Fly', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-1-2' },
+  { id: 'cable-cross', name: 'Cable Chest Cross', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-1-2' },
+  { id: 'oh-press', name: 'Overhead Barbell Press', movementPattern: 'push_v', type: 'strength', focus: 'upper-body', difficulty: 'hard', tempo: '2-0-2' },
+  { id: 'db-shoulder-press', name: 'Dumbbell Shoulder Press', movementPattern: 'push_v', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2' },
+  { id: 'lateral-raise', name: 'Dumbbell Lateral Raises', movementPattern: 'push_v', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2' },
+  { id: 'front-raise', name: 'Dumbbell Front Raises', movementPattern: 'push_v', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2' },
+  { id: 'face-pull-cable', name: 'Cable Face Pulls', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2' },
+  { id: 'lat-pulldown', name: 'Lat Pulldown', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2' },
+  { id: 'cable-row', name: 'Seated Cable Row', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2' },
+  { id: 'barbell-row', name: 'Barbell Row', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'hard', tempo: '2-0-2' },
+  { id: 'db-row', name: 'Dumbbell Row', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2' },
+  { id: 'pullup-weighted', name: 'Weighted Pull-ups', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'advanced', tempo: '2-0-2' },
+  { id: 'barbell-squat', name: 'Barbell Back Squat', movementPattern: 'squat', type: 'strength', focus: 'lower-body', difficulty: 'hard', tempo: '3-0-2' },
+  { id: 'front-squat', name: 'Front Squat', movementPattern: 'squat', type: 'strength', focus: 'lower-body', difficulty: 'hard', tempo: '2-0-2' },
+  { id: 'goblet-squat', name: 'Goblet Squat', movementPattern: 'squat', type: 'strength', focus: 'lower-body', difficulty: 'easy', tempo: '2-0-2' },
+  { id: 'leg-press', name: 'Leg Press', movementPattern: 'squat', type: 'strength', focus: 'lower-body', difficulty: 'normal', tempo: '2-0-2' },
+  { id: 'leg-extension', name: 'Leg Extension', movementPattern: 'squat', type: 'strength', focus: 'lower-body', difficulty: 'easy', tempo: '2-0-2' },
+  { id: 'deadlift', name: 'Barbell Deadlift', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'hard', tempo: '2-1-2' },
+  { id: 'rdl', name: 'Romanian Deadlift', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'normal', tempo: '2-1-2' },
+  { id: 'leg-curl', name: 'Leg Curl', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'easy', tempo: '2-0-2' },
+  { id: 'cable-pullthrough', name: 'Cable Pull-Through', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'normal', tempo: '2-0-2' },
+  { id: 'hip-thrust-bb', name: 'Barbell Hip Thrust', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'normal', tempo: '2-1-2' },
+  { id: 'calf-raise', name: 'Standing Calf Raise', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'easy', tempo: '2-0-2' },
+  { id: 'barbell-curl', name: 'Barbell Bicep Curl', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2' },
+  { id: 'db-curl', name: 'Dumbbell Bicep Curl', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2' },
+  { id: 'tricep-pushdown', name: 'Tricep Pushdown', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2' },
+  { id: 'skull-crusher', name: 'Skull Crushers', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2' },
+  { id: 'db-lunge', name: 'Dumbbell Lunges', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'normal', tempo: '2-0-2' },
 ]
 
 export function pickExercise(
@@ -438,13 +470,93 @@ function planNotes(level: ExerciseLevel, split: TrainingSplit, age: number): str
 
 // ── Main Generator ─────────────────────────────────────────────
 
+export function buildCloudflarePrompt(choice: WorkoutChoice, age: number, level: ExerciseLevel): string {
+  const prompts: Record<WorkoutChoice, string> = {
+    hiit: '',
+    strength: '',
+    yoga: `You are a yoga instructor. Generate a 7-day yoga plan as a JSON object. Only valid JSON, no markdown.
+User: ${age}yo, ${level} experience.
+{
+  "name": "Week 1 — Yoga Flow",
+  "days": [
+    {
+      "day": 1,
+      "focus": "Sun Salutations & Standing Poses",
+      "exercises": [
+        { "name": "Sun Salutation A", "sets": 3, "reps": "5 breaths", "restSeconds": 0, "notes": "Flow with breath" },
+        { "name": "Warrior II", "sets": 2, "reps": "5 breaths each side", "restSeconds": 30, "notes": "Stack knee over ankle" },
+        { "name": "Triangle Pose", "sets": 2, "reps": "5 breaths each side", "restSeconds": 30, "notes": "Open the chest" },
+        { "name": "Tree Pose", "sets": 2, "reps": "5 breaths each side", "restSeconds": 20, "notes": "Find a focal point" }
+      ]
+    }
+  ],
+  "warmup": "5 min: Cat-cow, child's pose, neck rolls, shoulder shrugs",
+  "cooldown": "5 min: Seated forward fold, happy baby, corpse pose",
+  "notes": "Focus on breath awareness. Modify poses as needed."
+}`,
+    pilates: `You are a pilates instructor. Generate a 7-day pilates plan as a JSON object. Only valid JSON, no markdown.
+User: ${age}yo, ${level} experience.
+{
+  "name": "Week 1 — Pilates Mat",
+  "days": [
+    {
+      "day": 1,
+      "focus": "Foundation & Core",
+      "exercises": [
+        { "name": "The Hundred", "sets": 1, "reps": "100 pumps", "restSeconds": 30, "notes": "Pump arms 5 counts in, 5 counts out" },
+        { "name": "Roll-Up", "sets": 3, "reps": "5", "restSeconds": 30, "notes": "Articulate spine one vertebra at a time" },
+        { "name": "Single Leg Circles", "sets": 2, "reps": "5 each direction", "restSeconds": 20, "notes": "Keep hips still" },
+        { "name": "Single Leg Stretch", "sets": 2, "reps": "8 each leg", "restSeconds": 20, "notes": "Pull knee to chest" }
+      ]
+    }
+  ],
+  "warmup": "3 min: Pelvic curls, spine twist supine, breathing",
+  "cooldown": "4 min: Mermaid stretch, seated cat-cow, child's pose",
+  "notes": "Control over speed. Engage your powerhouse throughout."
+}`,
+    gym: `You are a professional strength coach. Generate a 4-day gym workout plan as a JSON object. Assume the user has access to a full gym (barbells, dumbbells, cables, machines). Only valid JSON, no markdown.
+User: ${age}yo, ${level} experience.
+{
+  "name": "Week 1 — Gym Split",
+  "days": [
+    {
+      "day": 1,
+      "focus": "Chest & Triceps",
+      "exercises": [
+        { "name": "Barbell Bench Press", "sets": 4, "reps": "8-12", "restSeconds": 90, "notes": "Touch bar to chest" },
+        { "name": "Incline Dumbbell Press", "sets": 3, "reps": "10-12", "restSeconds": 60, "notes": "30° incline, slow negative" },
+        { "name": "Cable Cross", "sets": 3, "reps": "12-15", "restSeconds": 45, "notes": "Slight forward lean" },
+        { "name": "Tricep Pushdown", "sets": 3, "reps": "12-15", "restSeconds": 45, "notes": "Keep elbows pinned" }
+      ]
+    }
+  ],
+  "warmup": "5 min: Light cardio + band pull-aparts, arm circles, empty bar bench",
+  "cooldown": "5 min: Chest stretch, tricep stretch, deep breathing",
+  "notes": "Progressive overload: add 5lb per week on main compound lifts."
+}`,
+  }
+  return prompts[choice]
+}
+
 export function generateWorkoutPlan(params: {
   age: number
   lifestyle: Lifestyle
   exerciseLevel: ExerciseLevel
   split: TrainingSplit
+  workoutChoice?: WorkoutChoice
 }): StructuredWorkoutPlan {
-  const { age, exerciseLevel, lifestyle, split } = params
+  const { age, exerciseLevel, lifestyle, split, workoutChoice } = params
+
+  if (workoutChoice === 'gym' || workoutChoice === 'yoga' || workoutChoice === 'pilates') {
+    return {
+      name: workoutChoice === 'gym' ? 'Gym Workout' : workoutChoice === 'yoga' ? 'Yoga Flow' : 'Pilates Mat',
+      days: [],
+      warmup: '',
+      cooldown: '',
+      notes: 'This workout type uses Cloudflare AI. Switch to AI mode or pick HIIT/Strength for instant plans.',
+    }
+  }
+
   const p = getLevelParams(exerciseLevel, lifestyle, age)
 
   const splitName: Record<TrainingSplit, string> = {

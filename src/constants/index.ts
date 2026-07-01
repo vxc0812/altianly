@@ -1,3 +1,4 @@
+import { Platform } from 'react-native'
 import { ExerciseType, ExerciseFocus, Difficulty, Equipment, TrainingSplit } from '../types'
 
 export const BMI_RANGES = {
@@ -9,12 +10,12 @@ export const BMI_RANGES = {
 
 export const DEFAULT_LLM_CONFIGS = {
   ollama: { provider: 'ollama' as const, baseUrl: 'http://localhost:11434', model: 'llama3.2' },
-  openrouter: { provider: 'openrouter' as const, baseUrl: 'https://openrouter.ai/api/v1', model: 'mistralai/mistral-7b-instruct:free' },
+  openrouter: { provider: 'openrouter' as const, baseUrl: 'https://openrouter.ai/api/v1', model: 'openrouter/free' },
   huggingface: { provider: 'huggingface' as const, baseUrl: 'https://api-inference.huggingface.co', model: 'mistralai/Mistral-7B-Instruct-v0.3' },
   cloudflare: { provider: 'cloudflare' as const, baseUrl: 'https://altianly-ai.vishhalchopra.workers.dev', model: '@cf/meta/llama-3.2-3b-instruct' },
 }
 
-export const DEFAULT_LLM_CONFIG = DEFAULT_LLM_CONFIGS.openrouter
+export const DEFAULT_LLM_CONFIG = DEFAULT_LLM_CONFIGS.cloudflare
 
 export const PROVIDER_INFO = {
   ollama: {
@@ -27,11 +28,11 @@ export const PROVIDER_INFO = {
   },
   openrouter: {
     label: 'OpenRouter',
-    desc: 'Cloud AI with a free tier. Easiest setup — sign up, grab an API key, and you\'re done.',
+    desc: 'Cloud AI with a free tier. Sign up, grab an API key, and you\'re done.',
     needsApiKey: true,
     needsBaseUrl: false,
     defaultBaseUrl: 'https://openrouter.ai/api/v1',
-    recommended: true,
+    recommended: false,
   },
   huggingface: {
     label: 'HuggingFace',
@@ -43,19 +44,19 @@ export const PROVIDER_INFO = {
   },
   cloudflare: {
     label: 'Cloudflare AI',
-    desc: 'AI via your own Cloudflare Worker. Free, no API key needed — deploy the included worker.',
+    desc: 'AI via your Cloudflare Worker. Free, no API key needed — deploy with `npx wrangler deploy` from workers/ai-proxy.',
     needsApiKey: false,
     needsBaseUrl: true,
     defaultBaseUrl: 'https://altianly-ai.vishhalchopra.workers.dev',
-    recommended: false,
+    recommended: true,
   },
 } as const
 
 export const RECOMMENDED_MODELS: Record<'ollama' | 'openrouter' | 'huggingface' | 'cloudflare', { id: string; label: string }[]> = {
   openrouter: [
-    { id: 'mistralai/mistral-7b-instruct:free', label: 'Mistral 7B (free)' },
+    { id: 'openrouter/free', label: 'Auto-select free model' },
+    { id: 'google/gemma-4-31b-it:free', label: 'Gemma 4 31B (free)' },
     { id: 'meta-llama/llama-3.2-3b-instruct:free', label: 'Llama 3.2 3B (free)' },
-    { id: 'google/gemma-3-4b-it:free', label: 'Gemma 3 4B (free)' },
   ],
   ollama: [
     { id: 'llama3.2', label: 'Llama 3.2' },
@@ -91,10 +92,7 @@ export const STORAGE_KEYS = {
   BADGES: 'altianly_badges',
   USER_PROFILE: 'altianly_user_profile',
   LAST_ACTIVITY: 'altianly_last_activity',
-  NOTION_CONFIG: 'altianly_notion_config',
 } as const
-
-export const NOTION_API_VERSION = '2022-06-28'
 
 export const EXERCISE_TYPES: ExerciseType[] = ['strength', 'cardio', 'metcon', 'hiit', 'combat', 'stretching', 'wellness', 'yoga']
 export const EXERCISE_FOCUSES: ExerciseFocus[] = ['full-body', 'upper-body', 'lower-body', 'abs']
@@ -116,3 +114,17 @@ export const TRAINING_SPLITS: { value: TrainingSplit; label: string; desc: strin
   { value: 'full_body', label: 'Full Body', desc: '3x/week full body workouts each session' },
   { value: 'bro_split', label: 'Bro Split', desc: '5-day: Chest, Back, Shoulders, Arms, Legs' },
 ]
+
+export const WORKOUT_CHOICES: { value: import('../types').WorkoutChoice; label: string; icon: string; desc: string }[] = [
+  { value: 'hiit', label: 'HIIT', icon: '🔥', desc: 'High intensity, bodyweight circuits, timed intervals' },
+  { value: 'strength', label: 'Strength', icon: '💪', desc: 'Progressive overload, compound movements' },
+  { value: 'yoga', label: 'Yoga', icon: '🧘', desc: 'Poses, flows, flexibility & breath work' },
+  { value: 'pilates', label: 'Pilates', icon: '🎯', desc: 'Core strength, control, mat exercises' },
+  { value: 'gym', label: 'Gym', icon: '🏋️', desc: 'Full gym equipment — barbells, dumbbells, machines' },
+]
+
+export const FONT_MONO = Platform.OS === 'web'
+  ? "'JetBrains Mono', 'IBM Plex Mono', ui-monospace, Menlo, monospace"
+  : Platform.OS === 'ios'
+    ? 'Menlo'
+    : 'monospace'

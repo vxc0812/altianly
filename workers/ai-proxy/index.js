@@ -146,12 +146,43 @@ function extractPublicKey(attestationObject) {
   return { publicKey: parseCOSEKey(coseMap), credentialIdLength: credIdLen }
 }
 
+// ── Password hashing (PBKDF2) ────────────────────────────
+const PBKDF2_ITERATIONS = 100000
+
+async function hashPassword(password, salt) {
+  const enc = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw', enc.encode(password),
+    { name: 'PBKDF2' }, false, ['deriveBits'],
+  )
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    key, 256,
+  )
+  return new Uint8Array(bits)
+}
+
+function generateSalt() {
+  return randomBytes(16)
+}
+
+function bytesToHex(buf) {
+  return Array.from(buf).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+function hexToBytes(hex) {
+  const bytes = new Uint8Array(hex.length / 2)
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16)
+  return bytes
+}
+
 // ── KV helpers ──────────────────────────────────────────
 function userKey(userId) { return `history:${userId}` }
 function challengeKey(c) { return `challenge:${c}` }
 function credentialKey(id) { return `credential:${id}` }
 function sessionKey(token) { return `session:${token}` }
 function userDataKey(email) { return `user:${email}` }
+function passwordKey(email) { return `password:${email}` }
 
 async function getHistory(env, userId) {
   const raw = await env.ALTIANLY_DATA.get(userKey(userId))
@@ -311,6 +342,60 @@ async function handleLogout(env, body) {
   return json({ ok: true })
 }
 
+// ── Auth: password register ──────────────────────────────
+async function handlePasswordRegister(env, body) {
+  const { email, name, password } = body
+  if (!email || !name || !password) return error('Missing required fields')
+  if (password.length < 6) return error('Password must be at least 6 characters')
+
+  const existing = await env.ALTIANLY_DATA.get(userDataKey(email))
+  if (existing) return error('An account with this email already exists', 409)
+
+  const salt = generateSalt()
+  const hash = await hashPassword(password, salt)
+
+  await env.ALTIANLY_DATA.put(passwordKey(email), JSON.stringify({
+    salt: bytesToHex(salt),
+    hash: bytesToHex(hash),
+  }))
+
+  await env.ALTIANLY_DATA.put(userDataKey(email), JSON.stringify({
+    name, email, createdAt: Date.now(),
+  }))
+
+  const token = crypto.randomUUID()
+  await env.ALTIANLY_DATA.put(sessionKey(token), JSON.stringify({ email }), { expirationTtl: 2592000 })
+
+  return json({ ok: true, token, createdAt: Date.now(), name })
+}
+
+// ── Auth: password login ─────────────────────────────────
+async function handlePasswordLogin(env, body) {
+  const { email, password } = body
+  if (!email || !password) return error('Missing email or password')
+
+  const pwData = await env.ALTIANLY_DATA.get(passwordKey(email))
+  if (!pwData) return error('Invalid email or password', 401)
+
+  const { salt, hash: storedHash } = JSON.parse(pwData)
+  const saltBytes = hexToBytes(salt)
+  const hashBytes = hexToBytes(storedHash)
+  const computedHash = await hashPassword(password, saltBytes)
+
+  if (bytesToHex(computedHash) !== bytesToHex(hashBytes)) {
+    return error('Invalid email or password', 401)
+  }
+
+  const userData = await env.ALTIANLY_DATA.get(userDataKey(email))
+  if (!userData) return error('User not found', 404)
+
+  const user = JSON.parse(userData)
+  const token = crypto.randomUUID()
+  await env.ALTIANLY_DATA.put(sessionKey(token), JSON.stringify({ email }), { expirationTtl: 2592000 })
+
+  return json({ ok: true, token, name: user.name, createdAt: user.createdAt })
+}
+
 // ── Router ──────────────────────────────────────────────
 export default {
   async fetch(request, env) {
@@ -356,6 +441,68 @@ export default {
     if (path === '/auth/logout' && request.method === 'POST') {
       const body = await request.json().catch(() => null)
       return handleLogout(env, body || {})
+    }
+
+    // ── Auth: password register ───────────────────────────
+    if (path === '/auth/password/register' && request.method === 'POST') {
+      const body = await request.json().catch(() => null)
+      if (!body) return error('Invalid JSON')
+      return handlePasswordRegister(env, body)
+    }
+
+    // ── Auth: password login ──────────────────────────────
+    if (path === '/auth/password/login' && request.method === 'POST') {
+      const body = await request.json().catch(() => null)
+      if (!body) return error('Invalid JSON')
+      return handlePasswordLogin(env, body)
+    }
+
+    // ── Food search ──────────────────────────────────────
+    if (path === '/food/search' && request.method === 'POST') {
+      const body = await request.json().catch(() => null)
+      if (!body) return error('Invalid JSON')
+      const { query, pageSize } = body
+      if (!query) return error('Missing query')
+
+      try {
+        const usdaRes = await fetch('https://api.nal.usda.gov/fdc/v1/foods/search?api_key=DEMO_KEY', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query,
+            pageSize: pageSize || 25,
+            dataType: ['Foundation', 'SR Legacy', 'Branded'],
+            sortBy: 'dataType.keyword',
+            sortOrder: 'asc',
+          }),
+        })
+        if (!usdaRes.ok) {
+          const errText = await usdaRes.text()
+          return json({ error: `USDA error ${usdaRes.status}: ${errText}` }, 502)
+        }
+        const data = await usdaRes.json()
+
+        const foods = (data.foods || []).map((f) => ({
+          id: String(f.fdcId),
+          name: f.description,
+          brandName: f.brandName || f.brandOwner || null,
+          servingSize: f.servingSize || null,
+          servingUnit: f.servingSizeUnit || null,
+          nutrients: {
+            calories: Math.round((f.foodNutrients?.find((n) => n.nutrientId === 1008)?.value || 0) * 10) / 10,
+            protein: Math.round((f.foodNutrients?.find((n) => n.nutrientId === 1003)?.value || 0) * 10) / 10,
+            carbs: Math.round((f.foodNutrients?.find((n) => n.nutrientId === 1005)?.value || 0) * 10) / 10,
+            fat: Math.round((f.foodNutrients?.find((n) => n.nutrientId === 1004)?.value || 0) * 10) / 10,
+            fiber: Math.round((f.foodNutrients?.find((n) => n.nutrientId === 1079)?.value || 0) * 10) / 10,
+            sugar: Math.round((f.foodNutrients?.find((n) => n.nutrientId === 2000)?.value || 0) * 10) / 10,
+            sodium: Math.round((f.foodNutrients?.find((n) => n.nutrientId === 1093)?.value || 0) * 10) / 10,
+          },
+        }))
+
+        return json({ foods })
+      } catch (err) {
+        return json({ error: err.message }, 500)
+      }
     }
 
     // ── AI endpoint ──────────────────────────────────────

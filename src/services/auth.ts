@@ -174,6 +174,88 @@ export async function loginWithPasskey(): Promise<{ ok: boolean; error?: string 
   return { ok: true }
 }
 
+export async function registerWithPassword(
+  name: string,
+  email: string,
+  password: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (password.length < 6) return { ok: false, error: 'Password must be at least 6 characters' }
+
+  try {
+    const base = await getSyncUrl()
+    const res = await fetch(`${base}/auth/password/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim().toLowerCase(), name: name.trim(), password }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      setSessionToken(data.token)
+      const profile: UserProfile = {
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        createdAt: data.createdAt || Date.now(),
+        lastLoginAt: Date.now(),
+      }
+      await saveUserProfile(profile)
+      await updateLastActivity()
+      return { ok: true }
+    }
+    const err = await res.json().catch(() => ({ error: 'Registration failed' }))
+    return { ok: false, error: err.error || `Server error (${res.status})` }
+  } catch {
+    // Worker unreachable — fall back to local-only registration
+    const profile: UserProfile = {
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      createdAt: Date.now(),
+      lastLoginAt: Date.now(),
+    }
+    await saveUserProfile(profile)
+    await updateLastActivity()
+    return { ok: true }
+  }
+}
+
+export async function loginWithPassword(
+  email: string,
+  password: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const base = await getSyncUrl()
+    const res = await fetch(`${base}/auth/password/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      setSessionToken(data.token)
+      const profile: UserProfile = {
+        name: data.name,
+        email: email.trim().toLowerCase(),
+        createdAt: data.createdAt || Date.now(),
+        lastLoginAt: Date.now(),
+      }
+      await saveUserProfile(profile)
+      await updateLastActivity()
+      return { ok: true }
+    }
+    const err = await res.json().catch(() => ({ error: 'Login failed' }))
+    return { ok: false, error: err.error || `Server error (${res.status})` }
+  } catch {
+    // Worker unreachable — try local profile
+    const local = await getUserProfile()
+    if (local && local.email === email.trim().toLowerCase()) {
+      local.lastLoginAt = Date.now()
+      await saveUserProfile(local)
+      await updateLastActivity()
+      return { ok: true }
+    }
+    return { ok: false, error: 'Cannot reach server and no local profile found.' }
+  }
+}
+
 export async function logout(): Promise<void> {
   const token = getSessionToken()
   if (token) {

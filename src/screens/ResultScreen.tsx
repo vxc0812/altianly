@@ -2,10 +2,11 @@ import React, { useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RouteProp } from '@react-navigation/native'
-import { RootStackParamList, UserInput, Lifestyle, ExerciseLevel, TrainingSplit, PrimaryGoal, WorkoutEnvironment } from '../types'
+import { RootStackParamList, UserInput, Lifestyle, ExerciseLevel, TrainingSplit, PrimaryGoal, WorkoutEnvironment, WorkoutChoice } from '../types'
 import { calculateBMI } from '../services/bmi'
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
+import { WORKOUT_CHOICES } from '../constants'
 import { Button, Card } from '../components'
 
 type Props = {
@@ -123,6 +124,7 @@ export default function ResultScreen({ navigation, route }: Props) {
   const color = evaluationColors[evaluation]
   const recommendations = getRecommendations(evaluation, userInput)
 
+  const [workoutChoice, setWorkoutChoice] = useState<WorkoutChoice | null>(null)
   const [lifestyle, setLifestyle] = useState<Lifestyle | null>(null)
   const [exerciseLevel, setExerciseLevel] = useState<ExerciseLevel | null>(null)
   const [primaryGoal, setPrimaryGoal] = useState<PrimaryGoal | null>(null)
@@ -131,7 +133,7 @@ export default function ResultScreen({ navigation, route }: Props) {
   const [injuries, setInjuries] = useState<string>('none')
   const [mode, setMode] = useState<'instant' | 'ai'>('instant')
 
-  const canGenerate = !!(lifestyle && exerciseLevel && primaryGoal && workoutEnvironment)
+  const canGenerate = !!(workoutChoice && lifestyle && exerciseLevel && primaryGoal && workoutEnvironment)
 
   function handleGenerate() {
     if (!canGenerate) return
@@ -142,6 +144,7 @@ export default function ResultScreen({ navigation, route }: Props) {
         lifestyle,
         exerciseLevel,
         trainingSplit: deriveTrainingSplit(lifestyle, exerciseLevel),
+        workoutChoice,
         primaryGoal,
         workoutEnvironment,
         targetTimeline: targetTimeline ?? undefined,
@@ -174,6 +177,22 @@ export default function ResultScreen({ navigation, route }: Props) {
 
       <View style={s.divider} />
       <Text style={s.sectionTitle}>Plan Settings</Text>
+
+      <Text style={s.questionLabel}>Workout Type</Text>
+      <View style={s.workoutChoiceRow}>
+        {WORKOUT_CHOICES.map((opt) => (
+          <TouchableOpacity
+            key={opt.value}
+            style={[s.workoutChoiceCard, workoutChoice === opt.value && s.workoutChoiceCardSelected]}
+            onPress={() => setWorkoutChoice(opt.value)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: workoutChoice === opt.value }}
+          >
+            <Text style={s.workoutChoiceIcon}>{opt.icon}</Text>
+            <Text style={[s.workoutChoiceLabel, workoutChoice === opt.value && s.workoutChoiceLabelSelected]}>{opt.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <Text style={s.questionLabel}>Lifestyle</Text>
       <View style={s.optionsRow}>
@@ -338,6 +357,15 @@ const styles = (t: Theme) => StyleSheet.create({
   optionLabel: { fontSize: 15, fontWeight: '700', color: t.text },
   optionLabelSelected: { color: t.accent },
   optionDesc: { fontSize: 12, color: t.textSecondary, marginTop: 3 },
+  workoutChoiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  workoutChoiceCard: {
+    width: '18%', minWidth: 64, alignItems: 'center', paddingVertical: 12, paddingHorizontal: 6,
+    backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10,
+  },
+  workoutChoiceCardSelected: { borderColor: t.accent, backgroundColor: t.isDark ? '#1C2533' : '#F3EDFF' },
+  workoutChoiceIcon: { fontSize: 20, marginBottom: 4 },
+  workoutChoiceLabel: { fontSize: 11, fontWeight: '700', color: t.text },
+  workoutChoiceLabelSelected: { color: t.accent },
   modeToggle: { flexDirection: 'row', gap: 10, marginTop: 16, marginBottom: 4 },
   modeOption: { flex: 1, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 14, alignItems: 'center' },
   modeOptionActive: { borderColor: t.accent, backgroundColor: t.isDark ? '#1C2533' : '#F3EDFF' },

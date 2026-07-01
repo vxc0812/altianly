@@ -33,6 +33,7 @@ export interface QuestionnaireAnswers {
   lifestyle: Lifestyle
   exerciseLevel: ExerciseLevel
   trainingSplit: TrainingSplit
+  workoutChoice?: WorkoutChoice
   // Extended questionnaire fields
   ageGroup?: AgeGroup
   primaryGoal?: PrimaryGoal
@@ -123,6 +124,62 @@ export interface UserProfile {
   disclaimerAccepted?: boolean
 }
 
+export interface FoodNutrients {
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  fiber?: number
+  sugar?: number
+  sodium?: number
+}
+
+export interface Food {
+  id: string
+  name: string
+  brandName?: string | null
+  servingSize?: number | null
+  servingUnit?: string | null
+  nutrients: FoodNutrients
+}
+
+export interface MealEntry {
+  id: string
+  mealId: string
+  foodId: string
+  foodName: string
+  foodBrand?: string | null
+  servingSize: number
+  servingUnit: string
+  servings: number
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  fiber: number
+  sugar: number
+  sodium: number
+  createdAt: number
+}
+
+export interface Meal {
+  id: string
+  date: string
+  type: MealType
+  entries: MealEntry[]
+  createdAt: number
+}
+
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
+
+export interface RDITarget {
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  fiber: number
+}
+
 export type RootStackParamList = {
   Home: undefined
   Result: { userInput: UserInput }
@@ -136,6 +193,8 @@ export type RootStackParamList = {
   Profile: undefined
   ConversationalWorkout: undefined
   HistoryGraph: undefined
+  Habits: undefined
+  Nutrition: undefined
 }
 
 export type ExerciseType = 'strength' | 'cardio' | 'metcon' | 'hiit' | 'combat' | 'stretching' | 'wellness' | 'yoga'
@@ -143,6 +202,7 @@ export type ExerciseFocus = 'full-body' | 'upper-body' | 'lower-body' | 'abs'
 export type Difficulty = 'light' | 'easy' | 'normal' | 'hard' | 'advanced'
 export type Equipment = 'none' | 'dumbbells' | 'bar' | 'bells' | 'barbell' | 'weapons' | 'ball' | 'other'
 export type TrainingSplit = 'ppl' | 'upper_lower' | 'full_body' | 'bro_split'
+export type WorkoutChoice = 'hiit' | 'strength' | 'yoga' | 'pilates' | 'gym'
 
 export interface Exercise {
   title: string
@@ -183,4 +243,27 @@ export interface StructuredWorkoutPlan {
   warmup?: string
   cooldown?: string
   notes?: string
+}
+
+export type HabitType = 'yesno' | 'number' | 'time' | 'select'
+
+export interface Habit {
+  id: string
+  name: string
+  type: HabitType
+  target?: number
+  unit?: string
+  options?: string[]
+  createdAt: number
+  sortOrder: number
+}
+
+export interface HabitEntry {
+  id: string
+  habitId: string
+  date: string
+  value: string
+  skipped: boolean
+  notes?: string
+  createdAt: number
 }

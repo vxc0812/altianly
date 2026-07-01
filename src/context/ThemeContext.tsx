@@ -11,15 +11,15 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
-  theme: dark,
-  mode: 'dark',
+  theme: cream,
+  mode: 'cream',
   toggleTheme: () => {},
 })
 
 const STORAGE_KEY = 'altianly_theme'
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setMode] = useState<ThemeMode>('dark')
+  const [mode, setMode] = useState<ThemeMode>('cream')
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((saved) => {

@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Modal,
 } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useFocusEffect } from '@react-navigation/native'
@@ -22,8 +21,7 @@ import {
 } from '../services/storage'
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
-import { isWebAuthnAvailable } from '../services/webauthn'
-import { registerWithPasskey, loginWithPasskey, setSessionToken } from '../services/auth'
+import { registerWithPassword, loginWithPassword, setSessionToken } from '../services/auth'
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Profile'> }
 
@@ -46,6 +44,12 @@ function formatDate(ts: number): string {
   return `${d.toLocaleString('default', { month: 'long' })} ${d.getDate()}, ${d.getFullYear()}`
 }
 
+const FEATURES = [
+  { icon: '⚡', title: 'AI Workout Plans', desc: 'Generate personalized plans via OpenRouter, Ollama, or HuggingFace. Structured sets, reps, rest, and progression.' },
+  { icon: '📊', title: 'BMI & Progress', desc: 'Track your BMI over time with line charts. Streaks, badges, and weight history to keep you motivated.' },
+  { icon: '🏋️', title: 'Workout Logging', desc: 'Log actual sets, reps, and weight. Review past logs tied to saved plans.' },
+]
+
 export default function ProfileScreen({ navigation }: Props) {
   const { theme } = useTheme()
   const s = styles(theme)
@@ -55,12 +59,10 @@ export default function ProfileScreen({ navigation }: Props) {
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-
-  const [passkeyBusy, setPasskeyBusy] = useState(false)
-  const passkeyWebAvailable = Platform.OS === 'web' && isWebAuthnAvailable()
-
-  const [showDisclaimer, setShowDisclaimer] = useState(false)
-  const [disclaimerChecked, setDisclaimerChecked] = useState(false)
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [showLogin, setShowLogin] = useState(false)
 
   useFocusEffect(useCallback(() => {
     ;(async () => {
@@ -81,48 +83,34 @@ export default function ProfileScreen({ navigation }: Props) {
     })()
   }, []))
 
-  async function handleNativeRegister() {
+  async function handleRegister() {
     if (!name.trim()) { Alert.alert('Error', 'Name is required'); return }
     if (!email.trim()) { Alert.alert('Error', 'Email is required'); return }
+    if (!password) { Alert.alert('Error', 'Password is required'); return }
+    if (password.length < 6) { Alert.alert('Error', 'Password must be at least 6 characters'); return }
+    if (password !== confirmPassword) { Alert.alert('Error', 'Passwords do not match'); return }
 
-    const newProfile: UserProfile = {
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      createdAt: Date.now(),
-      lastLoginAt: Date.now(),
-    }
-    await saveUserProfile(newProfile)
-    await updateLastActivity()
-    navigation.replace('Home')
-  }
-
-  async function handleWebRegister() {
-    if (!name.trim()) { Alert.alert('Error', 'Name is required'); return }
-    if (!email.trim()) { Alert.alert('Error', 'Email is required'); return }
-    setDisclaimerChecked(false)
-    setShowDisclaimer(true)
-  }
-
-  async function completeWebRegister() {
-    setShowDisclaimer(false)
-    setPasskeyBusy(true)
-    const result = await registerWithPasskey(name.trim(), email.trim())
-    setPasskeyBusy(false)
+    setBusy(true)
+    const result = await registerWithPassword(name.trim(), email.trim(), password)
+    setBusy(false)
     if (result.ok) {
       navigation.replace('Home')
-    } else if (result.error) {
-      Alert.alert('Registration Failed', result.error)
+    } else {
+      Alert.alert('Registration Failed', result.error || 'Unknown error')
     }
   }
 
-  async function handleWebLogin() {
-    setPasskeyBusy(true)
-    const result = await loginWithPasskey()
-    setPasskeyBusy(false)
+  async function handleLogin() {
+    if (!email.trim()) { Alert.alert('Error', 'Email is required'); return }
+    if (!password) { Alert.alert('Error', 'Password is required'); return }
+
+    setBusy(true)
+    const result = await loginWithPassword(email.trim(), password)
+    setBusy(false)
     if (result.ok) {
       navigation.replace('Home')
-    } else if (result.error) {
-      Alert.alert('Login Failed', result.error)
+    } else {
+      Alert.alert('Login Failed', result.error || 'Unknown error')
     }
   }
 
@@ -196,33 +184,61 @@ export default function ProfileScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-        {!isRootScreen(navigation) && (
-          <View style={s.headerRow}>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Text style={s.backText}>{'< Back'}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+      <ScrollView contentContainerStyle={s.landingContent} keyboardShouldPersistTaps="handled">
+        <View style={s.landingHeaderRow}>
+          <View />
+          <TouchableOpacity style={s.loginPill} onPress={() => setShowLogin(true)}>
+            <Text style={s.loginPillText}>Login</Text>
+          </TouchableOpacity>
+        </View>
 
+        {/* Hero */}
+        <View style={s.hero}>
+          <View style={s.heroBadge}>
+            <Text style={s.heroBadgeText}>⚡ AI-Powered Workout Plans</Text>
+          </View>
+          <Text style={s.heroTitle}>Your personal{"\n"}fitness AI</Text>
+          <Text style={s.heroDesc}>
+            AI-generated workout plans tailored to your body metrics, fitness goals, and lifestyle. Track progress and log workouts.
+          </Text>
+        </View>
+
+        {/* Features */}
+        <Text style={s.sectionLabel}>Features</Text>
+        {FEATURES.map((f, i) => (
+          <View key={i} style={s.featureCard}>
+            <Text style={s.featureIcon}>{f.icon}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={s.featureTitle}>{f.title}</Text>
+              <Text style={s.featureDesc}>{f.desc}</Text>
+            </View>
+          </View>
+        ))}
+
+        {/* Signup / Login Form */}
         <View style={s.formSection}>
-          <Text style={s.formTitle}>Create your account</Text>
+          <Text style={s.formTitle}>{showLogin ? 'Welcome back' : 'Get started'}</Text>
           <Text style={s.formSubtitle}>
-            Enter your name and email to begin your fitness journey. No password needed — we use passkeys for secure login.
+            {showLogin
+              ? 'Enter your email and password to log in.'
+              : 'Create an account with email and password. Works across all your devices.'
+            }
           </Text>
 
-          <View style={s.inputGroup}>
-            <Text style={s.label}>Name</Text>
-            <TextInput
-              style={s.input}
-              value={name}
-              onChangeText={setName}
-              placeholder="Your name"
-              placeholderTextColor={theme.textMuted}
-              autoCapitalize="words"
-              autoCorrect={false}
-            />
-          </View>
+          {!showLogin && (
+            <View style={s.inputGroup}>
+              <Text style={s.label}>Name</Text>
+              <TextInput
+                style={s.input}
+                value={name}
+                onChangeText={setName}
+                placeholder="Your name"
+                placeholderTextColor={theme.textMuted}
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
+            </View>
+          )}
 
           <View style={s.inputGroup}>
             <Text style={s.label}>Email</Text>
@@ -238,106 +254,57 @@ export default function ProfileScreen({ navigation }: Props) {
             />
           </View>
 
-          {passkeyWebAvailable ? (
-            <TouchableOpacity
-              style={s.primaryButton}
-              onPress={handleWebRegister}
-              disabled={passkeyBusy}
-            >
-              {passkeyBusy
-                ? <ActivityIndicator color="#FFF" size="small" />
-                : <Text style={s.primaryButtonText}>Register with Passkey</Text>
-              }
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={s.primaryButton} onPress={handleNativeRegister}>
-              <Text style={s.primaryButtonText}>Create Account</Text>
-            </TouchableOpacity>
-          )}
-
-          {passkeyWebAvailable && (
-            <>
-              <View style={s.dividerRow}>
-                <View style={s.dividerLine} />
-                <Text style={s.dividerText}>or</Text>
-                <View style={s.dividerLine} />
-              </View>
-
-              <TouchableOpacity
-                style={s.secondaryButton}
-                onPress={handleWebLogin}
-                disabled={passkeyBusy}
-              >
-                {passkeyBusy
-                  ? <ActivityIndicator color={theme.accent} size="small" />
-                  : <Text style={s.secondaryButtonText}>Login with Passkey</Text>
-                }
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-      </ScrollView>
-
-      <Modal visible={showDisclaimer} animationType="slide" transparent>
-        <View style={s.modalOverlay}>
-          <View style={s.disclaimerModal}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={s.disclaimerHeader}>
-                <Text style={s.disclaimerHeaderText}>Before you begin — read this</Text>
-                <TouchableOpacity onPress={() => setShowDisclaimer(false)}>
-                  <Text style={s.disclaimerDismiss}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={s.disclaimerBody}>
-                <Text style={s.disclaimerSectionLabel}>Medical disclaimer</Text>
-                <Text style={s.disclaimerSectionText}>
-                  This app provides general fitness content for informational purposes only. Nothing here constitutes medical advice, diagnosis, or treatment. Consult a licensed physician or qualified healthcare professional before starting any exercise program, especially if you have a pre-existing medical condition, injury, disability, or have been physically inactive.
-                </Text>
-
-                <Text style={s.disclaimerSectionLabel}>Assumption of risk</Text>
-                <Text style={s.disclaimerSectionText}>
-                  Physical exercise carries inherent risk of injury or harm. By using this app, you voluntarily assume full responsibility for any injury, loss, or damage that may result from participating in these workouts. This app and its creators are not liable for any harm arising from your use of this content.
-                </Text>
-
-                <Text style={s.disclaimerSectionLabel}>No guarantee of results</Text>
-                <Text style={s.disclaimerSectionText}>
-                  Results vary by individual based on factors including fitness level, diet, consistency, and genetics. We make no guarantee that any workout will help you achieve a specific goal. Any results shown or described are illustrative and not typical.
-                </Text>
-
-                <View style={s.disclaimerDangerBox}>
-                  <Text style={s.disclaimerDangerText}>
-                    <Text style={{ fontWeight: '700' }}>Stop exercising immediately</Text> if you experience chest pain, dizziness, shortness of breath, or severe discomfort. Seek emergency medical attention if needed.
-                  </Text>
-                </View>
-
-                <TouchableOpacity
-                  style={s.disclaimerCheckRow}
-                  onPress={() => setDisclaimerChecked(!disclaimerChecked)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[s.disclaimerCheckbox, disclaimerChecked && s.disclaimerCheckboxChecked]}>
-                    {disclaimerChecked && <Text style={s.disclaimerCheckmark}>✓</Text>}
-                  </View>
-                  <Text style={s.disclaimerCheckLabel}>
-                    I have read and understood this disclaimer. I accept full responsibility for my participation and acknowledge that results are not guaranteed.
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[s.disclaimerCta, !disclaimerChecked && s.disclaimerCtaDisabled]}
-                  disabled={!disclaimerChecked}
-                  onPress={completeWebRegister}
-                >
-                  <Text style={[s.disclaimerCtaText, !disclaimerChecked && s.disclaimerCtaTextDisabled]}>
-                    I understand, let's start
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
+          <View style={s.inputGroup}>
+            <Text style={s.label}>Password</Text>
+            <TextInput
+              style={s.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder={showLogin ? 'Your password' : 'At least 6 characters'}
+              placeholderTextColor={theme.textMuted}
+              secureTextEntry
+              autoCapitalize="none"
+            />
           </View>
+
+          {!showLogin && (
+            <View style={s.inputGroup}>
+              <Text style={s.label}>Confirm password</Text>
+              <TextInput
+                style={s.input}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Repeat password"
+                placeholderTextColor={theme.textMuted}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={s.primaryButton}
+            onPress={showLogin ? handleLogin : handleRegister}
+            disabled={busy}
+          >
+            {busy
+              ? <ActivityIndicator color="#FFF" size="small" />
+              : <Text style={s.primaryButtonText}>{showLogin ? 'Log In' : 'Create Account'}</Text>
+            }
+          </TouchableOpacity>
+
+          <TouchableOpacity style={s.loginLink} onPress={() => setShowLogin(!showLogin)}>
+            <Text style={s.loginLinkText}>
+              {showLogin ? "Don't have an account? Register" : 'Already registered? Log in'}
+            </Text>
+          </TouchableOpacity>
         </View>
-      </Modal>
+
+        {/* Footer */}
+        <Text style={s.footer}>
+          Logging in stores your data on our server so you can access it from any device.
+        </Text>
+      </ScrollView>
     </KeyboardAvoidingView>
   )
 }
@@ -345,10 +312,49 @@ export default function ProfileScreen({ navigation }: Props) {
 const styles = (t: Theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: t.bg },
   content: { padding: 24, paddingTop: 60, paddingBottom: 40 },
+  landingContent: { padding: 24, paddingTop: 60, paddingBottom: 60 },
   loadingText: { color: t.textSecondary, fontSize: 16 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
   backText: { color: t.accent, fontSize: 16 },
-  // Avatar section
+  landingHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, minHeight: 36 },
+  loginPill: {
+    borderWidth: 1, borderColor: t.accent, borderRadius: 20,
+    paddingHorizontal: 18, paddingVertical: 7, minWidth: 72, alignItems: 'center',
+  },
+  loginPillText: { color: t.accent, fontSize: 14, fontWeight: '600' },
+
+  // Hero
+  hero: { alignItems: 'center', paddingVertical: 32 },
+  heroBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: t.accent + '18', borderWidth: 1, borderColor: t.accent + '30',
+    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginBottom: 20,
+  },
+  heroBadgeText: { color: t.accent, fontSize: 13, fontWeight: '600' },
+  heroTitle: {
+    fontSize: 36, fontWeight: '800', color: t.text, textAlign: 'center',
+    letterSpacing: -0.5, marginBottom: 16,
+  },
+  heroDesc: {
+    color: t.textSecondary, fontSize: 15, lineHeight: 22,
+    textAlign: 'center', maxWidth: 340, marginBottom: 8,
+  },
+
+  // Features
+  sectionLabel: {
+    fontSize: 11, fontWeight: '700', color: t.textSecondary,
+    textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, marginTop: 8,
+  },
+  featureCard: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 14,
+    backgroundColor: t.surface, borderWidth: 1, borderColor: t.border,
+    borderRadius: 12, padding: 16, marginBottom: 10,
+  },
+  featureIcon: { fontSize: 22, marginTop: 2 },
+  featureTitle: { color: t.text, fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  featureDesc: { color: t.textSecondary, fontSize: 13, lineHeight: 18 },
+
+  // Logged-in
   avatarSection: { alignItems: 'center', marginBottom: 32 },
   avatar: {
     width: 88, height: 88, borderRadius: 44, backgroundColor: t.accent,
@@ -358,7 +364,6 @@ const styles = (t: Theme) => StyleSheet.create({
   profileName: { color: t.text, fontSize: 24, fontWeight: '700', marginBottom: 4 },
   profileEmail: { color: t.textSecondary, fontSize: 15, marginBottom: 8 },
   memberSince: { color: t.textMuted, fontSize: 13 },
-  // Stats
   statsRow: {
     flexDirection: 'row', backgroundColor: t.surface, borderRadius: 12,
     borderWidth: 1, borderColor: t.border, marginBottom: 32,
@@ -367,16 +372,16 @@ const styles = (t: Theme) => StyleSheet.create({
   statDivider: { width: 1, backgroundColor: t.border, alignSelf: 'stretch' },
   statValue: { color: t.text, fontSize: 20, fontWeight: '700', marginBottom: 4 },
   statLabel: { color: t.textSecondary, fontSize: 13 },
-  // Logout
   logoutButton: {
     backgroundColor: t.surface, borderWidth: 1, borderColor: t.danger,
     borderRadius: 8, padding: 15, alignItems: 'center', minHeight: 50, justifyContent: 'center',
   },
   logoutText: { color: t.danger, fontSize: 16, fontWeight: '600' },
+
   // Form
-  formSection: { paddingTop: 40 },
-  formTitle: { color: t.text, fontSize: 28, fontWeight: '800', marginBottom: 8 },
-  formSubtitle: { color: t.textSecondary, fontSize: 15, lineHeight: 22, marginBottom: 28 },
+  formSection: { marginTop: 24 },
+  formTitle: { color: t.text, fontSize: 24, fontWeight: '800', marginBottom: 8 },
+  formSubtitle: { color: t.textSecondary, fontSize: 14, lineHeight: 20, marginBottom: 24 },
   inputGroup: { marginBottom: 20 },
   label: { color: t.text, fontSize: 14, fontWeight: '600', marginBottom: 6 },
   input: {
@@ -397,6 +402,13 @@ const styles = (t: Theme) => StyleSheet.create({
   dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 20, gap: 12 },
   dividerLine: { flex: 1, height: 1, backgroundColor: t.border },
   dividerText: { color: t.textSecondary, fontSize: 13 },
+
+  loginLink: { paddingVertical: 14, alignItems: 'center', marginTop: 4 },
+  loginLinkText: { color: t.textSecondary, fontSize: 14, textDecorationLine: 'underline' },
+
+  // Footer
+  footer: { color: t.textMuted, fontSize: 12, textAlign: 'center', marginTop: 32 },
+
   // Disclaimer
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   disclaimerModal: {

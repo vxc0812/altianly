@@ -15,11 +15,11 @@ import { useFocusEffect } from '@react-navigation/native'
 import { RootStackParamList, WorkoutPlan, BMIHistoryEntry, WorkoutLog } from '../types'
 import {
   getWorkoutHistory, deleteWorkoutPlan, getWorkoutLogsForPlan,
-  getBMIHistory, getWorkoutLogs, getNotionConfig,
+  getBMIHistory, getWorkoutLogs,
 } from '../services/storage'
+import { FONT_MONO } from '../constants'
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
-import { exportToNotion, buildPlanName } from '../services/notion'
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'History'> }
 
@@ -107,35 +107,6 @@ export default function HistoryScreen({ navigation }: Props) {
 
   async function handleSharePlan(text: string) {
     await Share.share({ message: text, title: 'Workout Plan' })
-  }
-
-  async function handleExportNotion(plan: WorkoutPlan) {
-    try {
-      if (!plan.structuredPlan) {
-        Alert.alert('Not Available', 'Export to Notion requires a structured workout plan.')
-        return
-      }
-      const cfg = await getNotionConfig()
-      if (!cfg) {
-        Alert.alert('Not Connected', 'Set up your Notion integration in Settings first.')
-        return
-      }
-      const result = await exportToNotion(
-        cfg,
-        buildPlanName(plan.structuredPlan),
-        plan.structuredPlan,
-        plan.plan,
-        plan.bmiResult?.bmi?.toString() ?? '',
-        plan.bmiResult?.evaluation ?? '',
-      )
-      if (result.ok) {
-        Alert.alert('Exported', 'Workout plan saved to Notion!')
-      } else {
-        Alert.alert('Export Failed', result.error || 'Unknown error')
-      }
-    } catch (e: any) {
-      Alert.alert('Export Failed', e?.message || 'An unexpected error occurred')
-    }
   }
 
   function formatShortDate(ts: number): string {
@@ -373,12 +344,6 @@ export default function HistoryScreen({ navigation }: Props) {
                           >
                             <Text style={s.exportChipText}>Share</Text>
                           </TouchableOpacity>
-                          <TouchableOpacity
-                            style={s.exportChip}
-                            onPress={() => handleExportNotion(plan)}
-                          >
-                            <Text style={s.exportChipText}>Notion</Text>
-                          </TouchableOpacity>
                         </View>
                         <View style={s.cardActions}>
                           <TouchableOpacity
@@ -492,7 +457,7 @@ const styles = (t: Theme) => StyleSheet.create({
   dayChip: { backgroundColor: t.accent + '18', borderWidth: 1, borderColor: t.accent + '40', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10, minWidth: 88, alignItems: 'center' },
   dayChipNumber: { color: t.accent, fontSize: 12, fontWeight: '700' },
   dayChipFocus: { color: t.text, fontSize: 11, marginTop: 3, textAlign: 'center' },
-  planText: { color: t.text, fontSize: 13, lineHeight: 20, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  planText: { color: t.text, fontSize: 13, lineHeight: 20, fontFamily: FONT_MONO },
   exportRow: { flexDirection: 'row', gap: 6, marginTop: 12 },
   exportChip: {
     flex: 1, paddingVertical: 8, borderRadius: 6, alignItems: 'center',

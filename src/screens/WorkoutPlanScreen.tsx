@@ -12,14 +12,13 @@ import {
 } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RouteProp } from '@react-navigation/native'
-import { RootStackParamList, WorkoutPlan, StructuredWorkoutPlan } from '../types'
+import { RootStackParamList, WorkoutPlan, StructuredWorkoutPlan, WorkoutChoice } from '../types'
 import { generateWorkoutPlan as llmGenerate, extractStructuredPlan } from '../services/llm'
-import { generateWorkoutPlan as localGenerate } from '../services/workoutGen'
-import { saveWorkoutPlan, getLLMConfig, getNotionConfig } from '../services/storage'
-import { DEFAULT_LLM_CONFIG } from '../constants'
+import { generateWorkoutPlan as localGenerate, buildCloudflarePrompt } from '../services/workoutGen'
+import { saveWorkoutPlan, getLLMConfig } from '../services/storage'
+import { DEFAULT_LLM_CONFIG, DEFAULT_LLM_CONFIGS, FONT_MONO } from '../constants'
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
-import { exportToNotion, buildPlanName } from '../services/notion'
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'WorkoutPlan'>
@@ -37,9 +36,7 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
   const [saved, setSaved] = useState(false)
   const [progress, setProgress] = useState(0)
   const [providerName, setProviderName] = useState<string>('ollama')
-  const [notionMsg, setNotionMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const savedRef = useRef(false)
-  const [notionBusy, setNotionBusy] = useState(false)
   const tokenCount = useRef(0)
 
   useEffect(() => { loadPlan() }, [])
@@ -51,15 +48,53 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
     tokenCount.current = 0
 
     if (mode === 'instant') {
-      const structured = localGenerate({
-        age: userInput.age,
-        lifestyle: answers.lifestyle,
-        exerciseLevel: answers.exerciseLevel,
-        split: answers.trainingSplit,
-      })
-      setStructuredPlan(structured)
-      setPlan(JSON.stringify(structured, null, 2))
-      setLoading(false)
+      const wc: WorkoutChoice | undefined = answers.workoutChoice
+      const needsCloudflare = wc === 'gym' || wc === 'yoga' || wc === 'pilates'
+
+      if (!needsCloudflare) {
+        const structured = localGenerate({
+          age: userInput.age,
+          lifestyle: answers.lifestyle,
+          exerciseLevel: answers.exerciseLevel,
+          split: answers.trainingSplit,
+          workoutChoice: wc,
+        })
+        setStructuredPlan(structured)
+        setPlan(JSON.stringify(structured, null, 2))
+        setLoading(false)
+        return
+      }
+
+      setProviderName('cloudflare')
+      try {
+        const cfConfig = DEFAULT_LLM_CONFIGS.cloudflare
+        const prompt = buildCloudflarePrompt(wc, userInput.age, answers.exerciseLevel)
+        const res = await fetch(`${cfConfig.baseUrl}/ai`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, model: cfConfig.model }),
+        })
+        if (!res.ok) {
+          const errText = await res.text()
+          throw new Error(`Cloudflare error ${res.status}: ${errText}`)
+        }
+        const data = await res.json()
+        const raw = data.response || ''
+        setProgress(100)
+
+        const result = extractStructuredPlan(raw)
+        setPlan(result.plan)
+        setStructuredPlan(result.structured || null)
+
+        if (!result.structured) {
+          setError('Cloudflare returned an unexpected format. Tap AI mode for a richer plan, or pick HIIT/Strength for an offline plan.')
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Failed to generate plan'
+        setError(`${msg}\n\nTap AI mode for a richer plan, or pick HIIT/Strength for offline instant plans.`)
+      } finally {
+        setLoading(false)
+      }
       return
     }
 
@@ -98,7 +133,12 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
       setPlan(result.plan)
       setStructuredPlan(result.structured || null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to generate plan')
+      const msg = e instanceof Error ? e.message : 'Failed to generate plan'
+      if (msg.includes('401') || msg.includes('403') || msg.includes('API key')) {
+        setError('Missing or invalid API key. Go to Settings → OpenRouter and paste your API key (free at openrouter.ai/keys).')
+      } else {
+        setError(msg)
+      }
     } finally {
       setLoading(false)
     }
@@ -145,42 +185,6 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
         }${structuredPlan.warmup ? `\n\n## Warm-up\n${structuredPlan.warmup}` : ''}${structuredPlan.cooldown ? `\n\n## Cool-down\n${structuredPlan.cooldown}` : ''}${structuredPlan.notes ? `\n\n## Notes\n${structuredPlan.notes}` : ''}`
       : plan
     await Share.share({ message: text, title: 'Workout Plan' })
-  }
-
-  async function handleExportNotion() {
-    setNotionBusy(true)
-    setNotionMsg(null)
-    try {
-      if (!structuredPlan) {
-        setNotionMsg({ type: 'err', text: 'No structured plan — generate with AI mode.' })
-        setNotionBusy(false)
-        return
-      }
-      const cfg = await getNotionConfig()
-      if (!cfg) {
-        setNotionMsg({ type: 'err', text: 'Set up Notion in Settings first.' })
-        setNotionBusy(false)
-        return
-      }
-      setNotionMsg({ type: 'ok', text: 'Exporting...' })
-      const result = await exportToNotion(
-        cfg,
-        buildPlanName(structuredPlan),
-        structuredPlan,
-        plan,
-        bmiResult.bmi.toString(),
-        bmiResult.evaluation,
-      )
-      setNotionBusy(false)
-      if (result.ok) {
-        setNotionMsg({ type: 'ok', text: 'Saved to Notion!' })
-      } else {
-        setNotionMsg({ type: 'err', text: result.error || 'Unknown error' })
-      }
-    } catch (e: any) {
-      setNotionBusy(false)
-      setNotionMsg({ type: 'err', text: e?.message || 'Unexpected error' })
-    }
   }
 
   function getErrorHint(err: string, provider: string): string {
@@ -270,17 +274,7 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
             <TouchableOpacity style={s.exportButton} onPress={handleShare}>
               <Text style={s.exportButtonText}>Share</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.exportButton} onPress={handleExportNotion}>
-              <Text style={s.exportButtonText}>{notionBusy ? '...' : 'Notion'}</Text>
-            </TouchableOpacity>
           </View>
-          {notionMsg && (
-            <View style={[s.notionBanner, notionMsg.type === 'ok' ? s.notionBannerOk : s.notionBannerErr]}>
-              <Text style={[s.notionBannerText, notionMsg.type === 'ok' ? s.notionBannerTextOk : s.notionBannerTextErr]}>
-                {notionMsg.text}
-              </Text>
-            </View>
-          )}
           <TouchableOpacity style={s.secondaryButton} onPress={() => navigation.goBack()}>
             <Text style={s.secondaryButtonText}>Back to Questionnaire</Text>
           </TouchableOpacity>
@@ -309,7 +303,7 @@ const styles = (t: Theme) => StyleSheet.create({
   progressText: { color: t.textSecondary, fontSize: 14, marginTop: 8, fontWeight: '600' },
   planScroll: { flex: 1 },
   planContent: { paddingBottom: 20 },
-  planText: { color: t.text, fontSize: 14, lineHeight: 22, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  planText: { color: t.text, fontSize: 14, lineHeight: 22, fontFamily: FONT_MONO },
   dayCard: { backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 16, marginBottom: 16 },
   dayHeading: { fontSize: 18, fontWeight: '700', color: t.text, marginBottom: 12 },
   exerciseRow: { marginBottom: 10, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: t.accent },
@@ -337,10 +331,4 @@ const styles = (t: Theme) => StyleSheet.create({
   exportButtonText: { color: t.accent, fontSize: 14, fontWeight: '600' },
   secondaryButton: { padding: 12, alignItems: 'center' },
   secondaryButtonText: { color: t.accent, fontSize: 15 },
-  notionBanner: { borderRadius: 6, padding: 10, alignItems: 'center' },
-  notionBannerOk: { backgroundColor: t.success + '20' },
-  notionBannerErr: { backgroundColor: t.danger + '20' },
-  notionBannerText: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  notionBannerTextOk: { color: t.success },
-  notionBannerTextErr: { color: t.danger },
 })

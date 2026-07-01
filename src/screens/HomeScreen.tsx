@@ -29,6 +29,9 @@ import {
 } from '../services/storage'
 import { getBadges, checkAndUnlockBadges } from '../services/badges'
 import { generateWorkoutPlan } from '../services/workoutGen'
+import { getAllHabits, getWeekEntries } from '../services/habits'
+import type { Habit, HabitEntry as HabitEntryType } from '../types'
+import { getMealsForDate, getDailyTotals } from '../services/nutrition'
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Home'> }
 
@@ -82,6 +85,9 @@ export default function HomeScreen({ navigation }: Props) {
   const [badges, setBadges] = useState<Badge[]>([])
   const [latestPlan, setLatestPlan] = useState<WorkoutPlan | null>(null)
   const [recentLogs, setRecentLogs] = useState<WorkoutLog[]>([])
+  const [nutritionTotals, setNutritionTotals] = useState({ calories: 0, protein: 0, carbs: 0, fat: 0 })
+  const [habits, setHabits] = useState<Habit[]>([])
+  const [habitWeekEntries, setHabitWeekEntries] = useState<Record<string, (HabitEntryType | null)[]>>({})
   const [bmiExpanded, setBmiExpanded] = useState(false)
   const [splitModalVisible, setSplitModalVisible] = useState(false)
 
@@ -110,6 +116,19 @@ export default function HomeScreen({ navigation }: Props) {
       setBadges(await getBadges())
       setLatestPlan(history.find((p) => !!p.structuredPlan) ?? null)
       setRecentLogs(logs.slice(0, 3))
+
+      const todayStr = new Date().toISOString().slice(0, 10)
+      const todayMeals = await getMealsForDate(todayStr)
+      const totals = getDailyTotals(todayMeals)
+      setNutritionTotals({ calories: totals.calories, protein: totals.protein, carbs: totals.carbs, fat: totals.fat })
+
+      const loadedHabits = await getAllHabits()
+      setHabits(loadedHabits)
+      const weekMap: Record<string, (HabitEntryType | null)[]> = {}
+      for (const h of loadedHabits) {
+        weekMap[h.id] = await getWeekEntries(h.id)
+      }
+      setHabitWeekEntries(weekMap)
     })()
   }, []))
 
@@ -213,7 +232,7 @@ export default function HomeScreen({ navigation }: Props) {
       timestamp: Date.now(),
       userInput: { age: ageVal, gender: 'male', unitSystem: 'imperial', heightFeet: 5, heightInches: 9, weightLbs: 160 },
       bmiResult: { bmi: 22, evaluation: 'normal' },
-      answers: { lifestyle: 'moderate', exerciseLevel: 'medium', trainingSplit: split },
+      answers: { lifestyle: 'moderate', exerciseLevel: 'medium', trainingSplit: split, workoutChoice: 'strength' },
       plan: plan.name,
       structuredPlan: plan,
     }
@@ -298,6 +317,47 @@ export default function HomeScreen({ navigation }: Props) {
           </View>
         )}
 
+        {habits.length > 0 && (
+          <>
+            <View style={s.sectionHeaderRow}>
+              <Text style={s.sectionLabel}>Habits This Week</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Habits')}>
+                <Text style={s.seeAllText}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={s.habitWeekCard}>
+              <View style={s.habitWeekHeader}>
+                {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((label, i) => (
+                  <View key={label} style={s.habitWeekDayCol}>
+                    <Text style={s.habitWeekDayLabel}>{label}</Text>
+                  </View>
+                ))}
+              </View>
+              {habits.slice(0, 4).map((habit) => {
+                const entries = habitWeekEntries[habit.id] || []
+                return (
+                  <View key={habit.id} style={s.habitWeekRow}>
+                    <View style={s.habitWeekNameCol}>
+                      <Text style={s.habitWeekName} numberOfLines={1}>{habit.name}</Text>
+                    </View>
+                    {entries.map((entry, i) => {
+                      const done = !!(entry && !entry.skipped && (habit.type === 'yesno' ? entry.value === 'true' : parseFloat(entry.value) > 0))
+                      return (
+                        <View key={i} style={[s.habitWeekCell, done && s.habitWeekCellDone]} />
+                      )
+                    })}
+                  </View>
+                )
+              })}
+              {habits.length > 4 && (
+                <TouchableOpacity style={s.habitWeekMore} onPress={() => navigation.navigate('Habits')}>
+                  <Text style={s.habitWeekMoreText}>+{habits.length - 4} more habits</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </>
+        )}
+
         <Text style={s.sectionLabel}>Quick Start</Text>
         <View style={s.quickActionsRow}>
           <TouchableOpacity
@@ -368,6 +428,25 @@ export default function HomeScreen({ navigation }: Props) {
             ))}
           </View>
         )}
+
+        <Text style={s.sectionLabel}>Today's Nutrition</Text>
+        <TouchableOpacity style={s.nutritionWidget} onPress={() => navigation.navigate('Nutrition')}>
+          <View style={s.nutritionWidgetRow}>
+            {[
+              { label: 'Calories', value: `${nutritionTotals.calories}`, target: '2000', color: theme.accent },
+              { label: 'Protein', value: `${nutritionTotals.protein}g`, target: '50g', color: theme.isDark ? '#34D399' : '#10B981' },
+              { label: 'Carbs', value: `${nutritionTotals.carbs}g`, target: '275g', color: theme.isDark ? '#FBBF24' : '#F59E0B' },
+              { label: 'Fat', value: `${nutritionTotals.fat}g`, target: '65g', color: theme.isDark ? '#60A5FA' : '#3B82F6' },
+            ].map((m) => (
+              <View key={m.label} style={s.nutritionWidgetItem}>
+                <View style={[s.nutritionDot, { backgroundColor: m.color }]} />
+                <Text style={s.nutritionWidgetLabel}>{m.label}</Text>
+                <Text style={s.nutritionWidgetValue}>{m.value}</Text>
+                <Text style={s.nutritionWidgetTarget}>{m.target}</Text>
+              </View>
+            ))}
+          </View>
+        </TouchableOpacity>
 
         <Text style={s.sectionLabel}>Health Snapshot</Text>
         <TouchableOpacity
@@ -732,4 +811,42 @@ const styles = (t: Theme) => StyleSheet.create({
   splitDesc: { fontSize: 12, color: t.textSecondary, lineHeight: 18 },
   modalCancel: { padding: 14, alignItems: 'center', marginTop: 4 },
   modalCancelText: { color: t.textMuted, fontSize: 15, fontWeight: '600' },
+  sectionHeaderRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginTop: 20, marginBottom: 10,
+  },
+  seeAllText: { color: t.accent, fontSize: 13, fontWeight: '600' },
+  habitWeekCard: {
+    backgroundColor: t.surface, borderWidth: 1, borderColor: t.border,
+    borderRadius: 10, overflow: 'hidden', marginBottom: 4,
+  },
+  habitWeekHeader: {
+    flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: t.border,
+    paddingVertical: 8, backgroundColor: t.bg,
+  },
+  habitWeekDayCol: { flex: 1, alignItems: 'center' },
+  habitWeekDayLabel: { color: t.textSecondary, fontSize: 10, fontWeight: '600' },
+  habitWeekRow: {
+    flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: t.border,
+    minHeight: 32, alignItems: 'center',
+  },
+  habitWeekNameCol: { width: 72, paddingLeft: 8 },
+  habitWeekName: { color: t.text, fontSize: 11, fontWeight: '500' },
+  habitWeekCell: {
+    flex: 1, margin: 3, aspectRatio: 1, borderRadius: 4,
+    backgroundColor: t.border,
+  },
+  habitWeekCellDone: { backgroundColor: t.success },
+  habitWeekMore: { padding: 10, alignItems: 'center' },
+  habitWeekMoreText: { color: t.accent, fontSize: 12, fontWeight: '600' },
+
+  nutritionWidget: {
+    backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 16, marginBottom: 4,
+  },
+  nutritionWidgetRow: { flexDirection: 'row', gap: 4 },
+  nutritionWidgetItem: { flex: 1, alignItems: 'center' },
+  nutritionDot: { width: 8, height: 8, borderRadius: 4, marginBottom: 4 },
+  nutritionWidgetLabel: { color: t.textSecondary, fontSize: 10, fontWeight: '600' },
+  nutritionWidgetValue: { color: t.text, fontSize: 16, fontWeight: '800', marginTop: 2 },
+  nutritionWidgetTarget: { color: t.textMuted, fontSize: 9, marginTop: 1 },
 })
