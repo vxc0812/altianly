@@ -480,7 +480,7 @@ All values per 100g/serving. Be reasonable based on common food knowledge. Outpu
         const modelName = model || '@cf/meta/llama-3.2-3b-instruct'
         const result = await env.AI.run(modelName, {
           messages: [{ role: 'user', content: prompt }],
-          max_tokens: 2048,
+          max_tokens: 4096,
           temperature: 0.7,
         })
         const raw = result?.response || result

@@ -345,8 +345,45 @@ export async function testConnection(config: LLMConfig): Promise<string> {
   }
 }
 
+// Best-effort repair for JSON cut off mid-output (token limit): close the
+// open string, drop any dangling key fragment, then close open braces/brackets.
+function repairTruncatedJson(src: string): string {
+  let inStr = false
+  let esc = false
+  const stack: string[] = []
+  for (const c of src) {
+    if (inStr) {
+      if (esc) esc = false
+      else if (c === '\\') esc = true
+      else if (c === '"') inStr = false
+      continue
+    }
+    if (c === '"') inStr = true
+    else if (c === '{' || c === '[') stack.push(c)
+    else if (c === '}' || c === ']') stack.pop()
+  }
+  let out = src
+  if (inStr) out += '"'
+  // Strip dangling fragments left at the cut point, in order:
+  out = out.replace(/,\s*"[^"]*"\s*:?\s*$/, '')      // `, "key"` or `, "key":`
+  out = out.replace(/(\{)\s*"[^"]*"\s*:?\s*$/, '$1') // `{ "key"` right after an opening brace
+  out = out.replace(/[,:]\s*$/, '')                  // trailing comma or colon
+  while (stack.length) {
+    out += stack.pop() === '{' ? '}' : ']'
+  }
+  return out
+}
+
+// Fix common small-model JSON mistakes: unquoted rep ranges (": 10-15,") and trailing commas
+function sanitizeJsonish(src: string): string {
+  return src
+    .replace(/:\s*(\d+\s*[-–]\s*\d+)(\s*[,}\]])/g, ': "$1"$2')
+    .replace(/,(\s*[}\]])/g, '$1')
+}
+
 function tryParseJson(text: string): StructuredWorkoutPlan | null {
-  const jsonMatch = text.match(/\{[\s\S]*\}/)
+  // Match from the first { to the end — the payload may be truncated (no closing brace)
+  const jsonMatch = text.match(/\{[\s\S]*/)
   if (!jsonMatch) return null
 
   const candidates: string[] = [jsonMatch[0]]
@@ -357,6 +394,12 @@ function tryParseJson(text: string): StructuredWorkoutPlan | null {
   // Repair 2: trim trailing garbage after last valid brace pair
   const braceMatch = jsonMatch[0].match(/^(\{[\s\S]*\})([\s\S]*)$/)
   if (braceMatch) candidates.push(braceMatch[1])
+
+  // Repair 3: close a truncated response (mid-string / missing closers)
+  candidates.push(repairTruncatedJson(jsonMatch[0]))
+
+  // Repair 4: sanitized variants of everything above
+  for (const c of [...candidates]) candidates.push(sanitizeJsonish(c))
 
   for (const candidate of candidates) {
     try {

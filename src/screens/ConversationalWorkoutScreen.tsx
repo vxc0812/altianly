@@ -22,15 +22,18 @@ import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { Theme } from '../constants/theme';
 import { DEFAULT_LLM_CONFIG } from '../constants';
-import { getLLMConfig } from '../services/storage';
+import { getLLMConfig, saveWorkoutPlan, getBMIHistory } from '../services/storage';
 import { AITrainerAgent } from '../services/agent/AITrainerAgent';
 import type { AITrainerResponse } from '../services/agent/AITrainerAgent';
+import type { StructuredWorkoutPlan, WorkoutPlan } from '../types';
 
 interface Message {
   id: string;
   text: string;
   isUser: boolean;
   timestamp: number;
+  /** Present when the AI produced a structured plan — enables "Save Plan" */
+  plan?: StructuredWorkoutPlan;
 }
 
 export function ConversationalWorkoutScreen() {
@@ -41,6 +44,7 @@ export function ConversationalWorkoutScreen() {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [agent, setAgent] = useState<AITrainerAgent | null>(null);
+  const [savedIds, setSavedIds] = useState<string[]>([]);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -72,6 +76,7 @@ export function ConversationalWorkoutScreen() {
         text: result.kind === 'plan' ? formatAIResponse(result.response) : result.message,
         isUser: false,
         timestamp: Date.now(),
+        plan: result.kind === 'plan' ? result.response.plan : undefined,
       };
 
       setMessages(prev => [...prev, aiMessage]);
@@ -88,20 +93,54 @@ export function ConversationalWorkoutScreen() {
     }
   }, [inputText, isLoading, agent]);
 
-  const renderMessage = ({ item }: { item: Message }) => (
-    <View style={[
-      s.messageBubble,
-      item.isUser ? s.userBubble : s.aiBubble,
-      { backgroundColor: item.isUser ? theme.accent : theme.surface }
-    ]}>
-      <Text style={[
-        s.messageText,
-        { color: item.isUser ? '#FFF' : theme.text }
+  const handleSavePlan = useCallback(async (message: Message) => {
+    if (!message.plan || savedIds.includes(message.id)) return;
+    const entries = await getBMIHistory();
+    const ageVal = entries[0]?.age ?? 30;
+
+    const record: WorkoutPlan = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+      timestamp: Date.now(),
+      userInput: { age: ageVal, gender: 'male', unitSystem: 'imperial', heightFeet: 5, heightInches: 9, weightLbs: 160 },
+      bmiResult: { bmi: 22, evaluation: 'normal' },
+      answers: { lifestyle: 'moderate', exerciseLevel: 'medium', trainingSplit: 'full_body' },
+      plan: message.plan.name,
+      structuredPlan: message.plan,
+    };
+    await saveWorkoutPlan(record);
+    setSavedIds(prev => [...prev, message.id]);
+  }, [savedIds]);
+
+  const renderMessage = ({ item }: { item: Message }) => {
+    const isSaved = savedIds.includes(item.id);
+    return (
+      <View style={[
+        s.messageBubble,
+        item.isUser ? s.userBubble : s.aiBubble,
+        { backgroundColor: item.isUser ? theme.accent : theme.surface }
       ]}>
-        {item.text}
-      </Text>
-    </View>
-  );
+        <Text style={[
+          s.messageText,
+          { color: item.isUser ? '#FFF' : theme.text }
+        ]}>
+          {item.text}
+        </Text>
+        {!item.isUser && item.plan && (
+          <TouchableOpacity
+            style={[s.savePlanButton, { borderColor: theme.accent }, isSaved && s.savePlanButtonSaved]}
+            onPress={() => handleSavePlan(item)}
+            disabled={isSaved}
+            accessibilityRole="button"
+            accessibilityLabel={isSaved ? 'Plan saved to your workouts' : 'Save this plan to your workouts'}
+          >
+            <Text style={[s.savePlanText, { color: theme.accent }]}>
+              {isSaved ? '✓ Saved to Workouts' : 'Save Plan'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={[s.container, { backgroundColor: theme.bg }]}>
@@ -222,6 +261,21 @@ const styles = (t: Theme) => StyleSheet.create({
   messageText: {
     fontSize: 16,
     lineHeight: 22,
+  },
+  savePlanButton: {
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+  },
+  savePlanButtonSaved: {
+    opacity: 0.6,
+  },
+  savePlanText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   inputContainer: {
     flexDirection: 'row',

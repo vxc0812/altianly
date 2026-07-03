@@ -597,6 +597,27 @@ User: ${age}yo, ${level} experience.
   return prompts[choice]
 }
 
+export function buildSurprisePrompt(age: number, level: ExerciseLevel): string {
+  return `You are a creative fitness coach. Surprise the client! Pick ONE fun, unexpected workout style — examples: animal flow, boxing-inspired HIIT, dance cardio, yoga-strength fusion, calisthenics challenge, mobility flow, pirate/adventure themed circuits — or invent your own. Generate a 3-day plan as a JSON object. Only valid JSON, no markdown.
+User: ${age}yo, ${level} experience, bodyweight/home equipment only.
+{
+  "name": "Week 1 — [Chosen Style] Surprise",
+  "days": [
+    {
+      "day": 1,
+      "focus": "[Day focus in the chosen style]",
+      "exercises": [
+        { "name": "[Exercise fitting the style]", "sets": 3, "reps": "10-15", "restSeconds": 60, "notes": "[Form cue]" }
+      ]
+    }
+  ],
+  "warmup": "[Style-appropriate warmup]",
+  "cooldown": "[Style-appropriate cooldown]",
+  "notes": "[One or two lines selling the style + progression tip]"
+}
+Rules: exactly 3 days, 4 exercises per day, every exercise must fit the chosen style, no gym machines. Keep every "notes" value under 8 words so the JSON stays short.`
+}
+
 export function generateWorkoutPlan(params: {
   age: number
   lifestyle: Lifestyle

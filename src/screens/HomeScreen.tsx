@@ -10,6 +10,7 @@ import {
   ScrollView,
   Alert,
   Modal,
+  ActivityIndicator,
 } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useFocusEffect } from '@react-navigation/native'
@@ -17,11 +18,11 @@ import AppIcon from '../components/AppIcon'
 import ProgressRing from '../components/ProgressRing'
 import {
   RootStackParamList, Gender, UnitSystem, BMIHistoryEntry, Badge,
-  WorkoutPlan, TrainingSplit, WorkoutLog,
+  WorkoutPlan, TrainingSplit, WorkoutLog, WorkoutChoice, StructuredWorkoutPlan,
 } from '../types'
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
-import { CM_PER_INCH, LBS_PER_KG, TRAINING_SPLITS } from '../constants'
+import { CM_PER_INCH, LBS_PER_KG, TRAINING_SPLITS, WORKOUT_CHOICES, DEFAULT_LLM_CONFIGS } from '../constants'
 import { calculateBMI } from '../services/bmi'
 import {
   saveBMIEntry, getBMIHistory, getWorkoutHistory,
@@ -30,7 +31,8 @@ import {
   getUserProfile, isGuestMode,
 } from '../services/storage'
 import { getBadges, checkAndUnlockBadges } from '../services/badges'
-import { generateWorkoutPlan } from '../services/workoutGen'
+import { generateWorkoutPlan, buildCloudflarePrompt, buildSurprisePrompt } from '../services/workoutGen'
+import { extractStructuredPlan } from '../services/llm'
 import { getAllHabits, getWeekEntries } from '../services/habits'
 import type { Habit, HabitEntry as HabitEntryType } from '../types'
 import { getMealsForDate, getDailyTotals, DEFAULT_RDI } from '../services/nutrition'
@@ -117,6 +119,8 @@ export default function HomeScreen({ navigation }: Props) {
   const [habitWeekEntries, setHabitWeekEntries] = useState<Record<string, (HabitEntryType | null)[]>>({})
   const [bmiExpanded, setBmiExpanded] = useState(false)
   const [splitModalVisible, setSplitModalVisible] = useState(false)
+  const [quickModalVisible, setQuickModalVisible] = useState(false)
+  const [quickGenerating, setQuickGenerating] = useState(false)
 
   useFocusEffect(useCallback(() => {
     (async () => {
@@ -214,17 +218,49 @@ export default function HomeScreen({ navigation }: Props) {
     navigation.navigate('Result', { userInput })
   }
 
-  async function handleQuickWorkout() {
+  async function handleQuickChoice(choice: WorkoutChoice | 'surprise') {
     const entries = await getBMIHistory()
-    const latest = entries[0]
-    const ageVal = latest?.age ?? 30
+    const ageVal = entries[0]?.age ?? 30
 
-    const plan = generateWorkoutPlan({
-      age: ageVal,
-      lifestyle: 'moderate',
-      exerciseLevel: 'medium',
-      split: 'full_body',
-    })
+    let plan: StructuredWorkoutPlan
+    if (choice === 'hiit' || choice === 'strength') {
+      plan = generateWorkoutPlan({
+        age: ageVal,
+        lifestyle: 'moderate',
+        exerciseLevel: 'medium',
+        split: 'full_body',
+        workoutChoice: choice,
+      })
+    } else {
+      // yoga / pilates / gym / surprise — AI-generated via the Cloudflare worker
+      setQuickGenerating(true)
+      try {
+        const cfg = DEFAULT_LLM_CONFIGS.cloudflare
+        const prompt = choice === 'surprise'
+          ? buildSurprisePrompt(ageVal, 'medium')
+          : buildCloudflarePrompt(choice, ageVal, 'medium')
+        const res = await fetch(`${cfg.baseUrl}/ai`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, model: cfg.model }),
+        })
+        if (!res.ok) throw new Error(`Cloudflare error ${res.status}`)
+        const data = await res.json()
+        const result = extractStructuredPlan(data.response || '')
+        if (!result.structured || !result.structured.days?.length) {
+          throw new Error('The AI returned an unexpected format. Please try again.')
+        }
+        plan = result.structured
+      } catch (e) {
+        setQuickGenerating(false)
+        const msg = e instanceof Error ? e.message : 'Failed to generate a workout'
+        if (Platform.OS === 'web') { window.alert(msg) } else { Alert.alert('Generation failed', msg) }
+        return
+      }
+      setQuickGenerating(false)
+    }
+
+    setQuickModalVisible(false)
 
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
     const workoutPlan: WorkoutPlan = {
@@ -232,7 +268,10 @@ export default function HomeScreen({ navigation }: Props) {
       timestamp: Date.now(),
       userInput: { age: ageVal, gender: 'male', unitSystem: 'imperial', heightFeet: 5, heightInches: 9, weightLbs: 160 },
       bmiResult: { bmi: 22, evaluation: 'normal' },
-      answers: { lifestyle: 'moderate', exerciseLevel: 'medium', trainingSplit: 'full_body' },
+      answers: {
+        lifestyle: 'moderate', exerciseLevel: 'medium', trainingSplit: 'full_body',
+        workoutChoice: choice === 'surprise' ? undefined : choice,
+      },
       plan: plan.name,
       structuredPlan: plan,
     }
@@ -426,13 +465,13 @@ export default function HomeScreen({ navigation }: Props) {
         <View style={s.quickActionsRow}>
           <TouchableOpacity
             style={s.quickActionPrimary}
-            onPress={handleQuickWorkout}
+            onPress={() => setQuickModalVisible(true)}
             accessibilityRole="button"
-            accessibilityLabel="Start a quick workout now"
+            accessibilityLabel="Start a quick workout - pick a style"
           >
             <Text style={s.quickActionIcon}>⚡</Text>
             <Text style={s.quickActionTitle}>Quick Workout</Text>
-            <Text style={s.quickActionDesc}>Full body, no setup needed</Text>
+            <Text style={s.quickActionDesc}>Pick a style and go</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={s.quickActionSecondary}
@@ -651,6 +690,52 @@ export default function HomeScreen({ navigation }: Props) {
         )}
 
       </ScrollView>
+
+      <Modal visible={quickModalVisible} transparent animationType="fade" onRequestClose={() => { if (!quickGenerating) setQuickModalVisible(false) }}>
+        <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => { if (!quickGenerating) setQuickModalVisible(false) }}>
+          <View style={s.modalContent} onStartShouldSetResponder={() => true}>
+            {quickGenerating ? (
+              <View style={s.quickGeneratingBox}>
+                <ActivityIndicator size="large" color={theme.accent} />
+                <Text style={s.quickGeneratingText}>Building your workout...</Text>
+              </View>
+            ) : (
+              <>
+                <Text style={s.modalTitle}>What are you in the mood for?</Text>
+                {WORKOUT_CHOICES.map((choice) => (
+                  <TouchableOpacity
+                    key={choice.value}
+                    style={s.splitCard}
+                    onPress={() => handleQuickChoice(choice.value)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Start a ${choice.label} workout: ${choice.desc}`}
+                  >
+                    <Text style={s.splitName}>{choice.icon}  {choice.label}</Text>
+                    <Text style={s.splitDesc}>{choice.desc}</Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  style={[s.splitCard, s.surpriseCard]}
+                  onPress={() => handleQuickChoice('surprise')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Surprise Me: let the AI pick an unexpected workout style"
+                >
+                  <Text style={s.splitName}>🎲  Surprise Me</Text>
+                  <Text style={s.splitDesc}>Let the AI pick something unexpected</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.modalCancel}
+                  onPress={() => setQuickModalVisible(false)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel workout selection"
+                >
+                  <Text style={s.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <Modal visible={splitModalVisible} transparent animationType="fade" onRequestClose={() => setSplitModalVisible(false)}>
         <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setSplitModalVisible(false)}>
@@ -907,6 +992,9 @@ const styles = (t: Theme) => StyleSheet.create({
   splitDesc: { fontSize: 12, color: t.textSecondary, lineHeight: 18 },
   modalCancel: { padding: 14, alignItems: 'center', marginTop: 4 },
   modalCancelText: { color: t.textMuted, fontSize: 15, fontWeight: '600' },
+  surpriseCard: { borderColor: t.accent, backgroundColor: t.selectedBg },
+  quickGeneratingBox: { alignItems: 'center', paddingVertical: 40, gap: 16 },
+  quickGeneratingText: { color: t.textSecondary, fontSize: 15, fontWeight: '600' },
   sectionHeaderRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginTop: 20, marginBottom: 10,
