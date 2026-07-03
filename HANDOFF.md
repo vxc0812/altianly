@@ -6,6 +6,7 @@
 > **Cloudflare:** Pages (web build), Workers (AI proxy), Dashboard (management)
 > **Routing:** Filesystem-based — `dist/index.html` (landing page at `/`), `dist/app/index.html` (Expo app at `/app/`)
 > **App Store:** iOS submission guide in `APP_STORE_CHECKLIST.md` (EAS Build, no Mac required)
+> **Plain-English docs:** `HOW_IT_WORKS.md` (system explained for non-developers) · `ROADMAP.md` (plan forward)
 
 ---
 

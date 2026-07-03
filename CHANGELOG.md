@@ -18,6 +18,7 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 - **Quick Workout style picker + "Surprise Me"** — Quick Workout now opens a chooser (HIIT, Strength, Yoga, Pilates, Gym + 🎲 Surprise Me). HIIT/Strength stay instant/local; the rest are AI-generated via the worker with a loading state. Surprise Me asks the model to invent a style (live runs produced "Parkour Flow Challenge", "Shadow Weaver")
 - **AI plan parsing hardened** — worker `/ai` max_tokens 2048→4096; parser now repairs truncated JSON (closes open strings/brackets, strips dangling keys) and sanitizes common small-model mistakes (unquoted rep ranges, trailing commas). Stress test: 9/9 AI generations parsed (was ~7/9)
 - **AI Trainer Chat made actually conversational** — the agent forced every message into a weekly-plan JSON template (asking "what yoga poses are best for core?" returned a generic strength plan). New `chat()` method with a dual-mode prompt: questions get plain-text coaching answers (specific poses/exercises, hold times); a JSON plan is produced only when explicitly requested. Live-tested both modes against the deployed model
+- **New docs**: `HOW_IT_WORKS.md` — the complete system explained in layman's terms (restaurant analogy, what-happens-when walkthroughs, code tour, glossary); `ROADMAP.md` — 4-phase plan forward (App Store launch → hardening → product depth → growth/revenue)
 - Still pending: Resend domain verification for real users
 
 ---
