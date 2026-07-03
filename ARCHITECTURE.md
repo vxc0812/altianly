@@ -4,7 +4,7 @@
 
 Three Cloudflare services work together to power the app:
 
-### 1. Cloudflare Pages — `https://044a6f33.altianly.pages.dev/`
+### 1. Cloudflare Pages — `https://altianly.pages.dev/`
 
 Serves the **Expo web build** (`dist/`) as a static site. Configured via `wrangler.jsonc`:
 
@@ -16,32 +16,36 @@ Serves the **Expo web build** (`dist/`) as a static site. Configured via `wrangl
 }
 ```
 
-Deployed from the GitHub repo (`vxc0812/altianly`) — every push to `master` triggers a Cloudflare Pages build that runs `npm run web` to produce `dist/`, then serves it.
+Deployed from the GitHub repo (`vxc0812/altianly`) — **every push to `master` triggers a Cloudflare Pages build** that runs `npm run build` (Expo web export restructured: landing page at `/`, app at `/app/`), then serves `dist/`. No manual deploy step.
 
-**What runs here:** The entire React Native (Expo) app rendered for web — BMI calculator, workout plans, settings, history, profile.
+**What runs here:** The landing page + the entire React Native (Expo) app rendered for web — dashboard, workout plans, nutrition, settings, history, profile.
 
 ### 2. Cloudflare Workers — `https://altianly-ai.vishhalchopra.workers.dev/`
 
-The **AI proxy worker** (`workers/ai-proxy/`). A lightweight edge function that bridges the Expo app to Cloudflare Workers AI.
+The **API worker** (`workers/ai-proxy/index.js`). An edge function providing auth, food data, and AI proxying. Endpoints:
 
-**Protocol:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/auth/password/register` | POST | Register (PBKDF2 hash → KV) |
+| `/auth/password/login` | POST | Login, returns session token |
+| `/auth/password/reset/request` | POST | Email 6-digit reset code (Resend) |
+| `/auth/password/reset/confirm` | POST | Verify code, set new password |
+| `/auth/session/:token` | GET | Validate session |
+| `/auth/logout` | POST | Invalidate session |
+| `/auth/account/delete` | POST | Delete account + all KV data |
+| `/food/search` | POST | USDA food search (server-side key) |
+| `/food/parse` | POST | NLP meal parse (Workers AI + USDA) |
+| `/ai` | POST | LLM proxy → `env.AI.run(...)` |
+| `/data`, `/data/:ts` | POST/GET/DELETE | BMI history KV CRUD |
 
+**Bindings & secrets:** `AI` (Workers AI), `ALTIANLY_DATA` (KV), secrets `USDA_API_KEY` + `RESEND_API_KEY`, optional var `RESET_EMAIL_FROM`.
+
+**Deploying:** ⚠️ wrangler resolves the ROOT `wrangler.jsonc` even when run from `workers/ai-proxy/` — always pass the config explicitly:
+
+```bash
+npx wrangler deploy --config workers/ai-proxy/wrangler.toml
+npx wrangler secret put NAME --config workers/ai-proxy/wrangler.toml
 ```
-POST /
-Content-Type: application/json
-Body: { "prompt": "...", "model": "@cf/meta/llama-3.2-3b-instruct" }
-
-Response:
-{ "response": "..." }
-```
-
-**Worker logic:**
-1. CORS preflight (OPTIONS → 200 with allow-all headers)
-2. Validates POST body has a `prompt`
-3. Calls `env.AI.run(modelName, { messages: [{ role: 'user', content: prompt }], max_tokens: 2048, temperature: 0.7 })`
-4. Returns `{ response: "..." }` or `{ error: "..." }` on failure
-
-No API key needed — authenticated via the Workers AI binding. Deployed with `npx wrangler deploy` from `workers/ai-proxy/`.
 
 ### 3. Cloudflare Dashboard — `https://dash.cloudflare.com/.../altianly-ai/production`
 
@@ -59,9 +63,18 @@ The management console for the **`altianly-ai` worker**. Used to:
 
 ```
 App.tsx
-  └─ ThemeProvider (dark/cream theme persisted in AsyncStorage)
+  └─ ThemeProvider (dark/cream theme persisted in AsyncStorage; cream/light is default)
        └─ NavigationContainer
-            └─ Stack.Navigator (10 screens, headerShown: false, slide_from_right)
+            └─ Stack.Navigator (root)
+                 ├─ Auth  → ProfileScreen as login gate (register / login / guest)
+                 ├─ Main  → Bottom Tab Navigator (SVG icons via AppIcon)
+                 │           ├─ Home      (dashboard: Today ring, This Week, quick actions)
+                 │           ├─ History   ("Workouts" tab: saved plans, logs, graphs)
+                 │           ├─ Nutrition (meals, USDA search, barcode, quick add)
+                 │           └─ Profile   (account view / signup form)
+                 └─ Pushed screens: Result, Questionnaire, WorkoutPlan, Settings,
+                    Timer, WorkoutLog, PlanLogs, ConversationalWorkout,
+                    HistoryGraph, Habits
 ```
 
 ### Primary Flow: BMI → Result → Workout Plan
@@ -145,15 +158,24 @@ HomeScreen
 WorkoutLogScreen
 ```
 
-### Side Navigation from Home
+### Navigation from the Dashboard
 
 ```
-HomeScreen
-  ├── Profile  → ProfileScreen (login/register, profile view, logout)
-  ├── Settings → SettingsScreen (LLM provider, model, API key, test connection)
-  └── History  → HistoryScreen (BMI chart, activity chart, saved plans)
-                    ├── Tap a plan day → WorkoutLogScreen (log sets/reps/weight)
-                    └── "View Logs"   → PlanLogsScreen (read-only log history)
+Home tab (dashboard)
+  ├── Today card        → Nutrition tab
+  ├── AI Trainer Chat   → ConversationalWorkoutScreen (chat-based plan generation)
+  ├── Habits "See All"  → HabitsScreen
+  ├── Settings (gear)   → SettingsScreen (LLM provider, model, API key — pure config)
+  └── BMI Check         → ResultScreen → WorkoutPlanScreen
+
+Workouts tab (HistoryScreen)
+  ├── Graphs link       → HistoryGraphScreen (BMI/weight charts)
+  ├── Tap a plan day    → WorkoutLogScreen (log sets/reps/weight)
+  └── "View Logs"       → PlanLogsScreen (read-only log history)
+
+Profile tab
+  ├── Logged in  → profile view, logout, Delete Account
+  └── Guest      → signup/login form, "Forgot password?" reset flow
 ```
 
 ---
@@ -193,10 +215,12 @@ UserInput + BMIResult + Answers ──→ generateWorkoutPlan()
 | `altianly_workout_logs` | AsyncStorage | WorkoutLog[] (capped 200) |
 | `altianly_bmi_history` | AsyncStorage | BMIHistoryEntry[] (capped 100) |
 | `altianly_badges` | AsyncStorage | Badge[] |
-| `altianly_reminder` | AsyncStorage | ReminderConfig |
 | `altianly_theme` | AsyncStorage | 'dark' \| 'cream' |
 | `altianly_llm_config` | SecureStore/AsyncStorage | LLMConfig (API key) |
-| `altianly_user_profile` | SecureStore/AsyncStorage | UserProfile (name, email, password) |
+| `altianly_user_profile` | SecureStore/AsyncStorage | UserProfile (name, email — passwords live only as PBKDF2 hashes in worker KV) |
+| `altianly_guest_mode` | AsyncStorage | 'true' when using the app without an account |
+| `altianly_last_activity` | AsyncStorage | Session heartbeat timestamp |
+| `altianly_meals` | AsyncStorage (web) | Meals keyed by YYYY-MM-DD (native uses SQLite) |
 
 Sensitive data (API keys, user profile) uses `expo-secure-store` with automatic fallback to `AsyncStorage`.
 
@@ -207,7 +231,7 @@ Sensitive data (API keys, user profile) uses `expo-secure-store` with automatic 
 | Ollama | `{baseUrl}/api/generate` | None | Yes (SSE) | Free (local) |
 | OpenRouter | `{baseUrl}/chat/completions` | API Key | Yes (SSE) | Free tier available |
 | HuggingFace | `{baseUrl}/models/{model}` | API Key | Yes (token) | Free tier available |
-| Cloudflare | Custom worker URL | None | No (full response) | Free (Workers AI allocation) |
+| Cloudflare | `{baseUrl}/ai` (altianly-ai worker) | None | No (full response) | Free (Workers AI allocation) |
 
 ## Theme System
 

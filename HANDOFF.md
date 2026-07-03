@@ -27,6 +27,22 @@
 - **This Week card**: Mon–Sun workout dots from logs, workout count, 🔥 streak; today ringed in accent
 - Removed old streak bar, nutrition widget, "View Saved Workouts" link
 
+### #4 — Icons: Font → Inline SVG (`src/components/AppIcon.tsx`)
+- Ionicons font rendered in dev but NOT on the Pages static export (even with `useFonts`); replaced all tab/header icons with react-native-svg strokes — nothing to load, verified live
+- `@expo/vector-icons` + `expo-font` removed; nutrition tab icon is an apple
+- Login pill on the auth landing now scrolls to the form (it only swapped state below the fold — looked dead)
+
+### #5 — Settings Cleanup
+- "Data" section deleted (BMI & Weight Graphs duplicated the Workouts-tab link)
+- "AI Features → Conversational Workout" moved to Home as the "AI Trainer Chat" card under Quick Start
+- Settings is now pure LLM configuration
+
+### #6 — Production Config (all live-tested)
+- USDA key rotated → `USDA_API_KEY` secret on `altianly-ai`; frontend `searchFoods` proxies via `/food/search`
+- `RESEND_API_KEY` secret set; reset email delivery verified (owner address: `vishhalchopra@proton.me`)
+- Worker deployed with account-deletion + reset endpoints; full register→delete→login-401 lifecycle verified
+- Pages is git-connected: every push to master auto-builds and deploys
+
 ---
 
 ## What Was Built This Session (2026-07-02, Session 2)
@@ -201,17 +217,18 @@
 ```
 Landing page (altianly.pages.dev/) → signup form → GET /app/?name=X&email=Y
                                                          ↓
-App Profile Screen (initial route inside Expo app)
-  ├─ Not logged in → passkey register form (pre-filled from URL params)
-  ├─ Logged in (auto-redirect) → Home
-  └─ After register/login → navigate.replace('Home')
+Auth screen (root; ProfileScreen as login gate, pre-filled from URL params)
+  ├─ Register / Login → guest mode off → replace('Main')
+  ├─ "Continue without an account" → guest mode on → replace('Main')
+  ├─ "Forgot password?" → 2-step email reset → auto-login → Main
+  └─ Profile already exists → auto replace('Main')
 
-Home → Result (BMI + questionnaire + health insights) → WorkoutPlan
-Home → Settings
-Home → History → WorkoutLog (via day chip on any saved plan)
-Home → WorkoutLog (via "Resume Latest Plan" quick-start card)
-Home → Profile (profile view with logout)
-WorkoutLog → PlanLogs
+Main = bottom tabs: Home | Workouts (History) | Nutrition | Profile
+  Home → Result → (Questionnaire) → WorkoutPlan
+  Home → WorkoutLog (Quick Workout / Start a Split / Resume Latest Plan)
+  Home → ConversationalWorkout (AI Trainer Chat card)
+  Home → Habits ("See All") | Settings (gear icon)
+  Workouts → HistoryGraph | WorkoutLog → PlanLogs
 ```
 
 ### Auth Flow
@@ -341,4 +358,4 @@ npx wrangler deploy
 
 ---
 
-*Handoff prepared: 2026-07-02 (updated after Session 2 — guest mode, auth fixes, category consistency, App Store prep)*
+*Handoff prepared: 2026-07-03 (Session 3 — password reset, bottom tabs, dashboard redesign, SVG icons, production config all live)*
