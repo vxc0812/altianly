@@ -13,6 +13,7 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 - Pages auto-deploys from GitHub pushes (git-connected) — no manual redeploy step needed
 - **Settings cleaned up** — removed the "Data" section (BMI & Weight Graphs was a duplicate of the Workouts-tab link) and the "AI Features" section; "Conversational Workout" moved to the Home dashboard as an "AI Trainer Chat" card under Quick Start. Settings is now pure configuration (LLM provider/model/API key)
 - Nutrition tab icon changed from fork/knife to an apple
+- **AI Trainer Chat "Cloudflare error 404" fixed** — `AITrainerAgent.callCloudflare` still POSTed to the worker root instead of `/ai` (same bug fixed in llm.ts on 06-28, missed in the agent's copy)
 - Still pending: Resend domain verification for real users
 
 ---

@@ -264,7 +264,7 @@ Injuries: ${qa.injuries || 'None reported'}
     cfg: LLMConfig, prompt: string, onProgress?: (chunk: string) => void
   ): Promise<string> {
     const body = { prompt, model: cfg.model };
-    const response = await fetch(cfg.baseUrl, {
+    const response = await fetch(`${cfg.baseUrl}/ai`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
