@@ -5,6 +5,7 @@ import { NavigationContainer, useNavigation } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { Ionicons } from '@expo/vector-icons'
+import { useFonts } from 'expo-font'
 import { RootStackParamList } from './src/types'
 import { ThemeProvider, useTheme } from './src/context/ThemeContext'
 import { AuthProvider } from './src/context/AuthContext'
@@ -125,6 +126,9 @@ function AppContent() {
 }
 
 export default function App() {
+  // Icon font must be loaded explicitly for production web exports (dev server does it implicitly)
+  useFonts(Ionicons.font)
+
   return (
     <ThemeProvider>
       <AuthProvider>
