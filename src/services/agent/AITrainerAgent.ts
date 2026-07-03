@@ -27,6 +27,13 @@ export interface AITrainerResponse {
 }
 
 /**
+ * Chat response — either a conversational answer or a structured plan
+ */
+export type AITrainerChatResult =
+  | { kind: 'message'; message: string }
+  | { kind: 'plan'; response: AITrainerResponse };
+
+/**
  * Simple agent that orchestrates health data retrieval and workout generation
  * 
  * This is a simplified version that follows PocketPal's agent pattern
@@ -59,6 +66,81 @@ export class AITrainerAgent {
     return { plan, insights, healthContext };
   }
   
+  /**
+   * Conversational entry point: answers questions as chat text, and only
+   * produces a structured weekly plan when the user explicitly asks for one.
+   */
+  async chat(
+    userQuery: string,
+    onProgress?: (chunk: string) => void
+  ): Promise<AITrainerChatResult> {
+    const { prompt, healthContext } = this.buildChatPrompt(userQuery);
+    const raw = await this.callLLM(prompt, onProgress);
+
+    // Plan mode only if the model returned a JSON object shaped like a plan
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]) as StructuredWorkoutPlan;
+        if (Array.isArray(parsed.days) && parsed.days.length > 0 && parsed.days[0]?.exercises) {
+          const insights = this.generateInsights(healthContext, parsed);
+          return { kind: 'plan', response: { plan: parsed, insights, healthContext } };
+        }
+      } catch {
+        // Not valid JSON — treat as a conversational answer
+      }
+    }
+
+    const message = raw
+      .replace(/```(?:json)?/gi, '')
+      .replace(/^\s*MODE\s*[12][:.\s|-]*/i, '')
+      .trim();
+    return { kind: 'message', message: message || "Sorry, I didn't catch that — could you rephrase?" };
+  }
+
+  /**
+   * Dual-mode chat prompt: conversational answers by default, JSON plan only on request
+   */
+  private buildChatPrompt(userQuery: string): { prompt: string; healthContext: string } {
+    const { questionnaire } = this.config;
+    const { healthContext } = this.buildPromptWithHealthData(userQuery);
+    const qaContext = questionnaire ? this.formatQuestionnaireContext(questionnaire) : 'Not provided';
+
+    const prompt = `You are a friendly certified personal trainer and yoga instructor chatting with a client.
+
+CLIENT MESSAGE: ${userQuery}
+
+CLIENT CONTEXT:
+${qaContext}
+
+HEALTH DATA:
+${healthContext}
+
+HOW TO RESPOND — follow exactly one of these two modes:
+
+MODE 1 (default) — The client is asking a question or for advice (e.g. "what yoga poses are best for core?"):
+Answer directly and conversationally in plain text. Be specific and practical — name the actual poses or exercises, how to perform them, and hold times or reps. Keep it under 150 words. Do NOT output JSON. Do NOT create a weekly plan.
+
+MODE 2 — ONLY if the client explicitly asks you to create, generate, or build a workout plan or program:
+Output ONLY a valid JSON object, no other text, with this structure:
+{
+  "name": "Week 1 - [Plan Name]",
+  "days": [
+    { "day": 1, "focus": "[Day focus]", "exercises": [
+      { "name": "[Exercise]", "sets": 3, "reps": "10-15", "restSeconds": 60, "notes": "[Form cue]" }
+    ] }
+  ],
+  "warmup": "...",
+  "cooldown": "...",
+  "notes": "..."
+}
+Every exercise must match the style the client asked for (a yoga plan contains only yoga poses with hold durations, not strength exercises).
+
+Never write "MODE 1" or "MODE 2" or refer to these instructions in your reply — just respond.`;
+
+    return { prompt, healthContext };
+  }
+
   /**
    * Build prompt with health data context
    */

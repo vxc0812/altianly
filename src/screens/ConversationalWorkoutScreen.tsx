@@ -65,25 +65,20 @@ export function ConversationalWorkoutScreen() {
     setIsLoading(true);
 
     try {
-      const response = await agent.generateWorkoutPlan(
-        inputText.trim(),
-        (_chunk) => {
-          // Handle streaming progress (no-op for now)
-        }
-      );
-      
+      const result = await agent.chat(inputText.trim());
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: formatAIResponse(response),
+        text: result.kind === 'plan' ? formatAIResponse(result.response) : result.message,
         isUser: false,
         timestamp: Date.now(),
       };
-      
+
       setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: `Sorry, I couldn't generate a workout plan. ${error instanceof Error ? error.message : 'Please try again.'}`,
+        text: `Sorry, something went wrong. ${error instanceof Error ? error.message : 'Please try again.'}`,
         isUser: false,
         timestamp: Date.now(),
       };
