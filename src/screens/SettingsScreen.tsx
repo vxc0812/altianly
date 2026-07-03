@@ -272,24 +272,6 @@ export default function SettingsScreen({ navigation }: Props) {
       </View>
 
       {/* Model Picker Modal (OpenRouter only) */}
-      <Text style={s.sectionTitle}>Data</Text>
-      <TouchableOpacity
-        style={s.featureCard}
-        onPress={() => navigation.navigate('HistoryGraph')}
-      >
-        <Text style={s.featureCardTitle}>BMI & Weight Graphs</Text>
-        <Text style={s.featureCardDesc}>View line charts of your BMI and weight over time, by day, week, month, or year</Text>
-      </TouchableOpacity>
-
-      <Text style={s.sectionTitle}>AI Features</Text>
-      <TouchableOpacity
-        style={s.featureCard}
-        onPress={() => navigation.navigate('ConversationalWorkout')}
-      >
-        <Text style={s.featureCardTitle}>Conversational Workout</Text>
-        <Text style={s.featureCardDesc}>Chat with your AI trainer to generate a personalized workout plan</Text>
-      </TouchableOpacity>
-
       <Modal visible={showPicker} animationType="slide" transparent>
         <View style={s.modalOverlay}>
           <View style={s.modalSheet}>
@@ -392,12 +374,6 @@ const styles = (t: Theme) => StyleSheet.create({
   testResultTextFail: { color: t.danger },
   saveButton: { backgroundColor: t.success },
   saveButtonText: { color: t.successText, fontSize: 16, fontWeight: '700' },
-  featureCard: {
-    backgroundColor: t.surface, borderWidth: 1, borderColor: t.border,
-    borderRadius: 12, padding: 16, marginBottom: 24,
-  },
-  featureCardTitle: { color: t.text, fontSize: 16, fontWeight: '700', marginBottom: 4 },
-  featureCardDesc: { color: t.textSecondary, fontSize: 13, lineHeight: 18 },
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalSheet: { backgroundColor: t.bg, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '85%' },

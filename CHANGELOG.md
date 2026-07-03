@@ -11,6 +11,8 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 - `RESEND_API_KEY` secret set + live-tested — reset endpoint returns generic 200, test email delivered. Resend account owner is `vishhalchopra@proton.me`; until a domain is verified at resend.com, reset emails only deliver to that address
 - **Icons missing on Pages fixed** — Ionicons font failed to render on the static export even with `useFonts`. Replaced the icon font entirely with inline SVG icons (`src/components/AppIcon.tsx`, react-native-svg strokes) for tab bar + header; removed `@expo/vector-icons`/`expo-font`. Verified live: SVG paths in production bundle, zero font references
 - Pages auto-deploys from GitHub pushes (git-connected) — no manual redeploy step needed
+- **Settings cleaned up** — removed the "Data" section (BMI & Weight Graphs was a duplicate of the Workouts-tab link) and the "AI Features" section; "Conversational Workout" moved to the Home dashboard as an "AI Trainer Chat" card under Quick Start. Settings is now pure configuration (LLM provider/model/API key)
+- Nutrition tab icon changed from fork/knife to an apple
 - Still pending: Resend domain verification for real users
 
 ---

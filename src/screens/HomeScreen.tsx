@@ -446,6 +446,20 @@ export default function HomeScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
+        <TouchableOpacity
+          style={s.aiChatCard}
+          onPress={() => navigation.navigate('ConversationalWorkout')}
+          accessibilityRole="button"
+          accessibilityLabel="Chat with your AI trainer to build a workout plan"
+        >
+          <Text style={s.aiChatIcon}>💬</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={s.aiChatTitle}>AI Trainer Chat</Text>
+            <Text style={s.aiChatDesc}>Talk through your goals and get a personalized plan</Text>
+          </View>
+          <Text style={s.recentArrow}>›</Text>
+        </TouchableOpacity>
+
         {latestPlan?.structuredPlan && (
           <View style={s.quickStartCard}>
             <Text style={s.quickStartLabel}>Resume Latest Plan</Text>
@@ -756,6 +770,20 @@ const styles = (t: Theme) => StyleSheet.create({
   quickActionIcon: { fontSize: 24, marginBottom: 6 },
   quickActionTitle: { fontSize: 15, fontWeight: '700', color: t.text, marginBottom: 2 },
   quickActionDesc: { fontSize: 11, color: t.textSecondary, textAlign: 'center' },
+  aiChatCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: t.surface,
+    borderWidth: 1,
+    borderColor: t.border,
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 10,
+  },
+  aiChatIcon: { fontSize: 22 },
+  aiChatTitle: { fontSize: 14, fontWeight: '700', color: t.text },
+  aiChatDesc: { fontSize: 11, color: t.textSecondary, marginTop: 2 },
 
   quickStartCard: {
     backgroundColor: t.surface,
