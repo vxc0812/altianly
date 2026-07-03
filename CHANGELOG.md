@@ -9,7 +9,7 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 - New USDA API key set as `USDA_API_KEY` secret on `altianly-ai` (old key was exposed in public git history — rotated); stray secret/var cleaned off the `altianly` assets worker
 - ⚠️ Gotcha: wrangler resolves the ROOT `wrangler.jsonc` even when run from `workers/ai-proxy/` — pass `--config workers/ai-proxy/wrangler.toml` for AI-worker commands
 - `RESEND_API_KEY` secret set + live-tested — reset endpoint returns generic 200, test email delivered. Resend account owner is `vishhalchopra@proton.me`; until a domain is verified at resend.com, reset emails only deliver to that address
-- **Icons missing on Pages fixed** — tab bar/settings/theme icons rendered in dev but not in the static export; production web needs `useFonts(Ionicons.font)` (expo-font added). Verified live after Pages auto-build
+- **Icons missing on Pages fixed** — Ionicons font failed to render on the static export even with `useFonts`. Replaced the icon font entirely with inline SVG icons (`src/components/AppIcon.tsx`, react-native-svg strokes) for tab bar + header; removed `@expo/vector-icons`/`expo-font`. Verified live: SVG paths in production bundle, zero font references
 - Pages auto-deploys from GitHub pushes (git-connected) — no manual redeploy step needed
 - Still pending: Resend domain verification for real users
 
