@@ -4,8 +4,7 @@ import { AppState } from 'react-native'
 import { NavigationContainer, useNavigation } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
-import { Ionicons } from '@expo/vector-icons'
-import { useFonts } from 'expo-font'
+import AppIcon, { AppIconName } from './src/components/AppIcon'
 import { RootStackParamList } from './src/types'
 import { ThemeProvider, useTheme } from './src/context/ThemeContext'
 import { AuthProvider } from './src/context/AuthContext'
@@ -30,11 +29,11 @@ import NutritionScreen from './src/screens/NutritionScreen'
 const Stack = createNativeStackNavigator<RootStackParamList>()
 const Tab = createBottomTabNavigator<RootStackParamList>()
 
-const TAB_ICONS: Record<string, { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap }> = {
-  Home: { active: 'home', inactive: 'home-outline' },
-  History: { active: 'barbell', inactive: 'barbell-outline' },
-  Nutrition: { active: 'nutrition', inactive: 'nutrition-outline' },
-  Profile: { active: 'person', inactive: 'person-outline' },
+const TAB_ICONS: Record<string, AppIconName> = {
+  Home: 'home',
+  History: 'barbell',
+  Nutrition: 'nutrition',
+  Profile: 'person',
 }
 
 function MainTabs() {
@@ -50,10 +49,9 @@ function MainTabs() {
           borderTopColor: theme.border,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-        tabBarIcon: ({ focused, color, size }) => {
-          const icons = TAB_ICONS[route.name]
-          return <Ionicons name={focused ? icons.active : icons.inactive} size={size} color={color} />
-        },
+        tabBarIcon: ({ focused, color, size }) => (
+          <AppIcon name={TAB_ICONS[route.name] ?? 'home'} size={size} color={color} focused={focused} />
+        ),
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
@@ -126,9 +124,6 @@ function AppContent() {
 }
 
 export default function App() {
-  // Icon font must be loaded explicitly for production web exports (dev server does it implicitly)
-  useFonts(Ionicons.font)
-
   return (
     <ThemeProvider>
       <AuthProvider>

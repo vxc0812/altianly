@@ -13,7 +13,7 @@ import {
 } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useFocusEffect } from '@react-navigation/native'
-import { Ionicons } from '@expo/vector-icons'
+import AppIcon from '../components/AppIcon'
 import ProgressRing from '../components/ProgressRing'
 import {
   RootStackParamList, Gender, UnitSystem, BMIHistoryEntry, Badge,
@@ -296,7 +296,7 @@ export default function HomeScreen({ navigation }: Props) {
               accessibilityRole="button"
               accessibilityLabel={`Switch to ${mode === 'dark' ? 'cream' : 'dark'} theme`}
             >
-              <Ionicons name={mode === 'dark' ? 'sunny-outline' : 'moon-outline'} size={22} color={theme.textSecondary} />
+              <AppIcon name={mode === 'dark' ? 'sun' : 'moon'} size={22} color={theme.textSecondary} />
             </TouchableOpacity>
             <TouchableOpacity
               style={s.iconButton}
@@ -304,7 +304,7 @@ export default function HomeScreen({ navigation }: Props) {
               accessibilityRole="button"
               accessibilityLabel="Open settings"
             >
-              <Ionicons name="settings-outline" size={22} color={theme.textSecondary} />
+              <AppIcon name="settings" size={22} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
