@@ -285,10 +285,11 @@ altianly_meals            // meals keyed by YYYY-MM-DD (web only, AsyncStorage)
 ### Blocker (must fix before next sprint)
 | # | Feature | Notes |
 |---|---------|-------|
-| 🔧 | **Redeploy worker** | `cd workers/ai-proxy && npx wrangler deploy` — required for `POST /auth/account/delete` AND the new password-reset endpoints. `wrangler.toml` already has the `[ai]` binding and KV namespace. |
-| 🔧 | **Set `RESEND_API_KEY` secret** | Password reset emails need it: free account at resend.com → API key → `npx wrangler secret put RESEND_API_KEY`. Note: default `onboarding@resend.dev` sender only delivers to your own Resend account email; verify a domain and set `RESET_EMAIL_FROM` for real users. Until set, the reset endpoint returns 503 ("temporarily unavailable"). |
-| 🔧 | **Redeploy Pages** | Fresh `dist/` is built with all Session 2 fixes (light landing page, privacy.html, auth fixes, guest mode). |
-| 🐛 | **Restart dev server** | `npm run web` on port 8081 is still serving the pre-Session-2 bundle (Metro caches in memory). Ctrl+C + restart, then re-test: nutrition widget after Quick add, register/login inline errors, guest mode, yoga plan generation. Debug string was removed from the widget label. |
+| ✅ | **Worker deployed (2026-07-03)** | `altianly-ai` live with account deletion + password reset endpoints. Live-tested: food/search 200, food/parse 200 (AI binding OK), register→delete→login-fails lifecycle verified. ⚠️ Wrangler resolves the ROOT `wrangler.jsonc` even from `workers/ai-proxy/` — always pass `--config workers/ai-proxy/wrangler.toml` (or `--name altianly-ai`) for AI-worker commands. |
+| ✅ | **USDA key rotated (2026-07-03)** | Old key was public in git history; new key lives ONLY as `USDA_API_KEY` secret on `altianly-ai`. Frontend `searchFoods` now proxies through `/food/search`. |
+| 🔧 | **Set `RESEND_API_KEY` secret** | Password reset emails need it: free account at resend.com → API key → `npx wrangler secret put RESEND_API_KEY --config workers/ai-proxy/wrangler.toml`. Note: default `onboarding@resend.dev` sender only delivers to your own Resend account email; verify a domain and set `RESET_EMAIL_FROM` for real users. Until set, the reset endpoint returns 503 ("temporarily unavailable"). |
+| 🔧 | **Redeploy Pages** | Fresh `dist/` is built with all fixes. (The workers.dev copy at `altianly.vishhalchopra.workers.dev` was updated 2026-07-03 as a side effect of a root-config deploy; `altianly.pages.dev` still needs its own deploy.) |
+| 🐛 | **Restart dev server** | `npm run web` on port 8081 may still serve an old bundle (Metro caches in memory). Ctrl+C + restart, then re-test: register/login inline errors, guest mode, tabs, dashboard, yoga plan generation. |
 
 ### High Priority (next sprint)
 | # | Feature | Notes |
