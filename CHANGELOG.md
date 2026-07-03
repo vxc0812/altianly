@@ -8,7 +8,8 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 - `altianly-ai` worker deployed with account-deletion + password-reset endpoints; live-tested (food search/parse 200, register→delete→login-401 lifecycle verified)
 - New USDA API key set as `USDA_API_KEY` secret on `altianly-ai` (old key was exposed in public git history — rotated); stray secret/var cleaned off the `altianly` assets worker
 - ⚠️ Gotcha: wrangler resolves the ROOT `wrangler.jsonc` even when run from `workers/ai-proxy/` — pass `--config workers/ai-proxy/wrangler.toml` for AI-worker commands
-- Still pending: `RESEND_API_KEY` secret (reset emails return 503 until set), Pages redeploy
+- `RESEND_API_KEY` secret set + live-tested — reset endpoint returns generic 200, test email delivered. Resend account owner is `vishhalchopra@proton.me`; until a domain is verified at resend.com, reset emails only deliver to that address
+- Still pending: Pages redeploy, Resend domain verification for real users
 
 ---
 
