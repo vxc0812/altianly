@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react'
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView,
 } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useFocusEffect } from '@react-navigation/native'
@@ -11,7 +11,7 @@ import { HabitGrid } from '../components/HabitGrid'
 import { HabitForm } from '../components/HabitForm'
 import {
   getAllHabits, createHabit, updateHabit, deleteHabit,
-  logHabitEntry, getWeekEntries, formatDate, getEntryForDate,
+  logHabitEntry, formatDate, getEntryForDate,
 } from '../services/habits'
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Habits'> }

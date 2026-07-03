@@ -72,7 +72,7 @@ const motivationOptions: { value: MotivationDriver; label: string }[] = [
 export default function QuestionnaireScreen({ navigation, route }: Props) {
   const { theme } = useTheme()
   const s = styles(theme)
-  const { userInput, bmiResult } = route.params
+  const { userInput, bmiResult, workoutChoice } = route.params
   
   // Basic questionnaire state
   const [lifestyle, setLifestyle] = useState<Lifestyle | null>(null)
@@ -102,6 +102,7 @@ export default function QuestionnaireScreen({ navigation, route }: Props) {
     
     const answers: QuestionnaireAnswers = {
       lifestyle, exerciseLevel, trainingSplit,
+      workoutChoice,
       ageGroup: ageGroup || undefined,
       primaryGoal: primaryGoal || undefined,
       targetTimeline,
@@ -272,7 +273,7 @@ const styles = (t: Theme) => StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: '600', color: t.textSecondary, marginBottom: 10, marginTop: 8 },
   optionsContainer: { gap: 10, marginBottom: 24 },
   optionCard: { backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 16 },
-  optionCardSelected: { borderColor: t.accent, backgroundColor: t.isDark ? '#1C2533' : '#F3EDFF' },
+  optionCardSelected: { borderColor: t.accent, backgroundColor: t.selectedBg },
   optionLabel: { fontSize: 16, fontWeight: '700', color: t.text },
   optionLabelSelected: { color: t.accent },
   optionDesc: { fontSize: 13, color: t.textSecondary, marginTop: 4 },
@@ -280,7 +281,7 @@ const styles = (t: Theme) => StyleSheet.create({
   homeLinkText: { color: t.accent, fontSize: 14, fontWeight: '600' },
   modeToggle: { flexDirection: 'row', gap: 10, marginBottom: 24 },
   modeOption: { flex: 1, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 14, alignItems: 'center' },
-  modeOptionActive: { borderColor: t.accent, backgroundColor: t.isDark ? '#1C2533' : '#F3EDFF' },
+  modeOptionActive: { borderColor: t.accent, backgroundColor: t.selectedBg },
   modeLabel: { fontSize: 15, fontWeight: '700', color: t.text, marginBottom: 4 },
   modeLabelActive: { color: t.accent },
   modeDesc: { fontSize: 11, color: t.textSecondary, textAlign: 'center' },

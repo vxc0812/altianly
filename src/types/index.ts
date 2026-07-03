@@ -189,9 +189,11 @@ export interface ParsedFoodItem {
 }
 
 export type RootStackParamList = {
+  Auth: undefined
+  Main: undefined
   Home: undefined
   Result: { userInput: UserInput }
-  Questionnaire: { userInput: UserInput; bmiResult: BMIResult }
+  Questionnaire: { userInput: UserInput; bmiResult: BMIResult; workoutChoice?: WorkoutChoice }
   WorkoutPlan: { userInput: UserInput; bmiResult: BMIResult; answers: QuestionnaireAnswers; mode?: 'instant' | 'ai' }
   Settings: undefined
   History: undefined

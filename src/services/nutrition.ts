@@ -2,47 +2,25 @@ import { Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { getDb } from './database'
 import { getSyncUrl } from './cloudSync'
-import type { Food, FoodNutrients, Meal, MealEntry, MealType, RDITarget, ParsedFoodItem } from '../types'
+import type { Food, Meal, MealEntry, MealType, RDITarget, ParsedFoodItem } from '../types'
 
 const isWeb = Platform.OS === 'web'
 const WEB_MEALS_KEY = 'altianly_meals'
 
-const USDA_API_KEY = 'dgUIialhVZesjYdIFv3k8aci2NvBht0AqxKS4QgP'
-
 export async function searchFoods(query: string, pageSize = 25): Promise<Food[]> {
-  const usdaRes = await fetch('https://api.nal.usda.gov/fdc/v1/foods/search?api_key=' + USDA_API_KEY, {
+  // USDA lookups go through the worker so the API key stays server-side (env.USDA_API_KEY)
+  const base = await getSyncUrl()
+  const res = await fetch(`${base}/food/search`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      query,
-      pageSize,
-      dataType: ['Foundation', 'SR Legacy', 'Branded'],
-      sortBy: 'dataType.keyword',
-      sortOrder: 'asc',
-    }),
+    body: JSON.stringify({ query, pageSize }),
   })
-  if (!usdaRes.ok) {
-    const text = await usdaRes.text()
-    throw new Error(`USDA search error ${usdaRes.status}: ${text}`)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `Server error (${res.status})` }))
+    throw new Error(err.error || `Food search error ${res.status}`)
   }
-  const data = await usdaRes.json()
-  const foods: Food[] = (data.foods || []).map((f: Record<string, unknown>) => ({
-    id: String(f.fdcId),
-    name: f.description as string,
-    brandName: (f.brandName || f.brandOwner || null) as string | null,
-    servingSize: (f.servingSize || null) as number | null,
-    servingUnit: (f.servingSizeUnit || null) as string | null,
-    nutrients: {
-      calories: Math.round(((f.foodNutrients as Array<Record<string, unknown>>)?.find((n) => n.nutrientId === 1008)?.value as number || 0) * 10) / 10,
-      protein: Math.round(((f.foodNutrients as Array<Record<string, unknown>>)?.find((n) => n.nutrientId === 1003)?.value as number || 0) * 10) / 10,
-      carbs: Math.round(((f.foodNutrients as Array<Record<string, unknown>>)?.find((n) => n.nutrientId === 1005)?.value as number || 0) * 10) / 10,
-      fat: Math.round(((f.foodNutrients as Array<Record<string, unknown>>)?.find((n) => n.nutrientId === 1004)?.value as number || 0) * 10) / 10,
-      fiber: Math.round(((f.foodNutrients as Array<Record<string, unknown>>)?.find((n) => n.nutrientId === 1079)?.value as number || 0) * 10) / 10,
-      sugar: Math.round(((f.foodNutrients as Array<Record<string, unknown>>)?.find((n) => n.nutrientId === 2000)?.value as number || 0) * 10) / 10,
-      sodium: Math.round(((f.foodNutrients as Array<Record<string, unknown>>)?.find((n) => n.nutrientId === 1093)?.value as number || 0) * 10) / 10,
-    },
-  }))
-  return foods
+  const data = await res.json()
+  return (data.foods || []) as Food[]
 }
 
 export async function searchFoodByBarcode(barcode: string): Promise<Food | null> {

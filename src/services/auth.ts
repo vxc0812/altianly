@@ -1,4 +1,4 @@
-import { isWebAuthnAvailable, createCredential, getAssertion } from './webauthn'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { getSyncUrl } from './cloudSync'
 import { getUserProfile, saveUserProfile, deleteUserProfile, updateLastActivity } from './storage'
 import { UserProfile } from '../types'
@@ -63,117 +63,6 @@ export async function tryRestoreSession(): Promise<UserProfile | null> {
   }
 }
 
-export async function registerWithPasskey(
-  name: string,
-  email: string,
-): Promise<{ ok: boolean; error?: string }> {
-  // Try passkey registration via worker; fall back to local-only account if worker unreachable
-  if (isWebAuthnAvailable()) {
-    try {
-      const base = await getSyncUrl()
-      const userId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
-
-      const beginRes = await fetch(`${base}/auth/register/begin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), name: name.trim(), userId }),
-      })
-      if (beginRes.ok) {
-        const options = await beginRes.json()
-        const credential = await createCredential(options)
-        if (credential) {
-          const completeRes = await fetch(`${base}/auth/register/complete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: email.trim().toLowerCase(),
-              name: name.trim(),
-              userId,
-              credential,
-            }),
-          })
-          if (completeRes.ok) {
-            const data = await completeRes.json()
-            setSessionToken(data.token)
-            const profile: UserProfile = {
-              name: name.trim(),
-              email: email.trim().toLowerCase(),
-              createdAt: data.createdAt || Date.now(),
-              lastLoginAt: Date.now(),
-            }
-            await saveUserProfile(profile)
-            await updateLastActivity()
-            return { ok: true }
-          }
-        }
-      }
-    } catch {
-      // Worker unreachable — fall through to local registration
-    }
-  }
-
-  // Local-only fallback: save profile without passkey
-  const profile: UserProfile = {
-    name: name.trim(),
-    email: email.trim().toLowerCase(),
-    createdAt: Date.now(),
-    lastLoginAt: Date.now(),
-  }
-  await saveUserProfile(profile)
-  await updateLastActivity()
-  return { ok: true }
-}
-
-export async function loginWithPasskey(): Promise<{ ok: boolean; error?: string }> {
-  // Try passkey login via worker; fall back to local profile if worker unreachable
-  if (isWebAuthnAvailable()) {
-    try {
-      const base = await getSyncUrl()
-
-      const beginRes = await fetch(`${base}/auth/login/begin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
-      if (beginRes.ok) {
-        const options = await beginRes.json()
-        const assertion = await getAssertion(options)
-        if (assertion) {
-          const completeRes = await fetch(`${base}/auth/login/complete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ assertion }),
-          })
-          if (completeRes.ok) {
-            const data = await completeRes.json()
-            setSessionToken(data.token)
-            const profile: UserProfile = {
-              name: data.user.name,
-              email: data.user.email,
-              createdAt: data.user.createdAt,
-              lastLoginAt: Date.now(),
-            }
-            await saveUserProfile(profile)
-            await updateLastActivity()
-            return { ok: true }
-          }
-        }
-      }
-    } catch {
-      // Worker unreachable — fall through to local login
-    }
-  }
-
-  // Local-only fallback: use saved profile if it exists
-  const local = await getUserProfile()
-  if (!local) {
-    return { ok: false, error: 'No local profile found. Register first.' }
-  }
-  local.lastLoginAt = Date.now()
-  await saveUserProfile(local)
-  await updateLastActivity()
-  return { ok: true }
-}
-
 export async function registerWithPassword(
   name: string,
   email: string,
@@ -204,16 +93,7 @@ export async function registerWithPassword(
     const err = await res.json().catch(() => ({ error: 'Registration failed' }))
     return { ok: false, error: err.error || `Server error (${res.status})` }
   } catch {
-    // Worker unreachable — fall back to local-only registration
-    const profile: UserProfile = {
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      createdAt: Date.now(),
-      lastLoginAt: Date.now(),
-    }
-    await saveUserProfile(profile)
-    await updateLastActivity()
-    return { ok: true }
+    return { ok: false, error: 'Could not reach the server. Check your connection and try again, or continue without an account.' }
   }
 }
 
@@ -244,15 +124,57 @@ export async function loginWithPassword(
     const err = await res.json().catch(() => ({ error: 'Login failed' }))
     return { ok: false, error: err.error || `Server error (${res.status})` }
   } catch {
-    // Worker unreachable — try local profile
-    const local = await getUserProfile()
-    if (local && local.email === email.trim().toLowerCase()) {
-      local.lastLoginAt = Date.now()
-      await saveUserProfile(local)
+    return { ok: false, error: 'Could not reach the server. Check your connection and try again, or continue without an account.' }
+  }
+}
+
+export async function requestPasswordReset(email: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const base = await getSyncUrl()
+    const res = await fetch(`${base}/auth/password/reset/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    })
+    if (res.ok) return { ok: true }
+    const err = await res.json().catch(() => ({ error: 'Request failed' }))
+    return { ok: false, error: err.error || `Server error (${res.status})` }
+  } catch {
+    return { ok: false, error: 'Could not reach the server. Check your connection and try again.' }
+  }
+}
+
+export async function confirmPasswordReset(
+  email: string,
+  code: string,
+  newPassword: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (newPassword.length < 6) return { ok: false, error: 'Password must be at least 6 characters' }
+
+  try {
+    const base = await getSyncUrl()
+    const res = await fetch(`${base}/auth/password/reset/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim().toLowerCase(), code: code.trim(), newPassword }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      setSessionToken(data.token)
+      const profile: UserProfile = {
+        name: data.name || email.trim().toLowerCase(),
+        email: email.trim().toLowerCase(),
+        createdAt: data.createdAt || Date.now(),
+        lastLoginAt: Date.now(),
+      }
+      await saveUserProfile(profile)
       await updateLastActivity()
       return { ok: true }
     }
-    return { ok: false, error: 'Cannot reach server and no local profile found.' }
+    const err = await res.json().catch(() => ({ error: 'Reset failed' }))
+    return { ok: false, error: err.error || `Server error (${res.status})` }
+  } catch {
+    return { ok: false, error: 'Could not reach the server. Check your connection and try again.' }
   }
 }
 
@@ -270,4 +192,32 @@ export async function logout(): Promise<void> {
   }
   setSessionToken(null)
   await deleteUserProfile()
+}
+
+export async function deleteAccount(): Promise<{ ok: boolean; error?: string }> {
+  const token = getSessionToken()
+  if (token) {
+    try {
+      const base = await getSyncUrl()
+      const res = await fetch(`${base}/auth/account/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      })
+      if (!res.ok && res.status !== 401) {
+        const err = await res.json().catch(() => ({ error: 'Server error' }))
+        return { ok: false, error: err.error || `Server error (${res.status})` }
+      }
+    } catch {
+      // Worker unreachable — still wipe local data below
+    }
+  }
+
+  setSessionToken(null)
+  await deleteUserProfile()
+  try {
+    const keys = await AsyncStorage.getAllKeys()
+    await AsyncStorage.multiRemove(keys.filter((k) => k.startsWith('altianly_')))
+  } catch {}
+  return { ok: true }
 }

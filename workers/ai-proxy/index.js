@@ -63,6 +63,7 @@ function userKey(userId) { return `history:${userId}` }
 function sessionKey(token) { return `session:${token}` }
 function userDataKey(email) { return `user:${email}` }
 function passwordKey(email) { return `password:${email}` }
+function resetKey(email) { return `reset:${email}` }
 
 async function getHistory(env, userId) {
   const raw = await env.ALTIANLY_DATA.get(userKey(userId))
@@ -146,6 +147,107 @@ async function handleLogout(env, body) {
   return json({ ok: true })
 }
 
+// ── Auth: password reset ─────────────────────────────────
+const RESET_TTL_SECONDS = 900 // 15 minutes
+const RESET_MAX_ATTEMPTS = 5
+
+function generateResetCode() {
+  const buf = new Uint32Array(1)
+  crypto.getRandomValues(buf)
+  return String(100000 + (buf[0] % 900000))
+}
+
+async function sendResetEmail(env, email, code) {
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: env.RESET_EMAIL_FROM || 'Altianly <onboarding@resend.dev>',
+      to: [email],
+      subject: 'Your Altianly password reset code',
+      text: `Your Altianly password reset code is: ${code}\n\nEnter this code in the app to set a new password. It expires in 15 minutes.\n\nIf you didn't request this, you can safely ignore this email.`,
+    }),
+  })
+  return res.ok
+}
+
+async function handleResetRequest(env, body) {
+  const { email } = body
+  if (!email) return error('Missing email')
+  if (!env.RESEND_API_KEY) return error('Password reset is temporarily unavailable', 503)
+
+  // Always return the same response whether or not the account exists (no email enumeration)
+  const generic = json({ ok: true, message: 'If an account exists for this email, a reset code has been sent.' })
+
+  const user = await env.ALTIANLY_DATA.get(userDataKey(email))
+  if (!user) return generic
+
+  const code = generateResetCode()
+  await env.ALTIANLY_DATA.put(
+    resetKey(email),
+    JSON.stringify({ code, attempts: 0, createdAt: Date.now() }),
+    { expirationTtl: RESET_TTL_SECONDS },
+  )
+  await sendResetEmail(env, email, code)
+  return generic
+}
+
+async function handleResetConfirm(env, body) {
+  const { email, code, newPassword } = body
+  if (!email || !code || !newPassword) return error('Missing required fields')
+  if (newPassword.length < 6) return error('Password must be at least 6 characters')
+
+  const raw = await env.ALTIANLY_DATA.get(resetKey(email))
+  if (!raw) return error('Invalid or expired reset code', 400)
+
+  const data = JSON.parse(raw)
+  if (data.attempts >= RESET_MAX_ATTEMPTS) {
+    await env.ALTIANLY_DATA.delete(resetKey(email))
+    return error('Too many attempts. Request a new code.', 429)
+  }
+  if (data.code !== String(code).trim()) {
+    data.attempts++
+    await env.ALTIANLY_DATA.put(resetKey(email), JSON.stringify(data), { expirationTtl: RESET_TTL_SECONDS })
+    return error('Invalid or expired reset code', 400)
+  }
+
+  const salt = generateSalt()
+  const hash = await hashPassword(newPassword, salt)
+  await env.ALTIANLY_DATA.put(passwordKey(email), JSON.stringify({
+    salt: bytesToHex(salt),
+    hash: bytesToHex(hash),
+  }))
+  await env.ALTIANLY_DATA.delete(resetKey(email))
+
+  const userData = await env.ALTIANLY_DATA.get(userDataKey(email))
+  const user = userData ? JSON.parse(userData) : null
+  const token = crypto.randomUUID()
+  await env.ALTIANLY_DATA.put(sessionKey(token), JSON.stringify({ email }), { expirationTtl: 2592000 })
+
+  return json({ ok: true, token, name: user?.name, createdAt: user?.createdAt })
+}
+
+// ── Auth: delete account ─────────────────────────────────
+async function handleAccountDelete(env, body) {
+  const { token } = body
+  if (!token) return error('Missing token', 401)
+
+  const session = await env.ALTIANLY_DATA.get(sessionKey(token))
+  if (!session) return error('Invalid or expired session', 401)
+
+  const { email } = JSON.parse(session)
+  await Promise.all([
+    env.ALTIANLY_DATA.delete(passwordKey(email)),
+    env.ALTIANLY_DATA.delete(userDataKey(email)),
+    env.ALTIANLY_DATA.delete(userKey(email)),
+    env.ALTIANLY_DATA.delete(sessionKey(token)),
+  ])
+  return json({ ok: true })
+}
+
 // ── Router ──────────────────────────────────────────────
 export default {
   async fetch(request, env) {
@@ -179,6 +281,25 @@ export default {
     if (path === '/auth/logout' && request.method === 'POST') {
       const body = await request.json().catch(() => null)
       return handleLogout(env, body || {})
+    }
+
+    // ── Auth: password reset ─────────────────────────────
+    if (path === '/auth/password/reset/request' && request.method === 'POST') {
+      const body = await request.json().catch(() => null)
+      if (!body) return error('Invalid JSON')
+      return handleResetRequest(env, body)
+    }
+    if (path === '/auth/password/reset/confirm' && request.method === 'POST') {
+      const body = await request.json().catch(() => null)
+      if (!body) return error('Invalid JSON')
+      return handleResetConfirm(env, body)
+    }
+
+    // ── Auth: delete account ─────────────────────────────
+    if (path === '/auth/account/delete' && request.method === 'POST') {
+      const body = await request.json().catch(() => null)
+      if (!body) return error('Invalid JSON')
+      return handleAccountDelete(env, body)
     }
 
     // ── Food search ──────────────────────────────────────

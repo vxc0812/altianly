@@ -4,6 +4,88 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 
 ---
 
+## 2026-07-02 (Session 3) — Password reset, bottom tab navigation, dashboard redesign
+
+### Email-based password reset
+- **Worker `POST /auth/password/reset/request`** — generates a crypto-random 6-digit code, stores in KV (`reset:{email}`, 15-min TTL), emails it via **Resend API**. Response is identical whether or not the account exists (no email enumeration). Returns 503 if `RESEND_API_KEY` secret isn't configured
+- **Worker `POST /auth/password/reset/confirm`** — validates code (max 5 attempts, then invalidated), re-hashes the new password (PBKDF2), deletes the code, and issues a session token (auto-login)
+- **`requestPasswordReset()` / `confirmPasswordReset()`** in `src/services/auth.ts`
+- **ProfileScreen**: "Forgot password?" link in login mode → 2-step reset UI (email → code + new password + confirm), with resend-code option and inline errors
+- **Setup required**: create a free Resend account (resend.com, 100 emails/day free), set worker secret `RESEND_API_KEY`. Default sender `onboarding@resend.dev` only delivers to the Resend account owner's email — production needs a verified domain (`RESET_EMAIL_FROM` var)
+
+### Bottom tab navigation (research-based UI restructure)
+Researched Bevel (light card dashboard, big numerals, rings, domain color-coding), MapMyFitness (bottom tabs, weekly activity summary), and 2026 Apple HIG/Material 3 patterns (3–5 bottom tabs, cards, progress rings).
+- **`@react-navigation/bottom-tabs` + `@expo/vector-icons` installed**; root stack now: `Auth` (login gate) → `Main` (tab navigator) + pushed screens (Result, Questionnaire, WorkoutPlan, Settings, Timer, WorkoutLog, PlanLogs, ConversationalWorkout, HistoryGraph, Habits)
+- **4 tabs**: Home (dashboard), Workouts (HistoryScreen), Nutrition, Profile — Ionicons with filled/outline active states, theme-aware tab bar
+- ProfileScreen serves as both `Auth` root and `Profile` tab (`isAuthRoot()` check; `goToApp()`/`resetToAuth()` helpers); History/Nutrition "< Back" links replaced with centered titles
+
+### Home dashboard redesign
+- **Greeting header** — time-based ("Good morning, Vishal"), date subtitle, icon buttons (theme toggle, settings) replacing text links
+- **"Today" hero card** — SVG calorie progress ring (new `src/components/ProgressRing.tsx`) with big-numeral calories vs RDI target + color-coded protein/carbs/fat rows; taps through to Nutrition tab
+- **"This Week" card** — Mon–Sun workout day dots (computed from workout logs), workout count, streak flame; today highlighted with accent ring
+- Removed: "View Saved Workouts" text link (now a tab), old streak bar, old flat nutrition widget, Profile header link
+
+---
+
+## 2026-07-02 (Session 2) — Guest mode, auth fixes, workout-category consistency, App Store prep, cleanup
+
+### Guest mode + account deletion (App Store Guideline 5.1.1)
+- **"Continue without an account"** button on ProfileScreen — full app works locally without registration; `altianly_guest_mode` flag in AsyncStorage (`setGuestMode`/`isGuestMode` in `storage.ts`)
+- **HomeScreen auth gate** allows guests; session expiry only enforced when a profile exists; `SessionManager` in `App.tsx` no longer kicks guests out
+- **"Delete Account"** on profile view — new worker endpoint `POST /auth/account/delete` wipes KV records (password hash, user record, history, session); client clears all local `altianly_*` data (**worker redeploy required**)
+- Registering or logging in clears guest mode; back button added to the logged-out Profile view when reached from Home
+
+### Auth bug fixes (account creation appeared broken)
+- **Errors were invisible on web** — `Alert.alert` is a no-op in react-native-web, so validation errors, 409 "email already exists", and 401 login failures showed nothing. Register/login errors now render as inline red text on the form (all platforms)
+- **Silent fake accounts removed** — `registerWithPassword` no longer falls back to a local-only profile when the server call fails (password never reached the server; cross-device login then failed). Offline login fallback (which skipped password verification) also removed. Both now show a clear error suggesting guest mode
+- Verified live: register 200, login 200, wrong password 401, duplicate email 409
+
+### Workout plan category consistency
+- **AI mode ignored workout choice** — `buildPrompt()` in `llm.ts` never included the selected style; the model echoed the prompt's own "Push-ups 3x10-15" example even for Yoga. Prompt now includes a Workout Style line, style-matched persona (yoga/pilates instructor), a CRITICAL style-adherence rule, placeholder-only example JSON, and 3-6 exercises/day requirement. Live-verified for yoga, pilates, gym, HIIT
+- **Detailed questionnaire dropped the choice** — ResultScreen now passes `workoutChoice` to QuestionnaireScreen (new route param), which includes it in answers
+- **Instant HIIT = Strength bug** — local generator treated HIIT identically to Strength. New `hiitCircuitPlan()`: 3 interval circuit days with level-scaled timing (low 20s/40s×3, medium 30s/30s×4, high 40s/20s×5) + Tabata progression notes
+- **Gym equipment leaked into bodyweight plans** — Leg Press/Skull Crushers/Barbell Bench appeared in home HIIT/strength plans. All 30 gym exercises tagged `gym: true`, excluded from `pickExercise` (gym plans are AI-generated). Fuzz-tested: 600 generated plans, zero leaks
+
+### UI polish (light-first)
+- Cream palette warmed to match terracotta accent: bg `#FAF9F7`, border `#E9E5DF`, warm-gray text; landing page + new privacy page use the same values
+- New `t.selectedBg` theme token replaces the `isDark ? '#1C2533' : '#F3EDFF'` ternary in 8 files; cream selected-tint changed from purple `#F3EDFF` to warm `#F8EDE7`
+- **Landing page restyled dark → light**; stale passkey copy rewritten (email/password + guest), Passkey feature card replaced with Nutrition Tracking, broken GitHub links fixed (`vishhalchopra` → `vxc0812`), footer privacy link added
+- Debug `[d:... m:... c:...]` removed from HomeScreen nutrition widget
+
+### App Store preparation
+- `app.json`: iOS `bundleIdentifier: com.altianly.app`, `buildNumber`, `NSCameraUsageDescription` (barcode scanner), `ITSAppUsesNonExemptEncryption: false`; Android package aligned
+- `eas.json` — EAS Build profiles (cloud iOS builds, no Mac required)
+- `public/privacy.html` — privacy policy (required App Store URL), linked from landing footer
+- `APP_STORE_CHECKLIST.md` — full submission walkthrough: enrollment, EAS, App Store Connect, App Privacy answers, screenshots, review risks
+
+### Cleanup
+- Deleted: `nul`, `~/`, stray empty dirs, `temp_changes.txt`, `dist_bak/`, 2 unreferenced stock images, duplicate worker files (`index-compact.js`, `index.min.js`), `workoutGenerator.ts` (unused re-export), `webauthn.ts` + dead `registerWithPasskey`/`loginWithPasskey` (~230 lines dead since password migration)
+- All 7 lint warnings fixed (unused imports); typecheck, lint, and `npm run build` clean
+- Docs corrected: worker URL `altianly-ai.vishhalchopra.workers.dev` in HANDOFF/ARCHITECTURE (was missing `-ai`)
+
+### Deployment reminders
+- **Worker**: `cd workers/ai-proxy && npx wrangler deploy` (needed for `/auth/account/delete`)
+- **Pages**: fresh `dist/` built with all fixes; redeploy when ready
+- **Dev server**: restart `npm run web` (Metro caches the old bundle in memory)
+
+---
+
+## 2026-07-02 — HomeScreen widget fix, habits mock fix, nutrition loading isolation
+
+### Bug fixes
+- **HomeScreen "Today's Nutrition" widget shows 0** — Root cause: `database.web.ts` mock's `executeAsync` returned `{}` (no `getAllAsync` method), causing `getAllHabits()` to throw `Cannot read properties of undefined (reading 'getAllAsync')`. This unhandled rejection in the main `useFocusEffect` cascaded through React's rendering pipeline.
+- **Mock fixed**: `executeAsync` now returns `{ getAllAsync: async () => [] }`
+- **Nutrition loading isolated**: moved from the big `useFocusEffect` IIFE to a dedicated `useFocusEffect` — fires independently on every focus regardless of other feature errors
+- **Date format aligned**: `loadNutritionData()` now uses local-time `getFullYear/getMonth/getDate` to match `formatDate()` in NutritionScreen (was using `toISOString()` UTC which can differ in negative timezone offsets)
+- **Error isolation**: main `useFocusEffect` IIFE now wraps habits/badges calls in try/catch so one feature's failure doesn't prevent other state updates
+- **Debug `[d:... m:... c:...]`** added to widget label showing date queried, meal count, and calorie total
+
+### Status
+- Fixes applied to source but **dev server must be restarted** (`npm run web` Ctrl+C + restart) to rebuild cached bundle (`index-90a38d87...`)
+- User to test after restart and report debug string
+
+---
+
 ## 2026-07-01 — NLP food parsing + barcode scanning (Open Food Facts)
 
 ### Natural language food parsing

@@ -6,18 +6,18 @@
   <title>Altianly — AI-Powered Workout Generator</title>
   <style>
     :root {
-      --bg:         #121316;
-      --surface:    #1C1D22;
-      --border:     #2C2A28;
-      --text:       #E8E6E3;
-      --textSec:    #8B8780;
-      --textMuted:  #5C5953;
+      --bg:         #FAF9F7;
+      --surface:    #FFFFFF;
+      --border:     #E9E5DF;
+      --text:       #2A2724;
+      --textSec:    #7A756E;
+      --textMuted:  #A6A199;
       --accent:     #C96442;
-      --success:    #34D399;
+      --success:    #10B981;
       --successTxt: #FFF;
-      --danger:     #F87171;
-      --warning:    #FBBF24;
-      --green:      #10B981;
+      --danger:     #EF4444;
+      --warning:    #F59E0B;
+      --green:      #059669;
       --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
       --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
     }
@@ -65,7 +65,7 @@
       color: var(--successTxt);
     }
     .btn-primary:hover {
-      background: #2D9F40;
+      background: #0D9668;
       text-decoration: none;
     }
     .btn-outline {
@@ -116,7 +116,7 @@
       width: 700px;
       height: 700px;
       border-radius: 50%;
-      background: radial-gradient(circle at center, rgba(88, 166, 255, 0.08) 0%, transparent 60%);
+      background: radial-gradient(circle at center, rgba(201, 100, 66, 0.10) 0%, transparent 60%);
       top: -200px;
       right: -200px;
       pointer-events: none;
@@ -132,14 +132,14 @@
       display: inline-flex;
       align-items: center;
       gap: 0.4rem;
-      background: rgba(88, 166, 255, 0.12);
+      background: rgba(201, 100, 66, 0.10);
       color: var(--accent);
       font-size: 0.825rem;
       font-weight: 600;
       padding: 0.35rem 0.85rem;
       border-radius: 20px;
       margin-bottom: 1.5rem;
-      border: 1px solid rgba(88, 166, 255, 0.2);
+      border: 1px solid rgba(201, 100, 66, 0.25);
     }
 
     /* ---- Section ---- */
@@ -179,6 +179,7 @@
     .feature-card:hover {
       border-color: var(--accent);
       transform: translateY(-3px);
+      box-shadow: 0 6px 18px rgba(40, 42, 49, 0.06);
     }
     .feature-card .icon {
       font-size: 1.75rem;
@@ -212,12 +213,12 @@
       width: 48px;
       height: 48px;
       border-radius: 50%;
-      background: rgba(88, 166, 255, 0.12);
+      background: rgba(201, 100, 66, 0.10);
       color: var(--accent);
       font-weight: 700;
       font-size: 1.15rem;
       margin: 0 auto 1rem;
-      border: 1px solid rgba(88, 166, 255, 0.2);
+      border: 1px solid rgba(201, 100, 66, 0.25);
     }
     .step h3 { margin-bottom: 0.5rem; }
     .step p  { font-size: 0.925rem; margin: 0 auto; }
@@ -304,7 +305,7 @@
     <div class="nav-links">
       <a href="#features">Features</a>
       <a href="#how">How It Works</a>
-      <a href="https://github.com/vishhalchopra/altianly" target="_blank">GitHub</a>
+      <a href="https://github.com/vxc0812/altianly" target="_blank">GitHub</a>
       <a href="/app/" class="btn btn-primary" style="padding:0.5rem 1.25rem;font-size:0.875rem;">Launch App</a>
     </div>
   </nav>
@@ -355,14 +356,14 @@
         <p>Export structured workout plans directly to your Notion database. Includes name, date, BMI, warmup, exercises, cooldown, and notes.</p>
       </div>
       <div class="feature-card">
-        <span class="icon">&#128274;</span>
-        <h3>Passkey Auth (Web)</h3>
-        <p>Register and login with Windows Hello, Touch ID, or Face ID via WebAuthn. No passwords. Local fallback when offline.</p>
+        <span class="icon">&#127869;</span>
+        <h3>Nutrition Tracking</h3>
+        <p>Log meals with USDA food search, barcode scanning, or plain-text quick add ("chicken sandwich + latte"). Daily calorie and macro totals.</p>
       </div>
       <div class="feature-card">
         <span class="icon">&#127912;</span>
-        <h3>Dual Theme</h3>
-        <p>Dark mode (GitHub-dark inspired) and warm Cream mode. Toggle anytime — your preference is persisted across sessions.</p>
+        <h3>Clean Light Design</h3>
+        <p>A warm, distraction-free light theme by default — with an optional dark mode you can toggle anytime. Your preference is saved.</p>
       </div>
       <div class="feature-card">
         <span class="icon">&#127942;</span>
@@ -449,7 +450,7 @@
     <div class="container text-center">
       <span class="section-label">Get Started</span>
       <h2 class="section-title">Create your account</h2>
-      <p class="section-desc mx-auto">Enter your name and email to begin your fitness journey. No password needed — we use passkeys for secure login.</p>
+      <p class="section-desc mx-auto">Enter your name and email to begin your fitness journey — you'll set a password in the app. Or skip the account entirely and use Altianly as a guest.</p>
       <form class="signup-form" action="/app/" method="GET">
         <div class="field">
           <label for="signup-name">Name</label>
@@ -468,16 +469,16 @@
   <section class="cta-section">
     <div class="container">
       <h2>Ready to dive in?</h2>
-      <p>Already have an account? Launch the app and log in with your passkey.</p>
+      <p>Already have an account? Launch the app and log in with your email and password.</p>
       <div class="btn-group">
         <a href="/app/" class="btn btn-primary">Launch Web App</a>
-        <a href="https://github.com/vishhalchopra/altianly" target="_blank" class="btn btn-outline">View on GitHub</a>
+        <a href="https://github.com/vxc0812/altianly" target="_blank" class="btn btn-outline">View on GitHub</a>
       </div>
     </div>
   </section>
 
   <footer>
-    <p>&copy; 2026 Altianly &middot; Built with React Native + Expo &middot; <a href="https://github.com/vishhalchopra/altianly" target="_blank">GitHub</a></p>
+    <p>&copy; 2026 Altianly &middot; Built with React Native + Expo &middot; <a href="/privacy.html">Privacy Policy</a> &middot; <a href="https://github.com/vxc0812/altianly" target="_blank">GitHub</a></p>
   </footer>
 
 </body>

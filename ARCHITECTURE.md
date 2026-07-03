@@ -20,7 +20,7 @@ Deployed from the GitHub repo (`vxc0812/altianly`) — every push to `master` tr
 
 **What runs here:** The entire React Native (Expo) app rendered for web — BMI calculator, workout plans, settings, history, profile.
 
-### 2. Cloudflare Workers — `https://altianly.vishhalchopra.workers.dev/`
+### 2. Cloudflare Workers — `https://altianly-ai.vishhalchopra.workers.dev/`
 
 The **AI proxy worker** (`workers/ai-proxy/`). A lightweight edge function that bridges the Expo app to Cloudflare Workers AI.
 

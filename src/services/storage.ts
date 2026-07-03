@@ -145,3 +145,15 @@ export async function isSessionExpired(): Promise<boolean> {
   if (last === null) return true
   return Date.now() - last > SESSION_DURATION_MS
 }
+
+export async function setGuestMode(enabled: boolean): Promise<void> {
+  if (enabled) {
+    await AsyncStorage.setItem(STORAGE_KEYS.GUEST_MODE, 'true')
+  } else {
+    await AsyncStorage.removeItem(STORAGE_KEYS.GUEST_MODE)
+  }
+}
+
+export async function isGuestMode(): Promise<boolean> {
+  return (await AsyncStorage.getItem(STORAGE_KEYS.GUEST_MODE)) === 'true'
+}

@@ -147,7 +147,7 @@ const styles = (t: Theme) => StyleSheet.create({
   timerFlashing: { color: t.danger },
   presetsRow: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 32 },
   presetChip: { paddingVertical: 8, paddingHorizontal: 20, borderRadius: 20, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border },
-  presetChipSelected: { borderColor: t.accent, backgroundColor: t.isDark ? '#1C2533' : '#F3EDFF' },
+  presetChipSelected: { borderColor: t.accent, backgroundColor: t.selectedBg },
   presetText: { fontSize: 16, fontWeight: '600', color: t.text },
   presetTextSelected: { color: t.accent },
   controls: { flexDirection: 'row', justifyContent: 'center', gap: 16 },

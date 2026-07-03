@@ -323,7 +323,7 @@ const styles = (t: Theme) => StyleSheet.create({
     flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8,
     backgroundColor: t.surface, borderWidth: 1, borderColor: t.border,
   },
-  timeUnitChipActive: { borderColor: t.accent, backgroundColor: t.isDark ? '#1C2533' : '#F3EDFF' },
+  timeUnitChipActive: { borderColor: t.accent, backgroundColor: t.selectedBg },
   timeUnitText: { color: t.textSecondary, fontSize: 13, fontWeight: '600' },
   timeUnitTextActive: { color: t.accent },
 

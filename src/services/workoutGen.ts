@@ -29,6 +29,8 @@ interface ExerciseDef {
   focus: 'upper-body' | 'lower-body' | 'full-body' | 'abs'
   difficulty: Difficulty
   tempo?: string
+  /** Requires gym equipment — excluded from local bodyweight plans (gym plans are AI-generated) */
+  gym?: boolean
 }
 
 const EXERCISES: ExerciseDef[] = [
@@ -94,36 +96,36 @@ const EXERCISES: ExerciseDef[] = [
   { id: 'plank-jack', name: 'Plank Jacks', movementPattern: 'hiit', type: 'hiit', focus: 'full-body', difficulty: 'normal' },
   { id: 'burpee-mtn-climber', name: 'Burpee to Mountain Climber', movementPattern: 'hiit', type: 'hiit', focus: 'full-body', difficulty: 'advanced' },
   // ── Gym equipment exercises ────────────────────────────────
-  { id: 'barbell-bench', name: 'Barbell Bench Press', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2' },
-  { id: 'incline-db-press', name: 'Incline Dumbbell Press', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2' },
-  { id: 'db-fly', name: 'Dumbbell Chest Fly', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-1-2' },
-  { id: 'cable-cross', name: 'Cable Chest Cross', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-1-2' },
-  { id: 'oh-press', name: 'Overhead Barbell Press', movementPattern: 'push_v', type: 'strength', focus: 'upper-body', difficulty: 'hard', tempo: '2-0-2' },
-  { id: 'db-shoulder-press', name: 'Dumbbell Shoulder Press', movementPattern: 'push_v', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2' },
-  { id: 'lateral-raise', name: 'Dumbbell Lateral Raises', movementPattern: 'push_v', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2' },
-  { id: 'front-raise', name: 'Dumbbell Front Raises', movementPattern: 'push_v', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2' },
-  { id: 'face-pull-cable', name: 'Cable Face Pulls', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2' },
-  { id: 'lat-pulldown', name: 'Lat Pulldown', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2' },
-  { id: 'cable-row', name: 'Seated Cable Row', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2' },
-  { id: 'barbell-row', name: 'Barbell Row', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'hard', tempo: '2-0-2' },
-  { id: 'db-row', name: 'Dumbbell Row', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2' },
-  { id: 'pullup-weighted', name: 'Weighted Pull-ups', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'advanced', tempo: '2-0-2' },
-  { id: 'barbell-squat', name: 'Barbell Back Squat', movementPattern: 'squat', type: 'strength', focus: 'lower-body', difficulty: 'hard', tempo: '3-0-2' },
-  { id: 'front-squat', name: 'Front Squat', movementPattern: 'squat', type: 'strength', focus: 'lower-body', difficulty: 'hard', tempo: '2-0-2' },
-  { id: 'goblet-squat', name: 'Goblet Squat', movementPattern: 'squat', type: 'strength', focus: 'lower-body', difficulty: 'easy', tempo: '2-0-2' },
-  { id: 'leg-press', name: 'Leg Press', movementPattern: 'squat', type: 'strength', focus: 'lower-body', difficulty: 'normal', tempo: '2-0-2' },
-  { id: 'leg-extension', name: 'Leg Extension', movementPattern: 'squat', type: 'strength', focus: 'lower-body', difficulty: 'easy', tempo: '2-0-2' },
-  { id: 'deadlift', name: 'Barbell Deadlift', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'hard', tempo: '2-1-2' },
-  { id: 'rdl', name: 'Romanian Deadlift', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'normal', tempo: '2-1-2' },
-  { id: 'leg-curl', name: 'Leg Curl', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'easy', tempo: '2-0-2' },
-  { id: 'cable-pullthrough', name: 'Cable Pull-Through', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'normal', tempo: '2-0-2' },
-  { id: 'hip-thrust-bb', name: 'Barbell Hip Thrust', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'normal', tempo: '2-1-2' },
-  { id: 'calf-raise', name: 'Standing Calf Raise', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'easy', tempo: '2-0-2' },
-  { id: 'barbell-curl', name: 'Barbell Bicep Curl', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2' },
-  { id: 'db-curl', name: 'Dumbbell Bicep Curl', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2' },
-  { id: 'tricep-pushdown', name: 'Tricep Pushdown', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2' },
-  { id: 'skull-crusher', name: 'Skull Crushers', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2' },
-  { id: 'db-lunge', name: 'Dumbbell Lunges', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'normal', tempo: '2-0-2' },
+  { id: 'barbell-bench', name: 'Barbell Bench Press', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2', gym: true },
+  { id: 'incline-db-press', name: 'Incline Dumbbell Press', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2', gym: true },
+  { id: 'db-fly', name: 'Dumbbell Chest Fly', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-1-2', gym: true },
+  { id: 'cable-cross', name: 'Cable Chest Cross', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-1-2', gym: true },
+  { id: 'oh-press', name: 'Overhead Barbell Press', movementPattern: 'push_v', type: 'strength', focus: 'upper-body', difficulty: 'hard', tempo: '2-0-2', gym: true },
+  { id: 'db-shoulder-press', name: 'Dumbbell Shoulder Press', movementPattern: 'push_v', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2', gym: true },
+  { id: 'lateral-raise', name: 'Dumbbell Lateral Raises', movementPattern: 'push_v', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2', gym: true },
+  { id: 'front-raise', name: 'Dumbbell Front Raises', movementPattern: 'push_v', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2', gym: true },
+  { id: 'face-pull-cable', name: 'Cable Face Pulls', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2', gym: true },
+  { id: 'lat-pulldown', name: 'Lat Pulldown', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2', gym: true },
+  { id: 'cable-row', name: 'Seated Cable Row', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2', gym: true },
+  { id: 'barbell-row', name: 'Barbell Row', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'hard', tempo: '2-0-2', gym: true },
+  { id: 'db-row', name: 'Dumbbell Row', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2', gym: true },
+  { id: 'pullup-weighted', name: 'Weighted Pull-ups', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'advanced', tempo: '2-0-2', gym: true },
+  { id: 'barbell-squat', name: 'Barbell Back Squat', movementPattern: 'squat', type: 'strength', focus: 'lower-body', difficulty: 'hard', tempo: '3-0-2', gym: true },
+  { id: 'front-squat', name: 'Front Squat', movementPattern: 'squat', type: 'strength', focus: 'lower-body', difficulty: 'hard', tempo: '2-0-2', gym: true },
+  { id: 'goblet-squat', name: 'Goblet Squat', movementPattern: 'squat', type: 'strength', focus: 'lower-body', difficulty: 'easy', tempo: '2-0-2', gym: true },
+  { id: 'leg-press', name: 'Leg Press', movementPattern: 'squat', type: 'strength', focus: 'lower-body', difficulty: 'normal', tempo: '2-0-2', gym: true },
+  { id: 'leg-extension', name: 'Leg Extension', movementPattern: 'squat', type: 'strength', focus: 'lower-body', difficulty: 'easy', tempo: '2-0-2', gym: true },
+  { id: 'deadlift', name: 'Barbell Deadlift', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'hard', tempo: '2-1-2', gym: true },
+  { id: 'rdl', name: 'Romanian Deadlift', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'normal', tempo: '2-1-2', gym: true },
+  { id: 'leg-curl', name: 'Leg Curl', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'easy', tempo: '2-0-2', gym: true },
+  { id: 'cable-pullthrough', name: 'Cable Pull-Through', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'normal', tempo: '2-0-2', gym: true },
+  { id: 'hip-thrust-bb', name: 'Barbell Hip Thrust', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'normal', tempo: '2-1-2', gym: true },
+  { id: 'calf-raise', name: 'Standing Calf Raise', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'easy', tempo: '2-0-2', gym: true },
+  { id: 'barbell-curl', name: 'Barbell Bicep Curl', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2', gym: true },
+  { id: 'db-curl', name: 'Dumbbell Bicep Curl', movementPattern: 'pull', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2', gym: true },
+  { id: 'tricep-pushdown', name: 'Tricep Pushdown', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'easy', tempo: '2-0-2', gym: true },
+  { id: 'skull-crusher', name: 'Skull Crushers', movementPattern: 'push_h', type: 'strength', focus: 'upper-body', difficulty: 'normal', tempo: '2-0-2', gym: true },
+  { id: 'db-lunge', name: 'Dumbbell Lunges', movementPattern: 'hinge', type: 'strength', focus: 'lower-body', difficulty: 'normal', tempo: '2-0-2', gym: true },
 ]
 
 export function pickExercise(
@@ -135,6 +137,7 @@ export function pickExercise(
   const targetIdx = order.indexOf(difficulty)
 
   const candidates = EXERCISES.filter(e => {
+    if (e.gym) return false
     if (e.movementPattern !== pattern) return false
     if (exclude?.includes(e.id)) return false
     return order.indexOf(e.difficulty) <= targetIdx
@@ -142,6 +145,7 @@ export function pickExercise(
 
   if (candidates.length === 0) {
     const fallback = EXERCISES.filter(e => {
+      if (e.gym) return false
       if (e.movementPattern !== pattern) return false
       if (exclude?.includes(e.id)) return false
       return true
@@ -430,6 +434,61 @@ function broSplitPlan(p: LevelParams): WorkoutDay[] {
   ]
 }
 
+// ── HIIT Circuits ──────────────────────────────────────────────
+
+const HIIT_TIMING: Record<ExerciseLevel, { work: number; rest: number; rounds: number }> = {
+  low: { work: 20, rest: 40, rounds: 3 },
+  medium: { work: 30, rest: 30, rounds: 4 },
+  high: { work: 40, rest: 20, rounds: 5 },
+}
+
+function hiitCircuitPlan(p: LevelParams): WorkoutDay[] {
+  const { diff } = p
+  const t = HIIT_TIMING[diff]
+  const used: string[] = []
+  const intervalNote = `${t.rounds} rounds: ${t.work}s work / ${t.rest}s rest`
+
+  const interval = (pattern: MovementPattern, difficulty: Difficulty, notes?: string): WorkoutExercise => {
+    const e = pickExercise(pattern, difficulty, used)
+    used.push(e.id)
+    return { name: e.name, sets: t.rounds, reps: `${t.work}s`, restSeconds: t.rest, notes: notes ?? intervalNote }
+  }
+  const h = (notes?: string) => interval('hiit', hiitDifficulty(diff), notes)
+
+  return [
+    buildDay('HIIT Circuit A — Full Body Intervals', [
+      h('Max effort each round'),
+      interval('squat', difficultyForLevel(diff), 'Fast but controlled reps for the full interval'),
+      h(),
+      interval('push_h', difficultyForLevel(diff), 'As many quality reps as possible'),
+      h('Final push — empty the tank'),
+    ]),
+    buildDay('HIIT Circuit B — Lower Body & Power', [
+      interval('squat', difficultyForLevel(diff), 'Explosive on the way up'),
+      h(),
+      interval('hinge', difficultyForLevel(diff), 'Drive through the hips'),
+      h('Keep transitions under 5 seconds'),
+    ]),
+    buildDay('HIIT Circuit C — Core & Conditioning', [
+      interval('core_anti_ext', difficultyForLevel(diff), 'Brace hard for the whole interval'),
+      h(),
+      interval('core_flexion', difficultyForLevel(diff), 'Controlled reps, no momentum'),
+      h('Finisher — max effort'),
+    ]),
+  ]
+}
+
+function hiitNotes(level: ExerciseLevel): string {
+  const t = HIIT_TIMING[level]
+  return [
+    `Intervals: ${t.work}s all-out work / ${t.rest}s rest, ${t.rounds} rounds per exercise. Rest 2 min between exercises.`,
+    'Run each circuit with at least one rest day between sessions (e.g. Mon/Wed/Fri).',
+    level === 'high'
+      ? 'Progression: move toward Tabata (20s work / 10s rest, 8 rounds) or add a fourth circuit day.'
+      : 'Progression: when all rounds feel sustainable, add 5s work or shave 5s rest.',
+  ].join('\n')
+}
+
 // ── Notes ──────────────────────────────────────────────────────
 
 function planNotes(level: ExerciseLevel, split: TrainingSplit, age: number): string {
@@ -558,6 +617,16 @@ export function generateWorkoutPlan(params: {
   }
 
   const p = getLevelParams(exerciseLevel, lifestyle, age)
+
+  if (workoutChoice === 'hiit') {
+    return {
+      name: `Week 1 — HIIT Circuits (${exerciseLevel})`,
+      days: assignDays(hiitCircuitPlan(p)),
+      warmup: warmup(age),
+      cooldown: cooldown(age),
+      notes: hiitNotes(exerciseLevel),
+    }
+  }
 
   const splitName: Record<TrainingSplit, string> = {
     full_body: 'Full Body',

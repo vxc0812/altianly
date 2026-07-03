@@ -12,16 +12,17 @@ export const dark = {
   warning: '#FBBF24',
   green: '#10B981',
   inputBg: '#1C1D22',
+  selectedBg: '#1C2533',
   isDark: true,
 }
 
 export const cream = {
-  bg: '#F9FAFB',
+  bg: '#FAF9F7',
   surface: '#FFFFFF',
-  border: '#E6E8ED',
-  text: '#282A31',
-  textSecondary: '#7C7F8A',
-  textMuted: '#A1A4AE',
+  border: '#E9E5DF',
+  text: '#2A2724',
+  textSecondary: '#7A756E',
+  textMuted: '#A6A199',
   accent: '#C96442',
   success: '#10B981',
   successText: '#FFF',
@@ -29,6 +30,7 @@ export const cream = {
   warning: '#F59E0B',
   green: '#059669',
   inputBg: '#FFFFFF',
+  selectedBg: '#F8EDE7',
   isDark: false,
 }
 

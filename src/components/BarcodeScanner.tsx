@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 
 type Props = {

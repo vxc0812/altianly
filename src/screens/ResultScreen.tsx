@@ -329,7 +329,7 @@ export default function ResultScreen({ navigation, route }: Props) {
       <Button
         title="Detailed Questionnaire →"
         variant="ghost"
-        onPress={() => navigation.navigate('Questionnaire', { userInput, bmiResult: { bmi, evaluation } })}
+        onPress={() => navigation.navigate('Questionnaire', { userInput, bmiResult: { bmi, evaluation }, workoutChoice: workoutChoice ?? undefined })}
         accessibilityLabel="Open detailed questionnaire"
       />
 
@@ -353,7 +353,7 @@ const styles = (t: Theme) => StyleSheet.create({
   questionLabel: { fontSize: 14, fontWeight: '600', color: t.textSecondary, marginBottom: 8, marginTop: 16 },
   optionsRow: { gap: 8, marginBottom: 4 },
   optionCard: { backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 14 },
-  optionCardSelected: { borderColor: t.accent, backgroundColor: t.isDark ? '#1C2533' : '#F3EDFF' },
+  optionCardSelected: { borderColor: t.accent, backgroundColor: t.selectedBg },
   optionLabel: { fontSize: 15, fontWeight: '700', color: t.text },
   optionLabelSelected: { color: t.accent },
   optionDesc: { fontSize: 12, color: t.textSecondary, marginTop: 3 },
@@ -362,20 +362,20 @@ const styles = (t: Theme) => StyleSheet.create({
     width: '18%', minWidth: 64, alignItems: 'center', paddingVertical: 12, paddingHorizontal: 6,
     backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10,
   },
-  workoutChoiceCardSelected: { borderColor: t.accent, backgroundColor: t.isDark ? '#1C2533' : '#F3EDFF' },
+  workoutChoiceCardSelected: { borderColor: t.accent, backgroundColor: t.selectedBg },
   workoutChoiceIcon: { fontSize: 20, marginBottom: 4 },
   workoutChoiceLabel: { fontSize: 11, fontWeight: '700', color: t.text },
   workoutChoiceLabelSelected: { color: t.accent },
   modeToggle: { flexDirection: 'row', gap: 10, marginTop: 16, marginBottom: 4 },
   modeOption: { flex: 1, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 14, alignItems: 'center' },
-  modeOptionActive: { borderColor: t.accent, backgroundColor: t.isDark ? '#1C2533' : '#F3EDFF' },
+  modeOptionActive: { borderColor: t.accent, backgroundColor: t.selectedBg },
   modeLabel: { fontSize: 15, fontWeight: '700', color: t.text, marginBottom: 4 },
   modeLabelActive: { color: t.accent },
   modeDesc: { fontSize: 11, color: t.textSecondary, textAlign: 'center' },
   divider: { height: 1, backgroundColor: t.border, marginVertical: 24 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
   chip: { backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
-  chipSelected: { borderColor: t.accent, backgroundColor: t.isDark ? '#1C2533' : '#F3EDFF' },
+  chipSelected: { borderColor: t.accent, backgroundColor: t.selectedBg },
   chipText: { fontSize: 13, fontWeight: '600', color: t.textSecondary },
   chipTextSelected: { color: t.accent },
   optionalTag: { fontSize: 11, fontWeight: '400', color: t.textMuted },

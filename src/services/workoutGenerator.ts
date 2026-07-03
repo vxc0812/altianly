@@ -1,1 +1,0 @@
-export { generateWorkoutPlan } from './workoutGen'

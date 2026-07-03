@@ -29,8 +29,20 @@ function buildPrompt(params: {
   const healthText: string = qa.healthConditions || qa.injuries ? `${qa.healthConditions || 'None'}${qa.injuries ? '; Injuries: ' + qa.injuries : ''}` : 'None reported'
   const timelineText: string = qa.targetTimeline || 'Flexible timeline'
   const challengeText: string = qa.challenge || 'Not specified'
-  
-  return `You are a professional fitness trainer. Generate a weekly workout plan as a JSON object. No markdown, no explanation — only valid JSON.
+
+  const styleText: string = qa.workoutChoice ? {
+    hiit: 'HIIT — high-intensity interval circuits with timed work/rest periods',
+    strength: 'Strength training — progressive overload with compound movements',
+    yoga: 'Yoga — only yoga poses, flows, and breath work (no strength, cardio, or gym exercises)',
+    pilates: 'Pilates — only controlled mat exercises focused on core, alignment, and breath',
+    gym: 'Gym strength training — barbells, dumbbells, cables, and machines',
+  }[qa.workoutChoice] : 'Trainer\'s choice, appropriate to the goal'
+
+  const persona: string = qa.workoutChoice === 'yoga' ? 'yoga instructor'
+    : qa.workoutChoice === 'pilates' ? 'pilates instructor'
+    : 'fitness trainer'
+
+  return `You are a professional ${persona}. Generate a weekly workout plan as a JSON object. No markdown, no explanation — only valid JSON.
 
 User Profile:
 - Age: ${params.age}
@@ -38,6 +50,7 @@ User Profile:
 - BMI: ${params.bmi} (${params.evaluation})
 - Lifestyle: ${params.lifestyle}
 - Experience: ${params.exerciseLevel}
+- Workout Style: ${styleText}
 - Training Split: ${params.split}
 
 Questionnaire Details:
@@ -49,30 +62,31 @@ Questionnaire Details:
 - Health Considerations: ${healthText}
 - Biggest Challenge: ${challengeText}
 
-OUTPUT FORMAT (exactly this structure):
+OUTPUT FORMAT (this shows the JSON structure only — do NOT copy its example exercises):
 {
-  "name": "Week 1 - [Split Name]",
+  "name": "Week 1 - [Plan Name]",
   "days": [
     {
       "day": 1,
-      "focus": "Upper Body - Push",
+      "focus": "[Day focus]",
       "exercises": [
-        { "name": "Push-ups", "sets": 3, "reps": "10-15", "restSeconds": 60, "notes": "Slow and controlled" }
+        { "name": "[Exercise name]", "sets": 3, "reps": "10-15", "restSeconds": 60, "notes": "[Form cue]" }
       ]
     }
   ],
   "warmup": "5 min light cardio + dynamic stretches",
   "cooldown": "5 min static stretching",
-  "notes": "Progressive overload guidance"
+  "notes": "Progression guidance"
 }
 
 RULES:
-1. Choose exercises appropriate for their experience level and equipment availability.
-2. Avoid exercises specified as limitations or injuries.
-3. Structure rest days based on the training split.
-4. Prioritize compound movements.
-5. Include modifications for beginners or those with limitations.
-6. Only output valid JSON — nothing before, nothing after.`
+1. CRITICAL: Every day and every exercise MUST match the Workout Style. For Yoga, use only poses and flows (e.g. "Sun Salutation A", "Warrior II", "Downward Dog") with hold durations or breaths in "reps" (e.g. "5 breaths", "45s hold"). For Pilates, use only mat exercises (e.g. "The Hundred", "Roll-Up").
+2. Include 3-6 exercises per training day.
+3. Choose exercises appropriate for their experience level and equipment availability.
+4. Avoid exercises specified as limitations or injuries.
+5. Structure rest days based on the training split.
+6. Include modifications for beginners or those with limitations.
+7. Only output valid JSON — nothing before, nothing after.`
 }
 
 async function callOllama(

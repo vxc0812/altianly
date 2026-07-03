@@ -13,6 +13,8 @@ import {
 } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useFocusEffect } from '@react-navigation/native'
+import { Ionicons } from '@expo/vector-icons'
+import ProgressRing from '../components/ProgressRing'
 import {
   RootStackParamList, Gender, UnitSystem, BMIHistoryEntry, Badge,
   WorkoutPlan, TrainingSplit, WorkoutLog,
@@ -25,13 +27,13 @@ import {
   saveBMIEntry, getBMIHistory, getWorkoutHistory,
   saveWorkoutPlan, getWorkoutLogs,
   updateLastActivity, isSessionExpired, deleteUserProfile,
-  getUserProfile,
+  getUserProfile, isGuestMode,
 } from '../services/storage'
 import { getBadges, checkAndUnlockBadges } from '../services/badges'
 import { generateWorkoutPlan } from '../services/workoutGen'
 import { getAllHabits, getWeekEntries } from '../services/habits'
 import type { Habit, HabitEntry as HabitEntryType } from '../types'
-import { getMealsForDate, getDailyTotals } from '../services/nutrition'
+import { getMealsForDate, getDailyTotals, DEFAULT_RDI } from '../services/nutrition'
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Home'> }
 
@@ -67,6 +69,31 @@ function formatDate(ts: number): string {
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
 
+function greetingForNow(): string {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
+function todayLabel(): string {
+  return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+}
+
+// Which days of the current week (Mon..Sun) have at least one workout log
+function computeWeekDays(logs: WorkoutLog[]): boolean[] {
+  const now = new Date()
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7))
+  const days = new Array(7).fill(false)
+  for (const log of logs) {
+    const d = new Date(log.timestamp)
+    const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    const diff = Math.round((dayStart.getTime() - monday.getTime()) / 86400000)
+    if (diff >= 0 && diff < 7) days[diff] = true
+  }
+  return days
+}
+
 export default function HomeScreen({ navigation }: Props) {
   const { theme, mode, toggleTheme } = useTheme()
   const s = styles(theme)
@@ -81,7 +108,7 @@ export default function HomeScreen({ navigation }: Props) {
   const [userName, setUserName] = useState('')
 
   const [streak, setStreak] = useState(0)
-  const [totalChecks, setTotalChecks] = useState(0)
+  const [weekDays, setWeekDays] = useState<boolean[]>(new Array(7).fill(false))
   const [badges, setBadges] = useState<Badge[]>([])
   const [latestPlan, setLatestPlan] = useState<WorkoutPlan | null>(null)
   const [recentLogs, setRecentLogs] = useState<WorkoutLog[]>([])
@@ -93,17 +120,18 @@ export default function HomeScreen({ navigation }: Props) {
 
   useFocusEffect(useCallback(() => {
     (async () => {
-      if (await isSessionExpired()) {
-        await deleteUserProfile()
-        navigation.reset({ index: 0, routes: [{ name: 'Profile' }] })
-        return
-      }
       const userProfile = await getUserProfile()
-      if (!userProfile) {
-        navigation.reset({ index: 0, routes: [{ name: 'Profile' }] })
+      const rootNav = navigation.getParent() ?? navigation
+      if (userProfile && await isSessionExpired()) {
+        await deleteUserProfile()
+        rootNav.reset({ index: 0, routes: [{ name: 'Auth' }] })
         return
       }
-      setUserName(userProfile.name.split(' ')[0])
+      if (!userProfile && !(await isGuestMode())) {
+        rootNav.reset({ index: 0, routes: [{ name: 'Auth' }] })
+        return
+      }
+      setUserName(userProfile ? userProfile.name.split(' ')[0] : '')
       await updateLastActivity()
 
       const [entries, history, logs] = await Promise.all([
@@ -111,24 +139,31 @@ export default function HomeScreen({ navigation }: Props) {
       ])
       const s = computeStreak(entries)
       setStreak(s)
-      setTotalChecks(entries.length)
-      await checkAndUnlockBadges(entries, s)
-      setBadges(await getBadges())
+      setWeekDays(computeWeekDays(logs))
+      try { await checkAndUnlockBadges(entries, s) } catch {}
+      try { setBadges(await getBadges()) } catch {}
       setLatestPlan(history.find((p) => !!p.structuredPlan) ?? null)
       setRecentLogs(logs.slice(0, 3))
 
-      const todayStr = new Date().toISOString().slice(0, 10)
-      const todayMeals = await getMealsForDate(todayStr)
+      try {
+        const loadedHabits = await getAllHabits()
+        setHabits(loadedHabits)
+        const weekMap: Record<string, (HabitEntryType | null)[]> = {}
+        for (const h of loadedHabits) {
+          weekMap[h.id] = await getWeekEntries(h.id)
+        }
+        setHabitWeekEntries(weekMap)
+      } catch {}
+    })()
+  }, []))
+
+  useFocusEffect(useCallback(() => {
+    (async () => {
+      const d = new Date()
+      const ls = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const todayMeals = await getMealsForDate(ls)
       const totals = getDailyTotals(todayMeals)
       setNutritionTotals({ calories: totals.calories, protein: totals.protein, carbs: totals.carbs, fat: totals.fat })
-
-      const loadedHabits = await getAllHabits()
-      setHabits(loadedHabits)
-      const weekMap: Record<string, (HabitEntryType | null)[]> = {}
-      for (const h of loadedHabits) {
-        weekMap[h.id] = await getWeekEntries(h.id)
-      }
-      setHabitWeekEntries(weekMap)
     })()
   }, []))
 
@@ -167,7 +202,6 @@ export default function HomeScreen({ navigation }: Props) {
     const entries = await getBMIHistory()
     const s = computeStreak(entries)
     setStreak(s)
-    setTotalChecks(entries.length)
     const newBadges = await checkAndUnlockBadges(entries, s)
     setBadges(await getBadges())
     if (newBadges.length > 0) {
@@ -252,54 +286,84 @@ export default function HomeScreen({ navigation }: Props) {
       <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
         <View style={s.headerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={s.title}>Altianly</Text>
-            {userName ? <Text style={s.greeting}>Welcome back, {userName}!</Text> : null}
+            <Text style={s.greetingTitle}>{greetingForNow()}{userName ? `, ${userName}` : ''}</Text>
+            <Text style={s.dateSub}>{todayLabel()}</Text>
           </View>
           <View style={s.headerButtons}>
             <TouchableOpacity
+              style={s.iconButton}
               onPress={toggleTheme}
               accessibilityRole="button"
               accessibilityLabel={`Switch to ${mode === 'dark' ? 'cream' : 'dark'} theme`}
             >
-              <Text style={s.themeToggle}>{mode === 'dark' ? '☀️' : '🌙'}</Text>
+              <Ionicons name={mode === 'dark' ? 'sunny-outline' : 'moon-outline'} size={22} color={theme.textSecondary} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={s.settingsButton}
-              onPress={() => navigation.navigate('Profile')}
-              accessibilityRole="button"
-              accessibilityLabel="Open profile"
-            >
-              <Text style={s.settingsText}>Profile</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={s.settingsButton}
+              style={s.iconButton}
               onPress={() => navigation.navigate('Settings')}
               accessibilityRole="button"
               accessibilityLabel="Open settings"
             >
-              <Text style={s.settingsText}>Settings</Text>
+              <Ionicons name="settings-outline" size={22} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
 
+        {/* Today — hero nutrition card */}
         <TouchableOpacity
-          style={s.historyLink}
-          onPress={() => navigation.navigate('History')}
-          accessibilityRole="link"
-          accessibilityLabel="View saved workout plans"
+          style={s.todayCard}
+          onPress={() => navigation.navigate('Nutrition')}
+          accessibilityRole="button"
+          accessibilityLabel={`Today's nutrition: ${nutritionTotals.calories} of ${DEFAULT_RDI.calories} calories. Tap to open nutrition.`}
         >
-          <Text style={s.historyLinkText}>View Saved Workouts</Text>
+          <Text style={s.cardLabel}>Today</Text>
+          <View style={s.todayRow}>
+            <ProgressRing
+              size={128}
+              strokeWidth={11}
+              progress={nutritionTotals.calories / DEFAULT_RDI.calories}
+              color={theme.accent}
+              trackColor={theme.border}
+            >
+              <Text style={s.ringValue}>{nutritionTotals.calories}</Text>
+              <Text style={s.ringUnit}>/ {DEFAULT_RDI.calories} kcal</Text>
+            </ProgressRing>
+            <View style={s.macroCol}>
+              {[
+                { label: 'Protein', value: nutritionTotals.protein, target: DEFAULT_RDI.protein, color: theme.isDark ? '#34D399' : '#10B981' },
+                { label: 'Carbs', value: nutritionTotals.carbs, target: DEFAULT_RDI.carbs, color: theme.isDark ? '#FBBF24' : '#F59E0B' },
+                { label: 'Fat', value: nutritionTotals.fat, target: DEFAULT_RDI.fat, color: theme.isDark ? '#60A5FA' : '#3B82F6' },
+              ].map((m) => (
+                <View key={m.label} style={s.macroRow}>
+                  <View style={[s.macroDot, { backgroundColor: m.color }]} />
+                  <Text style={s.macroName}>{m.label}</Text>
+                  <Text style={s.macroValue}>{m.value}g</Text>
+                  <Text style={s.macroTarget}>/ {m.target}g</Text>
+                </View>
+              ))}
+            </View>
+          </View>
         </TouchableOpacity>
 
-        <View style={s.streakBar} accessibilityRole="text" accessibilityLabel={`${streak} day streak, ${totalChecks} total checks`}>
-          <View style={s.streakItem}>
-            <Text style={s.streakValue}>{streak}</Text>
-            <Text style={s.streakLabel}>Day Streak</Text>
+        {/* This Week */}
+        <View style={s.weekCard}>
+          <View style={s.weekHeader}>
+            <Text style={s.cardLabel}>This Week</Text>
+            <Text style={s.weekSummary}>
+              {weekDays.filter(Boolean).length} workout{weekDays.filter(Boolean).length === 1 ? '' : 's'}
+              {streak > 0 ? `  ·  🔥 ${streak}-day streak` : ''}
+            </Text>
           </View>
-          <View style={s.streakDivider} />
-          <View style={s.streakItem}>
-            <Text style={s.streakValue}>{totalChecks}</Text>
-            <Text style={s.streakLabel}>Total Checks</Text>
+          <View style={s.weekDotsRow}>
+            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((label, i) => {
+              const isToday = i === (new Date().getDay() + 6) % 7
+              return (
+                <View key={i} style={s.weekDayCol}>
+                  <View style={[s.weekDot, weekDays[i] && s.weekDotDone, isToday && s.weekDotToday]} />
+                  <Text style={[s.weekDayLabel, isToday && s.weekDayLabelToday]}>{label}</Text>
+                </View>
+              )
+            })}
           </View>
         </View>
 
@@ -327,7 +391,7 @@ export default function HomeScreen({ navigation }: Props) {
             </View>
             <View style={s.habitWeekCard}>
               <View style={s.habitWeekHeader}>
-                {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((label, i) => (
+                {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((label) => (
                   <View key={label} style={s.habitWeekDayCol}>
                     <Text style={s.habitWeekDayLabel}>{label}</Text>
                   </View>
@@ -428,25 +492,6 @@ export default function HomeScreen({ navigation }: Props) {
             ))}
           </View>
         )}
-
-        <Text style={s.sectionLabel}>Today's Nutrition</Text>
-        <TouchableOpacity style={s.nutritionWidget} onPress={() => navigation.navigate('Nutrition')}>
-          <View style={s.nutritionWidgetRow}>
-            {[
-              { label: 'Calories', value: `${nutritionTotals.calories}`, target: '2000', color: theme.accent },
-              { label: 'Protein', value: `${nutritionTotals.protein}g`, target: '50g', color: theme.isDark ? '#34D399' : '#10B981' },
-              { label: 'Carbs', value: `${nutritionTotals.carbs}g`, target: '275g', color: theme.isDark ? '#FBBF24' : '#F59E0B' },
-              { label: 'Fat', value: `${nutritionTotals.fat}g`, target: '65g', color: theme.isDark ? '#60A5FA' : '#3B82F6' },
-            ].map((m) => (
-              <View key={m.label} style={s.nutritionWidgetItem}>
-                <View style={[s.nutritionDot, { backgroundColor: m.color }]} />
-                <Text style={s.nutritionWidgetLabel}>{m.label}</Text>
-                <Text style={s.nutritionWidgetValue}>{m.value}</Text>
-                <Text style={s.nutritionWidgetTarget}>{m.target}</Text>
-              </View>
-            ))}
-          </View>
-        </TouchableOpacity>
 
         <Text style={s.sectionLabel}>Health Snapshot</Text>
         <TouchableOpacity
@@ -626,32 +671,55 @@ export default function HomeScreen({ navigation }: Props) {
 
 const styles = (t: Theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: t.bg },
-  content: { padding: 24, paddingTop: 60 },
-  headerRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
-  title: { fontSize: 32, fontWeight: '800', color: t.accent },
-  greeting: { color: t.textSecondary, fontSize: 14, marginTop: 2 },
-  headerButtons: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 },
-  themeToggle: { fontSize: 20, padding: 4 },
-  settingsButton: { padding: 8 },
-  settingsText: { color: t.accent, fontSize: 14, fontWeight: '600' },
-  historyLink: { alignSelf: 'center', marginBottom: 16 },
-  historyLinkText: { color: t.textSecondary, fontSize: 14, textDecorationLine: 'underline' },
+  content: { padding: 24, paddingTop: 60, paddingBottom: 32 },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20 },
+  greetingTitle: { fontSize: 24, fontWeight: '800', color: t.text, letterSpacing: -0.3 },
+  dateSub: { color: t.textSecondary, fontSize: 13, marginTop: 3 },
+  headerButtons: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  iconButton: { padding: 8 },
   sectionLabel: {
     fontSize: 12, fontWeight: '700', color: t.textSecondary,
     textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 20,
   },
-  streakBar: {
-    flexDirection: 'row',
+  cardLabel: {
+    fontSize: 12, fontWeight: '700', color: t.textSecondary,
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+
+  todayCard: {
     backgroundColor: t.surface,
-    borderRadius: 10,
     borderWidth: 1,
     borderColor: t.border,
-    paddingVertical: 14,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 12,
   },
-  streakItem: { flex: 1, alignItems: 'center' },
-  streakValue: { fontSize: 22, fontWeight: '800', color: t.accent },
-  streakLabel: { fontSize: 12, color: t.textSecondary, marginTop: 2 },
-  streakDivider: { width: 1, backgroundColor: t.border },
+  todayRow: { flexDirection: 'row', alignItems: 'center', gap: 20, marginTop: 14 },
+  ringValue: { fontSize: 28, fontWeight: '800', color: t.text, letterSpacing: -0.5 },
+  ringUnit: { fontSize: 11, color: t.textMuted, marginTop: 2 },
+  macroCol: { flex: 1, gap: 12 },
+  macroRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  macroDot: { width: 8, height: 8, borderRadius: 4 },
+  macroName: { flex: 1, color: t.textSecondary, fontSize: 13, fontWeight: '600' },
+  macroValue: { color: t.text, fontSize: 15, fontWeight: '800' },
+  macroTarget: { color: t.textMuted, fontSize: 11 },
+
+  weekCard: {
+    backgroundColor: t.surface,
+    borderWidth: 1,
+    borderColor: t.border,
+    borderRadius: 16,
+    padding: 18,
+  },
+  weekHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  weekSummary: { color: t.textSecondary, fontSize: 12, fontWeight: '600' },
+  weekDotsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  weekDayCol: { alignItems: 'center', gap: 6, flex: 1 },
+  weekDot: { width: 22, height: 22, borderRadius: 11, backgroundColor: t.border },
+  weekDotDone: { backgroundColor: t.success },
+  weekDotToday: { borderWidth: 2, borderColor: t.accent },
+  weekDayLabel: { fontSize: 10, fontWeight: '600', color: t.textMuted },
+  weekDayLabelToday: { color: t.accent },
   badgesSection: { marginTop: 12 },
   badgesTitle: { color: t.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 8 },
   badgesRow: { gap: 10 },
@@ -768,7 +836,7 @@ const styles = (t: Theme) => StyleSheet.create({
     padding: 14,
     alignItems: 'center',
   },
-  genderCardSelected: { borderColor: t.accent, backgroundColor: t.isDark ? '#1C2533' : '#F3EDFF' },
+  genderCardSelected: { borderColor: t.accent, backgroundColor: t.selectedBg },
   genderLabel: { color: t.textSecondary, fontSize: 14, fontWeight: '600' },
   genderLabelSelected: { color: t.accent },
   label: { color: t.text, fontSize: 14, fontWeight: '600', marginBottom: 6 },
@@ -840,13 +908,4 @@ const styles = (t: Theme) => StyleSheet.create({
   habitWeekMore: { padding: 10, alignItems: 'center' },
   habitWeekMoreText: { color: t.accent, fontSize: 12, fontWeight: '600' },
 
-  nutritionWidget: {
-    backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 16, marginBottom: 4,
-  },
-  nutritionWidgetRow: { flexDirection: 'row', gap: 4 },
-  nutritionWidgetItem: { flex: 1, alignItems: 'center' },
-  nutritionDot: { width: 8, height: 8, borderRadius: 4, marginBottom: 4 },
-  nutritionWidgetLabel: { color: t.textSecondary, fontSize: 10, fontWeight: '600' },
-  nutritionWidgetValue: { color: t.text, fontSize: 16, fontWeight: '800', marginTop: 2 },
-  nutritionWidgetTarget: { color: t.textMuted, fontSize: 9, marginTop: 1 },
 })

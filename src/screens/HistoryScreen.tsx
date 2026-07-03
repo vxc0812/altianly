@@ -133,13 +133,9 @@ export default function HistoryScreen({ navigation }: Props) {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back">
-          <Text style={s.backText}>{'< Back'}</Text>
-        </TouchableOpacity>
-        <Text style={s.heading}>History</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Home')}>
-          <Text style={s.homeText}>Home</Text>
-        </TouchableOpacity>
+        <View style={{ width: 50 }} />
+        <Text style={s.heading}>Workouts</Text>
+        <View style={{ width: 50 }} />
       </View>
 
       {loading ? (

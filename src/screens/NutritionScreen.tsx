@@ -4,7 +4,7 @@ import {
 } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useFocusEffect } from '@react-navigation/native'
-import type { RootStackParamList, Food, Meal, MealEntry, MealType, RDITarget } from '../types'
+import type { RootStackParamList, Food, Meal, MealEntry, MealType } from '../types'
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
 import { searchFoods, createMeal, getMealsForDate, getDailyTotals, deleteMeal, DEFAULT_RDI, parseFoodText, searchFoodByBarcode } from '../services/nutrition'
@@ -69,7 +69,7 @@ function displayDate(date: Date): string {
 
 
 
-export default function NutritionScreen({ navigation }: Props) {
+export default function NutritionScreen(_props: Props) {
   const { theme } = useTheme()
   const s = styles(theme)
 
@@ -271,9 +271,7 @@ export default function NutritionScreen({ navigation }: Props) {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={s.backText}>{'< Back'}</Text>
-        </TouchableOpacity>
+        <View style={{ width: 50 }} />
         <Text style={s.heading}>Nutrition</Text>
         <View style={{ width: 50 }} />
       </View>
@@ -647,7 +645,7 @@ const styles = (t: Theme) => StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', padding: 14,
     borderBottomWidth: 1, borderBottomColor: t.border,
   },
-  foodRowSelected: { backgroundColor: t.isDark ? '#1C2533' : '#F3EDFF' },
+  foodRowSelected: { backgroundColor: t.selectedBg },
   foodName: { color: t.text, fontSize: 14, fontWeight: '600' },
   foodBrand: { color: t.textMuted, fontSize: 11, marginTop: 1 },
   foodNutrients: { color: t.textSecondary, fontSize: 11, marginTop: 3 },

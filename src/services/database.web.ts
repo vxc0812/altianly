@@ -15,7 +15,7 @@ const MOCK_DB = {
   getFirstAsync: async () => null,
   getFirstSync: () => null,
   prepareAsync: async () => ({
-    executeAsync: async () => {},
+    executeAsync: async () => ({ getAllAsync: async () => [] }),
     finalizeAsync: async () => {},
   }),
   withTransactionAsync: async (fn: () => Promise<void>) => { await fn() },

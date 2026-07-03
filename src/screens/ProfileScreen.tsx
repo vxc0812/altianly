@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -16,18 +16,21 @@ import { useFocusEffect } from '@react-navigation/native'
 import { RootStackParamList, UserProfile } from '../types'
 import {
   getUserProfile,
-  saveUserProfile,
-  updateLastActivity,
+  setGuestMode,
 } from '../services/storage'
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
-import { registerWithPassword, loginWithPassword, setSessionToken } from '../services/auth'
+import {
+  registerWithPassword, loginWithPassword, setSessionToken, deleteAccount,
+  requestPasswordReset, confirmPasswordReset,
+} from '../services/auth'
 
-type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Profile'> }
+type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Auth'> }
 
-function isRootScreen(navigation: Props['navigation']): boolean {
+// True when this screen is the root 'Auth' route (login gate); false when it's the Profile tab
+function isAuthRoot(navigation: Props['navigation']): boolean {
   const state = navigation.getState()
-  return state ? state.routes[0]?.name === 'Profile' && state.index === 0 : true
+  return state ? state.routes[0]?.name === 'Auth' && state.index === 0 : true
 }
 
 function getInitials(name: string): string {
@@ -63,13 +66,32 @@ export default function ProfileScreen({ navigation }: Props) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [resetStep, setResetStep] = useState<0 | 1 | 2>(0) // 0 = not resetting, 1 = enter email, 2 = enter code + new password
+  const [resetCode, setResetCode] = useState('')
+  const [resetNotice, setResetNotice] = useState('')
+  const scrollRef = useRef<ScrollView>(null)
+  const formY = useRef(0)
+
+  function goToApp() {
+    if (isAuthRoot(navigation)) {
+      navigation.replace('Main')
+    } else {
+      navigation.navigate('Home')
+    }
+  }
+
+  function resetToAuth() {
+    const parent = navigation.getParent()
+    ;(parent ?? navigation).reset({ index: 0, routes: [{ name: 'Auth' }] })
+  }
 
   useFocusEffect(useCallback(() => {
     ;(async () => {
       const p = await getUserProfile()
       setProfile(p)
-      if (p && isRootScreen(navigation)) {
-        navigation.replace('Home')
+      if (p && isAuthRoot(navigation)) {
+        navigation.replace('Main')
         return
       }
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -84,34 +106,92 @@ export default function ProfileScreen({ navigation }: Props) {
   }, []))
 
   async function handleRegister() {
-    if (!name.trim()) { Alert.alert('Error', 'Name is required'); return }
-    if (!email.trim()) { Alert.alert('Error', 'Email is required'); return }
-    if (!password) { Alert.alert('Error', 'Password is required'); return }
-    if (password.length < 6) { Alert.alert('Error', 'Password must be at least 6 characters'); return }
-    if (password !== confirmPassword) { Alert.alert('Error', 'Passwords do not match'); return }
+    setFormError('')
+    if (!name.trim()) { setFormError('Name is required'); return }
+    if (!email.trim()) { setFormError('Email is required'); return }
+    if (!password) { setFormError('Password is required'); return }
+    if (password.length < 6) { setFormError('Password must be at least 6 characters'); return }
+    if (password !== confirmPassword) { setFormError('Passwords do not match'); return }
 
     setBusy(true)
     const result = await registerWithPassword(name.trim(), email.trim(), password)
     setBusy(false)
     if (result.ok) {
-      navigation.replace('Home')
+      await setGuestMode(false)
+      goToApp()
     } else {
-      Alert.alert('Registration Failed', result.error || 'Unknown error')
+      setFormError(result.error || 'Registration failed. Please try again.')
     }
   }
 
   async function handleLogin() {
-    if (!email.trim()) { Alert.alert('Error', 'Email is required'); return }
-    if (!password) { Alert.alert('Error', 'Password is required'); return }
+    setFormError('')
+    if (!email.trim()) { setFormError('Email is required'); return }
+    if (!password) { setFormError('Password is required'); return }
 
     setBusy(true)
     const result = await loginWithPassword(email.trim(), password)
     setBusy(false)
     if (result.ok) {
-      navigation.replace('Home')
+      await setGuestMode(false)
+      goToApp()
     } else {
-      Alert.alert('Login Failed', result.error || 'Unknown error')
+      setFormError(result.error || 'Login failed. Please try again.')
     }
+  }
+
+  async function handleContinueAsGuest() {
+    await setGuestMode(true)
+    goToApp()
+  }
+
+  async function handleResetRequest() {
+    setFormError('')
+    setResetNotice('')
+    if (!email.trim()) { setFormError('Email is required'); return }
+
+    setBusy(true)
+    const result = await requestPasswordReset(email.trim())
+    setBusy(false)
+    if (result.ok) {
+      setResetStep(2)
+      setResetNotice('If an account exists for this email, a 6-digit code has been sent. Check your inbox.')
+    } else {
+      setFormError(result.error || 'Could not send reset code. Please try again.')
+    }
+  }
+
+  async function handleResetConfirm() {
+    setFormError('')
+    if (!resetCode.trim()) { setFormError('Enter the 6-digit code from your email'); return }
+    if (!password) { setFormError('New password is required'); return }
+    if (password.length < 6) { setFormError('Password must be at least 6 characters'); return }
+    if (password !== confirmPassword) { setFormError('Passwords do not match'); return }
+
+    setBusy(true)
+    const result = await confirmPasswordReset(email.trim(), resetCode, password)
+    setBusy(false)
+    if (result.ok) {
+      await setGuestMode(false)
+      goToApp()
+    } else {
+      setFormError(result.error || 'Reset failed. Please try again.')
+    }
+  }
+
+  function exitResetFlow() {
+    setResetStep(0)
+    setResetCode('')
+    setResetNotice('')
+    setFormError('')
+    setPassword('')
+    setConfirmPassword('')
+  }
+
+  function handleLoginPill() {
+    exitResetFlow()
+    setShowLogin(true)
+    scrollRef.current?.scrollTo({ y: Math.max(formY.current - 12, 0), animated: true })
   }
 
   function doLogout() {
@@ -131,6 +211,31 @@ export default function ProfileScreen({ navigation }: Props) {
     }
   }
 
+  async function doDeleteAccount() {
+    setBusy(true)
+    const result = await deleteAccount()
+    setBusy(false)
+    if (result.ok) {
+      setProfile(null)
+      resetToAuth()
+    } else {
+      Alert.alert('Delete Failed', result.error || 'Unknown error')
+    }
+  }
+
+  function handleDeleteAccount() {
+    const message = 'This permanently deletes your account and all data stored on our server and this device. This cannot be undone.'
+    if (Platform.OS === 'web') {
+      const ok = window.confirm(message)
+      if (ok) doDeleteAccount()
+    } else {
+      Alert.alert('Delete Account', message, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: doDeleteAccount },
+      ])
+    }
+  }
+
   if (loading) {
     return (
       <View style={[s.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -143,15 +248,7 @@ export default function ProfileScreen({ navigation }: Props) {
     return (
       <ScrollView style={s.container} contentContainerStyle={s.content}>
         <View style={s.headerRow}>
-          {isRootScreen(navigation) ? (
-            <TouchableOpacity onPress={() => navigation.replace('Home')}>
-              <Text style={s.backText}>Home</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Text style={s.backText}>{'< Back'}</Text>
-            </TouchableOpacity>
-          )}
+          <Text style={s.screenTitle}>Profile</Text>
         </View>
 
         <View style={s.avatarSection}>
@@ -178,16 +275,20 @@ export default function ProfileScreen({ navigation }: Props) {
         <TouchableOpacity style={s.logoutButton} onPress={handleLogout}>
           <Text style={s.logoutText}>Logout</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={s.deleteAccountButton} onPress={handleDeleteAccount} disabled={busy}>
+          <Text style={s.deleteAccountText}>Delete Account</Text>
+        </TouchableOpacity>
       </ScrollView>
     )
   }
 
   return (
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={s.landingContent} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} contentContainerStyle={s.landingContent} keyboardShouldPersistTaps="handled">
         <View style={s.landingHeaderRow}>
           <View />
-          <TouchableOpacity style={s.loginPill} onPress={() => setShowLogin(true)}>
+          <TouchableOpacity style={s.loginPill} onPress={handleLoginPill} accessibilityRole="button" accessibilityLabel="Go to the login form">
             <Text style={s.loginPillText}>Login</Text>
           </TouchableOpacity>
         </View>
@@ -215,89 +316,204 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
         ))}
 
-        {/* Signup / Login Form */}
-        <View style={s.formSection}>
-          <Text style={s.formTitle}>{showLogin ? 'Welcome back' : 'Get started'}</Text>
-          <Text style={s.formSubtitle}>
-            {showLogin
-              ? 'Enter your email and password to log in.'
-              : 'Create an account with email and password. Works across all your devices.'
-            }
-          </Text>
+        {/* Signup / Login / Reset Form */}
+        <View style={s.formSection} onLayout={(e) => { formY.current = e.nativeEvent.layout.y }}>
+          {resetStep > 0 ? (
+            <>
+              <Text style={s.formTitle}>Reset password</Text>
+              <Text style={s.formSubtitle}>
+                {resetStep === 1
+                  ? "Enter your account email and we'll send you a 6-digit reset code."
+                  : 'Enter the code from your email and choose a new password.'
+                }
+              </Text>
 
-          {!showLogin && (
-            <View style={s.inputGroup}>
-              <Text style={s.label}>Name</Text>
-              <TextInput
-                style={s.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="Your name"
-                placeholderTextColor={theme.textMuted}
-                autoCapitalize="words"
-                autoCorrect={false}
-              />
-            </View>
+              <View style={s.inputGroup}>
+                <Text style={s.label}>Email</Text>
+                <TextInput
+                  style={s.input}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="you@example.com"
+                  placeholderTextColor={theme.textMuted}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={resetStep === 1}
+                />
+              </View>
+
+              {resetStep === 2 && (
+                <>
+                  {resetNotice ? <Text style={s.resetNotice}>{resetNotice}</Text> : null}
+                  <View style={s.inputGroup}>
+                    <Text style={s.label}>Reset code</Text>
+                    <TextInput
+                      style={s.input}
+                      value={resetCode}
+                      onChangeText={setResetCode}
+                      placeholder="6-digit code"
+                      placeholderTextColor={theme.textMuted}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                    />
+                  </View>
+                  <View style={s.inputGroup}>
+                    <Text style={s.label}>New password</Text>
+                    <TextInput
+                      style={s.input}
+                      value={password}
+                      onChangeText={setPassword}
+                      placeholder="At least 6 characters"
+                      placeholderTextColor={theme.textMuted}
+                      secureTextEntry
+                      autoCapitalize="none"
+                    />
+                  </View>
+                  <View style={s.inputGroup}>
+                    <Text style={s.label}>Confirm new password</Text>
+                    <TextInput
+                      style={s.input}
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      placeholder="Repeat password"
+                      placeholderTextColor={theme.textMuted}
+                      secureTextEntry
+                      autoCapitalize="none"
+                    />
+                  </View>
+                </>
+              )}
+
+              {formError ? <Text style={s.formError}>{formError}</Text> : null}
+
+              <TouchableOpacity
+                style={s.primaryButton}
+                onPress={resetStep === 1 ? handleResetRequest : handleResetConfirm}
+                disabled={busy}
+              >
+                {busy
+                  ? <ActivityIndicator color="#FFF" size="small" />
+                  : <Text style={s.primaryButtonText}>{resetStep === 1 ? 'Send Reset Code' : 'Set New Password'}</Text>
+                }
+              </TouchableOpacity>
+
+              {resetStep === 2 && (
+                <TouchableOpacity style={s.loginLink} onPress={handleResetRequest} disabled={busy}>
+                  <Text style={s.loginLinkText}>Resend code</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity style={s.loginLink} onPress={exitResetFlow}>
+                <Text style={s.loginLinkText}>Back to log in</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={s.formTitle}>{showLogin ? 'Welcome back' : 'Get started'}</Text>
+              <Text style={s.formSubtitle}>
+                {showLogin
+                  ? 'Enter your email and password to log in.'
+                  : 'Create an account with email and password. Works across all your devices.'
+                }
+              </Text>
+
+              {!showLogin && (
+                <View style={s.inputGroup}>
+                  <Text style={s.label}>Name</Text>
+                  <TextInput
+                    style={s.input}
+                    value={name}
+                    onChangeText={setName}
+                    placeholder="Your name"
+                    placeholderTextColor={theme.textMuted}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                  />
+                </View>
+              )}
+
+              <View style={s.inputGroup}>
+                <Text style={s.label}>Email</Text>
+                <TextInput
+                  style={s.input}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="you@example.com"
+                  placeholderTextColor={theme.textMuted}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+
+              <View style={s.inputGroup}>
+                <Text style={s.label}>Password</Text>
+                <TextInput
+                  style={s.input}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder={showLogin ? 'Your password' : 'At least 6 characters'}
+                  placeholderTextColor={theme.textMuted}
+                  secureTextEntry
+                  autoCapitalize="none"
+                />
+              </View>
+
+              {!showLogin && (
+                <View style={s.inputGroup}>
+                  <Text style={s.label}>Confirm password</Text>
+                  <TextInput
+                    style={s.input}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    placeholder="Repeat password"
+                    placeholderTextColor={theme.textMuted}
+                    secureTextEntry
+                    autoCapitalize="none"
+                  />
+                </View>
+              )}
+
+              {formError ? <Text style={s.formError}>{formError}</Text> : null}
+
+              <TouchableOpacity
+                style={s.primaryButton}
+                onPress={showLogin ? handleLogin : handleRegister}
+                disabled={busy}
+              >
+                {busy
+                  ? <ActivityIndicator color="#FFF" size="small" />
+                  : <Text style={s.primaryButtonText}>{showLogin ? 'Log In' : 'Create Account'}</Text>
+                }
+              </TouchableOpacity>
+
+              {showLogin && (
+                <TouchableOpacity style={s.loginLink} onPress={() => { setFormError(''); setResetStep(1) }}>
+                  <Text style={s.loginLinkText}>Forgot password?</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity style={s.loginLink} onPress={() => { setFormError(''); setShowLogin(!showLogin) }}>
+                <Text style={s.loginLinkText}>
+                  {showLogin ? "Don't have an account? Register" : 'Already registered? Log in'}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={s.dividerRow}>
+                <View style={s.dividerLine} />
+                <Text style={s.dividerText}>or</Text>
+                <View style={s.dividerLine} />
+              </View>
+
+              <TouchableOpacity style={s.secondaryButton} onPress={handleContinueAsGuest} disabled={busy}>
+                <Text style={s.secondaryButtonText}>Continue without an account</Text>
+              </TouchableOpacity>
+              <Text style={s.guestHint}>
+                All features work locally on this device. You can create an account later to sync across devices.
+              </Text>
+            </>
           )}
-
-          <View style={s.inputGroup}>
-            <Text style={s.label}>Email</Text>
-            <TextInput
-              style={s.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
-              placeholderTextColor={theme.textMuted}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          <View style={s.inputGroup}>
-            <Text style={s.label}>Password</Text>
-            <TextInput
-              style={s.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder={showLogin ? 'Your password' : 'At least 6 characters'}
-              placeholderTextColor={theme.textMuted}
-              secureTextEntry
-              autoCapitalize="none"
-            />
-          </View>
-
-          {!showLogin && (
-            <View style={s.inputGroup}>
-              <Text style={s.label}>Confirm password</Text>
-              <TextInput
-                style={s.input}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="Repeat password"
-                placeholderTextColor={theme.textMuted}
-                secureTextEntry
-                autoCapitalize="none"
-              />
-            </View>
-          )}
-
-          <TouchableOpacity
-            style={s.primaryButton}
-            onPress={showLogin ? handleLogin : handleRegister}
-            disabled={busy}
-          >
-            {busy
-              ? <ActivityIndicator color="#FFF" size="small" />
-              : <Text style={s.primaryButtonText}>{showLogin ? 'Log In' : 'Create Account'}</Text>
-            }
-          </TouchableOpacity>
-
-          <TouchableOpacity style={s.loginLink} onPress={() => setShowLogin(!showLogin)}>
-            <Text style={s.loginLinkText}>
-              {showLogin ? "Don't have an account? Register" : 'Already registered? Log in'}
-            </Text>
-          </TouchableOpacity>
         </View>
 
         {/* Footer */}
@@ -315,7 +531,7 @@ const styles = (t: Theme) => StyleSheet.create({
   landingContent: { padding: 24, paddingTop: 60, paddingBottom: 60 },
   loadingText: { color: t.textSecondary, fontSize: 16 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
-  backText: { color: t.accent, fontSize: 16 },
+  screenTitle: { color: t.text, fontSize: 24, fontWeight: '800' },
   landingHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, minHeight: 36 },
   loginPill: {
     borderWidth: 1, borderColor: t.accent, borderRadius: 20,
@@ -377,12 +593,17 @@ const styles = (t: Theme) => StyleSheet.create({
     borderRadius: 8, padding: 15, alignItems: 'center', minHeight: 50, justifyContent: 'center',
   },
   logoutText: { color: t.danger, fontSize: 16, fontWeight: '600' },
+  deleteAccountButton: { alignItems: 'center', padding: 14, marginTop: 8 },
+  deleteAccountText: { color: t.textMuted, fontSize: 13, textDecorationLine: 'underline' },
+  guestHint: { color: t.textMuted, fontSize: 12, textAlign: 'center', marginTop: 10, lineHeight: 17 },
 
   // Form
   formSection: { marginTop: 24 },
   formTitle: { color: t.text, fontSize: 24, fontWeight: '800', marginBottom: 8 },
   formSubtitle: { color: t.textSecondary, fontSize: 14, lineHeight: 20, marginBottom: 24 },
   inputGroup: { marginBottom: 20 },
+  formError: { color: t.danger, fontSize: 13, lineHeight: 18, marginBottom: 4, textAlign: 'center' },
+  resetNotice: { color: t.green, fontSize: 13, lineHeight: 18, marginBottom: 16, textAlign: 'center' },
   label: { color: t.text, fontSize: 14, fontWeight: '600', marginBottom: 6 },
   input: {
     backgroundColor: t.inputBg, borderWidth: 1, borderColor: t.border,

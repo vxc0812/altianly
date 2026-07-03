@@ -44,7 +44,7 @@ const styles = (t: Theme, variant: CardVariant) => {
       padding: 16,
     },
     selected: {
-      backgroundColor: t.isDark ? '#1C2533' : '#F3EDFF',
+      backgroundColor: t.selectedBg,
       borderWidth: 1,
       borderColor: t.accent,
       borderRadius: 10,

@@ -1,13 +1,19 @@
 {
   "expo": {
-    "name": "altianly",
+    "name": "Altianly",
     "slug": "altianly",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.altianly.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Altianly uses the camera to scan food barcodes so you can quickly log meals.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +23,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.altianly"
+      "package": "com.altianly.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"

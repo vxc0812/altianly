@@ -1,45 +1,113 @@
 # Altianly — Session Handoff Document
 
-> **Date:** 2026-06-28
+> **Date:** 2026-07-02
 > **Stack:** React Native (Expo SDK 56), TypeScript, AsyncStorage, SecureStore
 > **Dev server:** `npm start` → Expo Go, `npm run web` → browser preview
 > **Cloudflare:** Pages (web build), Workers (AI proxy), Dashboard (management)
 > **Routing:** Filesystem-based — `dist/index.html` (landing page at `/`), `dist/app/index.html` (Expo app at `/app/`)
+> **App Store:** iOS submission guide in `APP_STORE_CHECKLIST.md` (EAS Build, no Mac required)
 
 ---
 
-## What Was Built This Session (2026-06-28)
+## What Was Built This Session (2026-07-02, Session 3)
 
-### Session 1 — Notion Export + Copy/Share (previous agent)
+### #1 — Email-Based Password Reset
+- Worker: `POST /auth/password/reset/request` (6-digit code → KV `reset:{email}`, 15-min TTL, sent via **Resend API**; anti-enumeration generic response) and `POST /auth/password/reset/confirm` (max 5 attempts, PBKDF2 re-hash, auto-login token)
+- Client: `requestPasswordReset()`/`confirmPasswordReset()` in auth.ts; "Forgot password?" → 2-step reset UI on ProfileScreen
+- **Setup needed**: worker secret `RESEND_API_KEY` (free at resend.com); default sender `onboarding@resend.dev` only delivers to the Resend account owner — verify a domain + set `RESET_EMAIL_FROM` for production
 
-- **WorkoutPlanScreen** — three action buttons below Save: Copy (clipboard), Share (native OS share sheet), Notion (export to Notion database)
-- **HistoryScreen** — Copy / Share / Notion chips on every expanded workout plan card
-- **SettingsScreen** — Notion Integration section with API key + database ID fields, Save/Remove buttons
-- Backed by existing `exportToNotion()` in `src/services/notion.ts` and `getNotionConfig`/`saveNotionConfig`/`deleteNotionConfig` in storage
-- Platform-safe: clipboard calls wrapped in `Platform.OS === 'web'` guard; Notion export uses direct fetch to `api.notion.com`
+### #2 — Bottom Tab Navigation
+- Based on Bevel/MapMyFitness/2026 HIG research. New packages: `@react-navigation/bottom-tabs`, `@expo/vector-icons`
+- Root stack: `Auth` (ProfileScreen as login gate) → `Main` (tabs: **Home, Workouts(History), Nutrition, Profile**) + pushed screens
+- ProfileScreen dual-role via `isAuthRoot()`; auth redirects now target `Auth`/`Main` (was `Profile`/`Home`); tab screens' back links removed
 
-### Session 2 — Remove Daily Reminder, fix logout, local passkey fallback
+### #3 — Dashboard Redesign (HomeScreen)
+- Time-based greeting + date, icon header buttons (theme, settings)
+- **Today hero card**: SVG calorie ring (`src/components/ProgressRing.tsx`) vs `DEFAULT_RDI`, macro rows with color dots
+- **This Week card**: Mon–Sun workout dots from logs, workout count, 🔥 streak; today ringed in accent
+- Removed old streak bar, nutrition widget, "View Saved Workouts" link
 
-- **Remove Daily Reminder** — deleted `src/services/notifications.ts`, removed `expo-notifications` dependency, removed reminder UI from HomeScreen, removed `REMINDER` storage key
-- **Logout preserves profile** — no longer calls `deleteUserProfile()` so returning users can log back in without re-registering; on web uses `window.confirm()` instead of `Alert.alert` (which was unreliable on web)
-- **Session token cleared on logout** — `setSessionToken(null)` called so stale cookies don't linger
-- **Local passkey fallback** — `registerWithPasskey()` and `loginWithPasskey()` both fall back to the local saved profile when the Cloudflare Worker is unreachable
+---
 
-### Session 3 — Landing page, signup form, dev server proxy
+## What Was Built This Session (2026-07-02, Session 2)
 
-- **Landing page** (`public/altianly-homepage.html`) — marketing homepage in the app's dark theme colors with hero, 9 feature cards, "How It Works" steps, 6 app screen mockups, signup form (name + email), and CTA buttons
-- **Signup form** — submits to `/app?name=...&email=...` so the app receives pre-filled values; eliminates the need for a separate signup page inside the app
-- **Production routing** (`public/_redirects`) — initial attempt using `_redirects` file with 200 proxy rewrites
+### #1 — Guest Mode + Account Deletion (App Store Guideline 5.1.1)
+- **"Continue without an account"** on ProfileScreen → `altianly_guest_mode` flag (`setGuestMode`/`isGuestMode` in `storage.ts`); Home auth gate and `SessionManager` allow guests; register/login clears the flag
+- **"Delete Account"** on profile view → worker `POST /auth/account/delete` (deletes password hash, user record, history, session from KV) + wipes all local `altianly_*` keys. **Worker must be redeployed** for this endpoint to exist in production
 
-### Session 4 — Cloudflare Pages routing rewrite
+### #2 — Auth Fixes ("account creation is broken")
+- `Alert.alert` is a **no-op on react-native-web** — all register/login errors were invisible in the browser. Replaced with inline `formError` text on the form
+- Removed **silent local-only fallback** in `registerWithPassword` (created "accounts" whose password never reached the server) and the password-skipping offline login fallback. Server unreachable now shows a clear error suggesting guest mode
+- Live-verified against the worker: register 200 / login 200 / wrong password 401 / duplicate 409
 
-- **Removed `_redirects`** — the `_redirects` file approach was unreliable because `/` is a prefix match (matches all paths), Cloudflare auto-strips `.html` extensions with 308 redirects, and dashboard-level rules can't be removed on free accounts
-- **Filesystem-based routing** — build script restructures `dist/`:
-  - Expo app moves to `dist/app/index.html` → served at `/app/`
-  - Landing page copied to `dist/index.html` → served at `/`
-  - `_headers` simplified to only target `/app/*` (removed bare `/` rule that would collide)
-- **"Get Started Free"** — scrolls to `#signup` form on landing page; form submits `GET /app/?name=X&email=Y`; ProfileScreen reads URL params and pre-fills inputs
-- **ProfileScreen copy** — updated to match the landing page messaging
+### #3 — Workout Category Consistency (yoga generated strength plans)
+- **AI mode**: `buildPrompt()` (llm.ts) now includes Workout Style + persona (yoga/pilates instructor) + CRITICAL style rule + placeholder-only example (the old example's "Push-ups 3x10-15" was being echoed verbatim). Live-verified all 5 categories
+- **Questionnaire path**: ResultScreen passes `workoutChoice` to QuestionnaireScreen (new optional route param) → included in answers
+- **Instant HIIT**: new `hiitCircuitPlan()` in workoutGen.ts — 3 interval days, level-scaled timing (20s/40s×3 → 40s/20s×5). Previously HIIT silently produced the same plan as Strength
+- **Gym leak**: 30 gym exercises tagged `gym: true` and excluded from `pickExercise` — Leg Press/Barbell Bench no longer appear in bodyweight plans. Fuzz-tested 600 plans, zero leaks
+
+### #4 — UI Polish (light-first)
+- Cream palette warmed (`#FAF9F7` bg, `#E9E5DF` border, warm-gray text) in theme.ts + landing page + privacy page
+- New `t.selectedBg` theme token (dark `#1C2533`, cream `#F8EDE7`) replaces per-file ternaries in 8 files
+- **Landing page restyled dark → light**, passkey copy rewritten, GitHub links fixed (`vxc0812/altianly`), privacy link in footer
+- Debug string removed from HomeScreen nutrition widget
+
+### #5 — App Store Prep
+- `app.json`: `com.altianly.app` bundle ID, buildNumber, camera permission string, encryption exemption
+- `eas.json` created (EAS cloud builds — no Mac needed); `public/privacy.html` created
+- **`APP_STORE_CHECKLIST.md`** — full submission guide (enrollment, EAS, App Store Connect, App Privacy, screenshots, review risks)
+
+### #6 — Cleanup
+- Deleted: stray files (`nul`, `~/`, `temp_changes.txt`, `dist_bak/`, 2 stock images), duplicate worker files, `workoutGenerator.ts`, `webauthn.ts` + dead passkey functions (~230 lines)
+- All lint warnings fixed; typecheck/lint/`npm run build` green; fresh `dist/` built
+
+---
+
+## What Was Built This Session (2026-07-01/02)
+
+### #1 — NLP Food Parsing (`/food/parse`)
+- **Worker endpoint `POST /food/parse`** — accepts free text (e.g. "Chicken sandwich + latte"), uses Cloudflare AI (LLaMA 3.2 3B, temp 0.1) to extract structured food items, looks up each in USDA, returns tier classification:
+  - **Tier 1** (Verified) — exact USDA name match
+  - **Tier 2** (Transformed) — partial USDA match
+  - **Tier 3** (Estimated) — LLM estimate when no USDA match
+- **`parseFoodText()`** — frontend function calling the worker endpoint
+- **NutritionScreen "Quick add"** — text input + "Parse" button, parsed results shown with checkboxes + tier badges, "Add N items" button batch-adds checked items
+
+### #2 — Barcode Scanning
+- `expo-camera` installed; `BarcodeScanner` component scans EAN-13/EAN-8/UPC/Code-128
+- **`searchFoodByBarcode()`** — calls Open Food Facts API (`world.openfoodfacts.org/api/v2/product/{barcode}.json`) — free, no auth needed
+- Scanned product auto-adds to current meal
+- 📷 camera button in search row on NutritionScreen
+
+### #3 — Email + Password Auth (cross-browser)
+- **Cloudflare Worker `POST /auth/password/register` and `/auth/password/login`** — PBKDF2 hashing (100,000 iterations SHA-256, per-user 16-byte salt), stored in KV
+- **`registerWithPassword()`, `loginWithPassword()`** in `src/services/auth.ts`
+- **ProfileScreen** replaced passkey-only form with email+password registration/login with confirm password
+- Passkeys are device-bound and don't work cross-browser; email+password enables login from any device
+
+### #4 — Worker Cleanup
+- **Removed ~276 lines** of dead WebAuthn/passkey code (CBOR decoder, COSE parser, `extractPublicKey`, 4 handler functions)
+- Retained: password auth, food search, food parse, AI, session, data CRUD
+
+### #5 — Cloudflare Pages Build Fix
+- **`src/services/database.web.ts`** — mock SQLite database on web (no expo-sqlite import) to prevent `wa-sqlite.wasm` from bundling (was breaking Cloudflare Pages deployment)
+- Provides stub `getAllAsync`, `prepareAsync`, `executeAsync`, etc. — habits silently return empty data on web
+
+### #6 — USDA API Key → Worker Secret
+- Moved from hardcoded frontend constant to `env.USDA_API_KEY` worker secret (settable in dashboard)
+- Key lives only in the worker secret (`USDA_API_KEY`) — never hardcode it in the frontend or docs
+
+### #7 — KV Namespace
+- `wrangler.toml` updated with real KV namespace ID `5c5e455f39a84c71b83eb38bb2643e58`
+
+### #8 — HomeScreen Nutrition Widget Fixes (IN PROGRESS)
+- **Root cause identified**: `database.web.ts` mock `executeAsync` returned `{}` (no `getAllAsync`) — `getAllHabits()` threw, causing unhandled promise rejections on every focus
+- **Mock fix applied**: `executeAsync` now returns `{ getAllAsync: async () => [] }`
+- **Nutrition loading isolated**: moved to dedicated `useFocusEffect` — independent of habits/badges loading
+- **Date format aligned**: uses local-time `getFullYear/getMonth/getDate` to match NutritionScreen's `formatDate()` (was using `toISOString()` UTC which can mismatch in negative timezones)
+- **try/catch added**: main `useFocusEffect` IIFE has error isolation so one feature's failure doesn't cascade
+- **Debug string `[d:... m:... c:...]`** added to widget label showing date, meal count, calorie total
+- **Status**: mock fix + code changes done; user needs to restart dev server for bundle rebuild before testing
 
 ---
 
@@ -77,7 +145,7 @@
 
 - `ARCHITECTURE.md` created documenting the 3 Cloudflare services and complete app workflow:
   - **Pages** — serves Expo web build (`044a6f33.altianly.pages.dev`)
-  - **Workers** — AI proxy (`altianly.vishhalchopra.workers.dev`)
+  - **Workers** — AI proxy (`altianly-ai.vishhalchopra.workers.dev`)
   - **Dashboard** — worker management console
 
 ### #5 — Cloudflare AI Proxy Fixes
@@ -151,20 +219,24 @@ WorkoutLog → PlanLogs
 App opens
   ↓
 Profile screen loads
-  ├─ Web: WebAuthn passkey register/login (no password fields)
-  ├─ Native: auto-login from saved profile; name/email form for new users
   ├─ Profile exists? → navigation.replace('Home')
-  └─ No profile? → Show login form
-                     ├─ Login success → navigation.replace('Home')
-                     └─ Register success → navigation.replace('Home')
+  └─ No profile? → Landing view with email+password form
+                     ├─ Register success → guest mode off → Home
+                     ├─ Login success → guest mode off → Home
+                     └─ "Continue without an account" → guest mode on → Home
 
 HomeScreen focused
-  ├─ isSessionExpired()? → delete profile, reset to Profile
-  ├─ No profile? → reset to Profile
-  └─ OK → updateLastActivity(), load data
+  ├─ Profile exists + isSessionExpired()? → delete profile, reset to Profile
+  ├─ No profile AND not guest? → reset to Profile
+  └─ OK (logged in or guest) → updateLastActivity(), load data
 
 App foregrounds (AppState 'active')
-  └─ isSessionExpired()? → delete profile, reset to Profile
+  └─ Profile exists + isSessionExpired()? → delete profile, reset to Profile
+     (guests are never logged out)
+
+Profile view (logged in)
+  ├─ Logout → keeps local profile data, clears session
+  └─ Delete Account → POST /auth/account/delete (KV wipe) + local altianly_* wipe → Profile
 ```
 
 ### Storage Keys (Updated)
@@ -177,14 +249,15 @@ altianly_badges           // Badge[]
 altianly_theme            // 'dark' | 'cream'
 altianly_user_profile     // UserProfile (SecureStore + AsyncStorage fallback)
 altianly_last_activity    // timestamp string (AsyncStorage)
-altianly_notion_config    // { apiKey: string; databaseId: string } (AsyncStorage)
+altianly_guest_mode       // 'true' when using the app without an account (AsyncStorage)
+altianly_meals            // meals keyed by YYYY-MM-DD (web only, AsyncStorage)
 ```
 
 ### Cloudflare Services
 | Service | URL | Purpose |
 |---------|-----|---------|
 | Pages | `altianly.pages.dev` | Serves landing page at `/`, Expo app at `/app/` |
-| Workers | `altianly.vishhalchopra.workers.dev` | AI proxy — forwards prompts to Workers AI |
+| Workers | `altianly-ai.vishhalchopra.workers.dev` | AI proxy — forwards prompts to Workers AI |
 | Dashboard | `dash.cloudflare.com/.../altianly-ai/production` | Worker logs, secrets, deployments |
 
 ---
@@ -196,16 +269,26 @@ altianly_notion_config    // { apiKey: string; databaseId: string } (AsyncStorag
 | **OpenRouter free model rate limits** | Free models share an upstream rate-limit pool. If one is 429'd, switching to another free model works immediately. |
 | **AI plan parsing** | The LLM is prompted to return JSON but sometimes returns plain text. `extractStructuredPlan()` in `services/llm.ts` uses a lenient parser. Plans that fail to parse show as raw text in History (no day chips). |
 | **Web preview** | `npm run web` works but: some RNW internal deprecation warnings (`pointerEvents`), `chrome://theme/` browser warnings — all harmless. |
-| **Local auth only** | Profile is stored in SecureStore on-device. No backend, no password recovery. If the profile is deleted, data is gone. |
+| **Password reset needs Resend config** | The "Forgot password?" flow is implemented but emails only send once `RESEND_API_KEY` is set on the worker; production delivery to arbitrary users requires a verified domain in Resend. |
 | **Notion setup friction** | Users must create their own Notion integration at https://www.notion.so/my-integrations, copy the API key, create a database, share it with the integration, and paste the database ID into Settings. There's no guided setup flow. |
 | **Notion export: web only** | The Notion API call uses `fetch()` which works on all platforms, but clipboard Copy uses `navigator.clipboard` (web only). Share uses React Native `Share.share()` (cross-platform). |
 | **Notion API key stored in plaintext** | The Notion API key is stored in AsyncStorage, not SecureStore. SecureStore would fail on web (requires `expo-secure-store` with `authenticationType` configured for web fallback). |
-| **Passkey needs Cloudflare Worker deployed** | WebAuthn endpoints (`/auth/register/*`, `/auth/login/*`) require the worker at `workers/ai-proxy/` to be deployed. Until then, passkey operations fall back to local profile. |
 | **Routing via filesystem** | Expo app lives at `/app/` (not `/app`). Cloudflare auto-adds trailing slash via 308 redirect. The `_redirects` file was abandoned due to prefix-matching issues and Cloudflare dashboard-level 308 redirects that free accounts can't remove. |
+| **Dev server must be restarted after source changes** | Expo web dev server caches the bundle in memory. Hard-reload of browser tab doesn't rebuild — need to Ctrl+C and `npm run web` again. This affects `database.web.ts` mock fixes and HomeScreen code changes. |
+| **`/food/parse` needs Workers AI binding** | Worker endpoint works (returns 200) but `env.AI` binding is missing. User needs to add "AI" binding in Cloudflare dashboard → Settings → Variables → AI bindings → Save & Deploy. |
+| **Habits return no data on web** | `database.web.ts` mock returns empty arrays for all queries. On native, habits use SQLite via `expo-sqlite`. The mock prevents `wa-sqlite.wasm` from bundling on web (would break Cloudflare Pages build). |
 
 ---
 
 ## Pending Roadmap Items
+
+### Blocker (must fix before next sprint)
+| # | Feature | Notes |
+|---|---------|-------|
+| 🔧 | **Redeploy worker** | `cd workers/ai-proxy && npx wrangler deploy` — required for `POST /auth/account/delete` AND the new password-reset endpoints. `wrangler.toml` already has the `[ai]` binding and KV namespace. |
+| 🔧 | **Set `RESEND_API_KEY` secret** | Password reset emails need it: free account at resend.com → API key → `npx wrangler secret put RESEND_API_KEY`. Note: default `onboarding@resend.dev` sender only delivers to your own Resend account email; verify a domain and set `RESET_EMAIL_FROM` for real users. Until set, the reset endpoint returns 503 ("temporarily unavailable"). |
+| 🔧 | **Redeploy Pages** | Fresh `dist/` is built with all Session 2 fixes (light landing page, privacy.html, auth fixes, guest mode). |
+| 🐛 | **Restart dev server** | `npm run web` on port 8081 is still serving the pre-Session-2 bundle (Metro caches in memory). Ctrl+C + restart, then re-test: nutrition widget after Quick add, register/login inline errors, guest mode, yoga plan generation. Debug string was removed from the widget label. |
 
 ### High Priority (next sprint)
 | # | Feature | Notes |
@@ -257,4 +340,4 @@ npx wrangler deploy
 
 ---
 
-*Handoff prepared: 2026-06-28*
+*Handoff prepared: 2026-07-02 (updated after Session 2 — guest mode, auth fixes, category consistency, App Store prep)*
