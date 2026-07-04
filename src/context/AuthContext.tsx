@@ -22,9 +22,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function refresh() {
     setLoading(true)
-    const p = await tryRestoreSession()
-    setProfile(p)
-    setLoading(false)
+    try {
+      const p = await tryRestoreSession()
+      setProfile(p)
+    } catch {
+      setProfile(null)
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function logout() {

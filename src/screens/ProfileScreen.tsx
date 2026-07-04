@@ -89,20 +89,25 @@ export default function ProfileScreen({ navigation }: Props) {
 
   useFocusEffect(useCallback(() => {
     ;(async () => {
-      const p = await getUserProfile()
-      setProfile(p)
-      if (p && isAuthRoot(navigation)) {
-        navigation.replace('Main')
-        return
+      try {
+        const p = await getUserProfile()
+        setProfile(p)
+        if (p && isAuthRoot(navigation)) {
+          navigation.replace('Main')
+          return
+        }
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          const params = new URLSearchParams(window.location.search)
+          const qn = params.get('name')
+          const qe = params.get('email')
+          if (qn) setName(qn)
+          if (qe) setEmail(qe)
+        }
+      } catch {
+        // Never strand the user on the loading screen — fall through to the form
+      } finally {
+        setLoading(false)
       }
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        const params = new URLSearchParams(window.location.search)
-        const qn = params.get('name')
-        const qe = params.get('email')
-        if (qn) setName(qn)
-        if (qe) setEmail(qe)
-      }
-      setLoading(false)
     })()
   }, []))
 

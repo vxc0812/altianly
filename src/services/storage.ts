@@ -118,8 +118,14 @@ export async function saveUserProfile(profile: UserProfile): Promise<void> {
 }
 
 export async function getUserProfile(): Promise<UserProfile | null> {
-  const json = await secureGet(STORAGE_KEYS.USER_PROFILE)
-  return json ? JSON.parse(json) : null
+  // Never throw from boot-critical reads — storage can be unavailable
+  // (e.g. Safari with blocked site data) or hold corrupted JSON
+  try {
+    const json = await secureGet(STORAGE_KEYS.USER_PROFILE)
+    return json ? JSON.parse(json) : null
+  } catch {
+    return null
+  }
 }
 
 export async function deleteUserProfile(): Promise<void> {
@@ -155,5 +161,9 @@ export async function setGuestMode(enabled: boolean): Promise<void> {
 }
 
 export async function isGuestMode(): Promise<boolean> {
-  return (await AsyncStorage.getItem(STORAGE_KEYS.GUEST_MODE)) === 'true'
+  try {
+    return (await AsyncStorage.getItem(STORAGE_KEYS.GUEST_MODE)) === 'true'
+  } catch {
+    return false
+  }
 }
