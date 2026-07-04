@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Linking,
 } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useFocusEffect } from '@react-navigation/native'
@@ -520,6 +521,17 @@ export default function ProfileScreen({ navigation }: Props) {
         <Text style={s.footer}>
           Logging in stores your data on our server so you can access it from any device.
         </Text>
+        <Text style={s.legalFooter}>
+          By using Altianly you agree to the{' '}
+          <Text style={s.legalLink} onPress={() => Linking.openURL('https://altianly.pages.dev/terms.html')}>
+            Terms of Use & Disclaimers
+          </Text>
+          {' '}and{' '}
+          <Text style={s.legalLink} onPress={() => Linking.openURL('https://altianly.pages.dev/privacy.html')}>
+            Privacy Policy
+          </Text>
+          . Altianly is not medical advice — consult a healthcare professional before starting any exercise program.
+        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   )
@@ -629,6 +641,8 @@ const styles = (t: Theme) => StyleSheet.create({
 
   // Footer
   footer: { color: t.textMuted, fontSize: 12, textAlign: 'center', marginTop: 32 },
+  legalFooter: { color: t.textMuted, fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 12 },
+  legalLink: { color: t.textSecondary, textDecorationLine: 'underline' },
 
   // Disclaimer
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },

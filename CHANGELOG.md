@@ -4,6 +4,15 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 
 ---
 
+## 2026-07-04 — Terms of Use & Disclaimers
+
+- **`public/terms.html`** — Terms of Use & Disclaimers page (light theme, matches privacy page): not-medical-advice callout, consult-a-professional list, assumption of risk, **AI-generated content disclaimer** (plans/chat/nutrition estimates may err and aren't professionally reviewed), nutrition data accuracy + BMI limitations, account/data terms, acceptable use, no warranty, limitation of liability, 13+ age requirement
+- **`public/privacy.html`** refreshed — "Changes to this policy" section, footer cross-links to terms, date bumped
+- **Landing page footer** links Terms & Disclaimers; **in-app legal footer** on the signup screen ("By using Altianly you agree to…" with tappable Terms/Privacy links via `Linking.openURL` + a one-line medical disclaimer)
+- App Store note: Terms URL is `https://altianly.pages.dev/terms.html` (usable as the EULA link in App Store Connect; the in-app WorkoutPlan/WorkoutLog disclaimers already cover Guideline 1.4.1)
+
+---
+
 ## 2026-07-03 — Worker deployed, USDA key rotated
 - `altianly-ai` worker deployed with account-deletion + password-reset endpoints; live-tested (food search/parse 200, register→delete→login-401 lifecycle verified)
 - New USDA API key set as `USDA_API_KEY` secret on `altianly-ai` (old key was exposed in public git history — rotated); stray secret/var cleaned off the `altianly` assets worker
