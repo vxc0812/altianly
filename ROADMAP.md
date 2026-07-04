@@ -6,7 +6,7 @@
 
 ## Where We Are Today
 
-✅ Full-featured web app live at **altianly.pages.dev** — BMI, instant + AI workout plans (5 styles + Surprise Me), workout logging, nutrition tracking (search / barcode / plain-English quick add), habits, streaks & badges, AI Trainer chat with saveable plans
+✅ Full-featured web app live at **altianly.com** — BMI, instant + AI workout plans (5 styles + Surprise Me), workout logging, nutrition tracking (search / barcode / plain-English quick add), habits, streaks & badges, AI Trainer chat with saveable plans
 ✅ Accounts with email/password, guest mode, password reset by email, account deletion
 ✅ Modern UI: bottom tabs, dashboard with calorie ring and weekly activity, warm light theme
 ✅ Server fully configured: AI, food database, auth, email — all live-tested
@@ -22,7 +22,7 @@ The critical path. Full detail in `APP_STORE_CHECKLIST.md`.
 | # | Step | Who | Effort |
 |---|------|-----|--------|
 | 1 | **Enroll in Apple Developer Program** ($99/yr, 1–2 day approval) — start now, everything else waits on it | You | 30 min + wait |
-| 2 | **Verify a domain in Resend** so password-reset emails reach real users (currently only your own inbox). Buy a domain if needed (~$10/yr) and set `RESET_EMAIL_FROM` | You + Claude | 1 hr |
+| 2 | ~~Verify a domain in Resend~~ **DONE 2026-07-04** — `altianly.com` live on Cloudflare DNS, Resend verified, `RESET_EMAIL_FROM` set; reset emails deliver to any address | — | ✅ |
 | 3 | **First iOS build via EAS** (`eas build --platform ios`) and fix whatever native-only issues surface (SQLite paths, camera permissions flow, safe areas) | Claude + You | 1–2 days |
 | 4 | **TestFlight round** — install on your real iPhone; test guest flow, account lifecycle, barcode scanning, AI plans on cellular | You | 2–3 days |
 | 5 | **Store assets** — screenshots (iPhone 6.9" required; iPad too unless we set `supportsTablet: false`), description, keywords | You + Claude | Half day |
@@ -39,7 +39,7 @@ Things that are fine for a demo but will bite real users:
 
 1. **Habits don't work on web** — the web version quietly shows no habits (the database layer is stubbed out). Either port habits to AsyncStorage on web (like meals) or hide the feature on web.
 2. **Sync more than BMI history** — today only BMI entries sync to the server; workouts, meals, and habits are device-only. Losing a phone means losing history. Extend the `/data` endpoint to cover all stores.
-3. **End-to-end reset-flow test with a real account** (needs the verified domain from Phase 1).
+3. **End-to-end reset-flow test with a real account** (domain is verified; test the in-app flow with a non-owner email).
 4. **Error visibility sweep** — we fixed invisible errors in auth; do the same audit for meal saves, plan saves, and habit logging.
 5. **Rate limiting on the worker** — the AI and email endpoints are open; add basic per-IP limits so a bot can't burn the free-tier quotas.
 6. **Session refresh** — sessions currently die after 10 hours of inactivity with a somewhat abrupt logout; consider 30-day refresh tokens.

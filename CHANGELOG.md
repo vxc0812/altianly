@@ -4,6 +4,15 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 
 ---
 
+## 2026-07-04 — Custom domain altianly.com live + reset emails for everyone
+
+- **altianly.com** (DreamHost-registered) now serves the site: DNS moved to Cloudflare (nameservers `huxley`/`meilani`), apex + `www` attached to the Pages project as proxied CNAMEs; `altianly.pages.dev` remains a permanent alias. Verified live: `/` 200, `/app/` 200, `/terms` + `/privacy` 200 (Pages pretty-URLs redirect `.html` → extensionless)
+- **Resend domain verified** — password-reset emails now deliver to ANY address, not just the account owner. `RESET_EMAIL_FROM` secret = `Altianly <noreply@altianly.com>`; live-tested by sending from `noreply@altianly.com` to an outside inbox (200, delivered)
+- In-app legal links and all docs updated `altianly.pages.dev` → `altianly.com`; App Store checklist URLs now use the custom domain
+- Debug notes: DreamHost's "Fully Hosted" auto-setup had injected A records that Cloudflare's scanner imported (fixed by replacing with CNAMEs); local ISP DNS interception made verification misleading — DNS-over-HTTPS gave ground truth
+
+---
+
 ## 2026-07-04 — Terms of Use & Disclaimers
 
 - **`public/terms.html`** — Terms of Use & Disclaimers page (light theme, matches privacy page): not-medical-advice callout, consult-a-professional list, assumption of risk, **AI-generated content disclaimer** (plans/chat/nutrition estimates may err and aren't professionally reviewed), nutrition data accuracy + BMI limitations, account/data terms, acceptable use, no warranty, limitation of liability, 13+ age requirement

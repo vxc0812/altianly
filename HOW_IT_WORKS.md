@@ -97,7 +97,7 @@ You (or Claude) edit code
    Cloudflare Pages builds the web app and publishes it
         │
         ▼
-   https://altianly.pages.dev  ← live site (landing page + app at /app/)
+   https://altianly.com  ← live site (landing page + app at /app/)
 ```
 
 The server part deploys separately with one command (`npx wrangler deploy --config workers/ai-proxy/wrangler.toml`).

@@ -152,7 +152,7 @@ User Input → BMI Calculator → Questionnaire
 
 ## Links
 
-- **Web app (Cloudflare Pages):** `044a6f33.altianly.pages.dev`
+- **Web app (Cloudflare Pages):** `altianly.com`
 - **AI proxy worker:** `altianly.vishhalchopra.workers.dev`
 - **Notion integrations:** https://www.notion.so/my-integrations
 

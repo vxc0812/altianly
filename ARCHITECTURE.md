@@ -4,7 +4,7 @@
 
 Three Cloudflare services work together to power the app:
 
-### 1. Cloudflare Pages — `https://altianly.pages.dev/`
+### 1. Cloudflare Pages — `https://altianly.com/` (alias: altianly.pages.dev)
 
 Serves the **Expo web build** (`dist/`) as a static site. Configured via `wrangler.jsonc`:
 

@@ -523,11 +523,11 @@ export default function ProfileScreen({ navigation }: Props) {
         </Text>
         <Text style={s.legalFooter}>
           By using Altianly you agree to the{' '}
-          <Text style={s.legalLink} onPress={() => Linking.openURL('https://altianly.pages.dev/terms.html')}>
+          <Text style={s.legalLink} onPress={() => Linking.openURL('https://altianly.com/terms')}>
             Terms of Use & Disclaimers
           </Text>
           {' '}and{' '}
-          <Text style={s.legalLink} onPress={() => Linking.openURL('https://altianly.pages.dev/privacy.html')}>
+          <Text style={s.legalLink} onPress={() => Linking.openURL('https://altianly.com/privacy')}>
             Privacy Policy
           </Text>
           . Altianly is not medical advice — consult a healthcare professional before starting any exercise program.

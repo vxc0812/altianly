@@ -14,7 +14,7 @@
 | Camera permission string (`NSCameraUsageDescription`) | `app.json` → shown when the barcode scanner first opens |
 | Encryption exemption (`ITSAppUsesNonExemptEncryption: false`) | `app.json` — app only uses standard HTTPS |
 | iOS bundle identifier `com.altianly.app` + build number | `app.json` (change the bundle ID before first submission if you prefer another — it's permanent once an app ships with it) |
-| Privacy policy page (required URL in App Store Connect) | `https://altianly.pages.dev/privacy.html` |
+| Privacy policy page (required URL in App Store Connect) | `https://altianly.com/privacy` |
 | Light UI default, no forced dark mode | `userInterfaceStyle: "light"` |
 | Medical/liability disclaimer for workout content | WorkoutPlan / WorkoutLog screens |
 | EAS build profiles | `eas.json` |
@@ -60,8 +60,8 @@ At https://appstoreconnect.apple.com → My Apps → **+ New App**:
 | SKU | altianly-ios |
 | Category | Health & Fitness |
 | Age rating questionnaire | Should come out 4+ (no objectionable content); "unrestricted web access" = No |
-| Privacy Policy URL | https://altianly.pages.dev/privacy.html |
-| Support URL | https://altianly.pages.dev/ |
+| Privacy Policy URL | https://altianly.com/privacy |
+| Support URL | https://altianly.com/ |
 
 ## Step 5 — App Privacy questionnaire (Data Collection)
 
@@ -109,7 +109,7 @@ eas submit --platform ios --latest
 | Reviewer can't test login | Provide a demo account (email+password) in the "App Review Information" notes, or point out guest mode explicitly |
 | Minimum functionality (4.2) — app must feel native, not a thin web wrapper | You're fine: it's a full native RN app |
 | Health claims (1.4.1) | Keep store copy to "general fitness", disclaimer already in-app |
-| Broken links | Privacy Policy and Support URLs must load — both are on altianly.pages.dev |
+| Broken links | Privacy Policy and Support URLs must load — both are on altianly.com |
 
 ---
 

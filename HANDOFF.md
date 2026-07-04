@@ -161,7 +161,7 @@
 ### #4 — Cloudflare Infrastructure Documentation
 
 - `ARCHITECTURE.md` created documenting the 3 Cloudflare services and complete app workflow:
-  - **Pages** — serves Expo web build (`044a6f33.altianly.pages.dev`)
+  - **Pages** — serves Expo web build (`altianly.com`)
   - **Workers** — AI proxy (`altianly-ai.vishhalchopra.workers.dev`)
   - **Dashboard** — worker management console
 
@@ -216,7 +216,7 @@
 ### Navigation Flow
 
 ```
-Landing page (altianly.pages.dev/) → signup form → GET /app/?name=X&email=Y
+Landing page (altianly.com/) → signup form → GET /app/?name=X&email=Y
                                                          ↓
 Auth screen (root; ProfileScreen as login gate, pre-filled from URL params)
   ├─ Register / Login → guest mode off → replace('Main')
@@ -274,7 +274,7 @@ altianly_meals            // meals keyed by YYYY-MM-DD (web only, AsyncStorage)
 ### Cloudflare Services
 | Service | URL | Purpose |
 |---------|-----|---------|
-| Pages | `altianly.pages.dev` | Serves landing page at `/`, Expo app at `/app/` |
+| Pages | `altianly.com` (alias: `altianly.pages.dev`) | Serves landing page at `/`, Expo app at `/app/` |
 | Workers | `altianly-ai.vishhalchopra.workers.dev` | AI proxy — forwards prompts to Workers AI |
 | Dashboard | `dash.cloudflare.com/.../altianly-ai/production` | Worker logs, secrets, deployments |
 
@@ -306,7 +306,7 @@ altianly_meals            // meals keyed by YYYY-MM-DD (web only, AsyncStorage)
 | ✅ | **Worker deployed (2026-07-03)** | `altianly-ai` live with account deletion + password reset endpoints. Live-tested: food/search 200, food/parse 200 (AI binding OK), register→delete→login-fails lifecycle verified. ⚠️ Wrangler resolves the ROOT `wrangler.jsonc` even from `workers/ai-proxy/` — always pass `--config workers/ai-proxy/wrangler.toml` (or `--name altianly-ai`) for AI-worker commands. |
 | ✅ | **USDA key rotated (2026-07-03)** | Old key was public in git history; new key lives ONLY as `USDA_API_KEY` secret on `altianly-ai`. Frontend `searchFoods` now proxies through `/food/search`. |
 | ✅ | **`RESEND_API_KEY` set (2026-07-03)** | Reset emails live-tested (test send delivered, 200). ⚠️ Resend account owner is `vishhalchopra@proton.me` — with the `onboarding@resend.dev` sender, emails deliver ONLY to that address. Before real users can reset passwords: verify a domain at resend.com/domains and set worker var `RESET_EMAIL_FROM` (e.g. `Altianly <noreply@yourdomain.com>`). |
-| 🔧 | **Redeploy Pages** | Fresh `dist/` is built with all fixes. (The workers.dev copy at `altianly.vishhalchopra.workers.dev` was updated 2026-07-03 as a side effect of a root-config deploy; `altianly.pages.dev` still needs its own deploy.) |
+| ✅ | **Custom domain live (2026-07-04)** | `altianly.com` + `www` on the Pages project (DreamHost-registered, Cloudflare DNS). Resend domain verified — reset emails deliver to ANY address (`RESET_EMAIL_FROM` = `Altianly <noreply@altianly.com>`). Pages auto-deploys on push. |
 | 🐛 | **Restart dev server** | `npm run web` on port 8081 may still serve an old bundle (Metro caches in memory). Ctrl+C + restart, then re-test: register/login inline errors, guest mode, tabs, dashboard, yoga plan generation. |
 
 ### High Priority (next sprint)
@@ -353,9 +353,10 @@ npx wrangler deploy
 
 | URL | Serves |
 |-----|--------|
-| `https://altianly.pages.dev/` | Landing page (`dist/index.html`) |
-| `https://altianly.pages.dev/app/` | Expo app (`dist/app/index.html`) |
-| `https://altianly.pages.dev/app` | 308 redirect → `/app/` |
+| `https://altianly.com/` | Landing page (`dist/index.html`) |
+| `https://altianly.com/app/` | Expo app (`dist/app/index.html`) |
+| `https://altianly.com/terms` + `/privacy` | Legal pages (Pages pretty-URLs redirect `.html` → extensionless) |
+| `https://altianly.pages.dev/*` | Permanent alias of the same deployment |
 
 ---
 
