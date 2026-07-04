@@ -23,7 +23,8 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 - **altianly.com** (DreamHost-registered) now serves the site: DNS moved to Cloudflare (nameservers `huxley`/`meilani`), apex + `www` attached to the Pages project as proxied CNAMEs; `altianly.pages.dev` remains a permanent alias. Verified live: `/` 200, `/app/` 200, `/terms` + `/privacy` 200 (Pages pretty-URLs redirect `.html` → extensionless)
 - **Resend domain verified** — password-reset emails now deliver to ANY address, not just the account owner. `RESET_EMAIL_FROM` secret = `Altianly <noreply@altianly.com>`; live-tested by sending from `noreply@altianly.com` to an outside inbox (200, delivered)
 - In-app legal links and all docs updated `altianly.pages.dev` → `altianly.com`; App Store checklist URLs now use the custom domain
-- Debug notes: DreamHost's "Fully Hosted" auto-setup had injected A records that Cloudflare's scanner imported (fixed by replacing with CNAMEs); local ISP DNS interception made verification misleading — DNS-over-HTTPS gave ground truth
+- Debug notes: DreamHost's "Fully Hosted" auto-setup had injected A records that Cloudflare's scanner imported (fixed by replacing with CNAMEs)
+- **Post-migration "site not loading" mystery solved**: the dev machine runs **ProtonVPN**, whose DNS-leak protection intercepts ALL port-53 queries (even ones addressed to 8.8.8.8 or TLD servers) and answers from its resolver's cache — which held the old DreamHost record for hours. Chrome worked only because its Secure DNS (DoH) rides HTTPS through the tunnel. Remedies: reconnect the VPN to a different server, enable DoH per browser, or wait for TTL expiry. Lesson recorded in HANDOFF: verify DNS via DNS-over-HTTPS (`https://dns.google/resolve?name=...`), never via local lookups on a VPN machine
 
 ---
 

@@ -296,6 +296,7 @@ altianly_meals            // meals keyed by YYYY-MM-DD (web only, AsyncStorage)
 | **Dev server must be restarted after source changes** | Expo web dev server caches the bundle in memory. Hard-reload of browser tab doesn't rebuild — need to Ctrl+C and `npm run web` again. This affects `database.web.ts` mock fixes and HomeScreen code changes. |
 | **`/food/parse` needs Workers AI binding** | Worker endpoint works (returns 200) but `env.AI` binding is missing. User needs to add "AI" binding in Cloudflare dashboard → Settings → Variables → AI bindings → Save & Deploy. |
 | **Habits return no data on web** | `database.web.ts` mock returns empty arrays for all queries. On native, habits use SQLite via `expo-sqlite`. The mock prevents `wa-sqlite.wasm` from bundling on web (would break Cloudflare Pages build). |
+| **Dev machine: ProtonVPN intercepts DNS** | ProtonVPN's leak protection hijacks ALL port-53 queries (even to 8.8.8.8/TLD servers) and answers from its resolver's cache — after any DNS change, local lookups and non-DoH browsers can show stale results for hours while the rest of the world is fine. Verify DNS via DNS-over-HTTPS only (`https://dns.google/resolve?name=DOMAIN&type=A`). Browser fixes: enable Secure DNS/DoH (done in Chrome), reconnect the VPN to a different server, or wait for TTL expiry. |
 
 ---
 
