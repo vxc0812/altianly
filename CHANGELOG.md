@@ -4,6 +4,12 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 
 ---
 
+## 2026-07-04 — MIGRATION.md
+
+- **`MIGRATION.md`** — new-computer checklist: what git carries vs. what needs manual copying (gitignored Claude instruction files, Obsidian vault, research docs, `~/.claude` memory folder), re-login steps (wrangler/GitHub/Claude Code), smoke tests, and a "what lives where" reference table
+
+---
+
 ## 2026-07-04 — Boot resilience fix (phone stuck on "Loading...")
 
 - App hung forever on the entry "Loading..." screen on a phone browser while desktop Chrome worked. Root cause class: boot-critical storage reads (`getUserProfile`, `isGuestMode`) had no failure path — a throwing `localStorage` (Safari restricted site data etc.) rejected the promise and `setLoading(false)` never ran
