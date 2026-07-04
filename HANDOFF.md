@@ -1,12 +1,13 @@
 # Altianly — Session Handoff Document
 
-> **Date:** 2026-07-02
+> **Date:** 2026-07-04
 > **Stack:** React Native (Expo SDK 56), TypeScript, AsyncStorage, SecureStore
 > **Dev server:** `npm start` → Expo Go, `npm run web` → browser preview
 > **Cloudflare:** Pages (web build), Workers (AI proxy), Dashboard (management)
 > **Routing:** Filesystem-based — `dist/index.html` (landing page at `/`), `dist/app/index.html` (Expo app at `/app/`)
 > **App Store:** iOS submission guide in `APP_STORE_CHECKLIST.md` (EAS Build, no Mac required)
 > **Plain-English docs:** `HOW_IT_WORKS.md` (system explained for non-developers) · `ROADMAP.md` (plan forward)
+> **Changing computers?** Follow `MIGRATION.md` — covers the gitignored files and `~/.claude` that a clone won't carry
 
 ---
 
