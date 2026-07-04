@@ -4,6 +4,14 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 
 ---
 
+## 2026-07-04 — Boot resilience fix (phone stuck on "Loading...")
+
+- App hung forever on the entry "Loading..." screen on a phone browser while desktop Chrome worked. Root cause class: boot-critical storage reads (`getUserProfile`, `isGuestMode`) had no failure path — a throwing `localStorage` (Safari restricted site data etc.) rejected the promise and `setLoading(false)` never ran
+- Storage reads now return null/false on failure; ProfileScreen entry effect and AuthContext `refresh` wrapped in try/finally — the login form always renders. Confirmed fixed on the affected phone
+- Landing page GitHub links removed (nav, CTA, footer) — repo itself is still public; flip to private on GitHub if desired
+
+---
+
 ## 2026-07-04 — Custom domain altianly.com live + reset emails for everyone
 
 - **altianly.com** (DreamHost-registered) now serves the site: DNS moved to Cloudflare (nameservers `huxley`/`meilani`), apex + `www` attached to the Pages project as proxied CNAMEs; `altianly.pages.dev` remains a permanent alias. Verified live: `/` 200, `/app/` 200, `/terms` + `/privacy` 200 (Pages pretty-URLs redirect `.html` → extensionless)
