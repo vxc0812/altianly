@@ -210,7 +210,7 @@ export default function HistoryGraphScreen({ navigation }: Props) {
           </Text>
           <TouchableOpacity
             style={s.homeButton}
-            onPress={() => navigation.navigate('Home')}
+            onPress={() => navigation.navigate('Main', { screen: 'Home' } as never)}
           >
             <Text style={s.homeButtonText}>Go to Home</Text>
           </TouchableOpacity>

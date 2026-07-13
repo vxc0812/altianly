@@ -144,7 +144,7 @@ export default function SettingsScreen({ navigation }: Props) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={s.backText}>{'< Back'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+        <TouchableOpacity onPress={() => navigation.navigate('Main', { screen: 'Home' } as never)}>
           <Text style={s.homeText}>Home</Text>
         </TouchableOpacity>
       </View>

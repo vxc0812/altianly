@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Platform,
   Share,
-  Alert,
 } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RouteProp } from '@react-navigation/native'
@@ -36,6 +35,8 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
   const [saved, setSaved] = useState(false)
   const [progress, setProgress] = useState(0)
   const [providerName, setProviderName] = useState<string>('ollama')
+  const [toast, setToast] = useState('')
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const savedRef = useRef(false)
   const tokenCount = useRef(0)
 
@@ -144,6 +145,16 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
     }
   }
 
+  // Cross-platform confirmation. Alert.alert is a no-op on web, which left
+  // "Copy"/"Save" actions with no visible feedback, so we show an inline toast.
+  function showToast(msg: string) {
+    setToast(msg)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(''), 2000)
+  }
+
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
+
   async function handleSave() {
     if (savedRef.current) return
     savedRef.current = true
@@ -158,6 +169,7 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
     }
     await saveWorkoutPlan(record)
     setSaved(true)
+    showToast('Plan saved to your workouts')
   }
 
   async function handleCopy() {
@@ -171,7 +183,7 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
     if (Platform.OS === 'web') {
       try { await navigator.clipboard.writeText(text) } catch {}
     }
-    Alert.alert('Copied', 'Workout plan copied to clipboard')
+    showToast('Copied to clipboard')
   }
 
   async function handleShare() {
@@ -200,6 +212,12 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
   return (
     <View style={s.container}>
       <Text style={s.heading}>Your Workout Plan</Text>
+
+      {!!toast && (
+        <View style={s.toast} accessibilityRole="alert">
+          <Text style={s.toastText}>{toast}</Text>
+        </View>
+      )}
 
       {loading && !plan ? (
         <View style={s.center}>
@@ -232,7 +250,7 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
             <Text style={s.loadingSubtext}>Make sure Ollama is running on your device</Text>
           )}
         </View>
-      ) : structuredPlan ? (
+      ) : structuredPlan && Array.isArray(structuredPlan.days) && structuredPlan.days.length > 0 ? (
         <ScrollView style={s.planScroll} contentContainerStyle={s.planContent}>
           {structuredPlan.days.map((day) => (
             <View key={day.day} style={s.dayCard}>
@@ -278,7 +296,7 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
           <TouchableOpacity style={s.secondaryButton} onPress={() => navigation.goBack()}>
             <Text style={s.secondaryButtonText}>Back to Questionnaire</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.secondaryButton} onPress={() => navigation.navigate('Home')}>
+          <TouchableOpacity style={s.secondaryButton} onPress={() => navigation.navigate('Main', { screen: 'Home' } as never)}>
             <Text style={s.secondaryButtonText}>Home</Text>
           </TouchableOpacity>
         </View>
@@ -290,6 +308,8 @@ export default function WorkoutPlanScreen({ navigation, route }: Props) {
 const styles = (t: Theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: t.bg, padding: 24, paddingTop: 60 },
   heading: { fontSize: 24, fontWeight: '700', color: t.text, marginBottom: 20 },
+  toast: { backgroundColor: t.success, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 16 },
+  toastText: { color: t.successText, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { color: t.text, fontSize: 16, marginTop: 16 },
   loadingSubtext: { color: t.textSecondary, fontSize: 13, marginTop: 8, textAlign: 'center' },

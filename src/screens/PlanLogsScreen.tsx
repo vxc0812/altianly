@@ -46,7 +46,7 @@ export default function PlanLogsScreen({ navigation, route }: Props) {
           <Text style={s.backText}>{'< Back'}</Text>
         </TouchableOpacity>
         <Text style={s.heading}>Workout Logs</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+        <TouchableOpacity onPress={() => navigation.navigate('Main', { screen: 'Home' } as never)}>
           <Text style={s.homeText}>Home</Text>
         </TouchableOpacity>
       </View>

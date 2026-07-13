@@ -140,7 +140,7 @@ export default function QuestionnaireScreen({ navigation, route }: Props) {
 
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
-      <TouchableOpacity onPress={() => navigation.navigate('Home')} style={s.homeLink}>
+      <TouchableOpacity onPress={() => navigation.navigate('Main', { screen: 'Home' } as never)} style={s.homeLink}>
         <Text style={s.homeLinkText}>Home</Text>
       </TouchableOpacity>
       <Text style={s.heading}>Create Your Workout Plan</Text>

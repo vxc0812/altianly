@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
 } from 'react-native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RouteProp } from '@react-navigation/native'
@@ -38,6 +37,7 @@ export default function WorkoutLogScreen({ navigation, route }: Props) {
     }))
   )
 
+  const [saved, setSaved] = useState(false)
   const [activeTimerIdx, setActiveTimerIdx] = useState<number | null>(null)
   const [timerRemaining, setTimerRemaining] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -75,6 +75,7 @@ export default function WorkoutLogScreen({ navigation, route }: Props) {
   }
 
   async function handleSave() {
+    if (saved) return
     const log: WorkoutLog = {
       id: Date.now().toString(),
       planId,
@@ -84,9 +85,11 @@ export default function WorkoutLogScreen({ navigation, route }: Props) {
       entries,
     }
     await saveWorkoutLog(log)
-    Alert.alert('Logged!', `Day ${day}: ${focus} saved to workout logs.`, [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ])
+    // Inline confirmation instead of Alert.alert, which is a no-op on web and
+    // left users unsure whether the log actually saved. Pause briefly so the
+    // banner is visible, then return so Home's streak/dots refresh on focus.
+    setSaved(true)
+    setTimeout(() => navigation.goBack(), 900)
   }
 
   return (
@@ -96,7 +99,7 @@ export default function WorkoutLogScreen({ navigation, route }: Props) {
           <Text style={s.backText}>{'< Back'}</Text>
         </TouchableOpacity>
         <Text style={s.heading}>Day {day}: {focus}</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+        <TouchableOpacity onPress={() => navigation.navigate('Main', { screen: 'Home' } as never)}>
           <Text style={s.homeText}>Home</Text>
         </TouchableOpacity>
       </View>
@@ -189,8 +192,13 @@ export default function WorkoutLogScreen({ navigation, route }: Props) {
         </View>
       ))}
 
-      <TouchableOpacity style={s.saveButton} onPress={handleSave}>
-        <Text style={s.saveButtonText}>Save Log</Text>
+      {saved && (
+        <View style={s.savedBanner} accessibilityRole="alert">
+          <Text style={s.savedBannerText}>Logged! Day {day}: {focus} saved ✓</Text>
+        </View>
+      )}
+      <TouchableOpacity style={[s.saveButton, saved && s.saveButtonDone]} onPress={handleSave} disabled={saved}>
+        <Text style={s.saveButtonText}>{saved ? 'Saved' : 'Save Log'}</Text>
       </TouchableOpacity>
       </>)}
     </ScrollView>
@@ -213,7 +221,10 @@ const styles = (t: Theme) => StyleSheet.create({
   input: { backgroundColor: t.bg, borderWidth: 1, borderColor: t.border, borderRadius: 6, padding: 10, fontSize: 14, color: t.text },
   notesInput: { backgroundColor: t.bg, borderWidth: 1, borderColor: t.border, borderRadius: 6, padding: 10, fontSize: 14, color: t.text, minHeight: 60, textAlignVertical: 'top' },
   saveButton: { backgroundColor: t.success, padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 8 },
+  saveButtonDone: { opacity: 0.6 },
   saveButtonText: { color: t.successText, fontSize: 16, fontWeight: '700' },
+  savedBanner: { backgroundColor: t.success, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 14, marginTop: 8 },
+  savedBannerText: { color: t.successText, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   restRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 12, gap: 10 },
   restBtn: { backgroundColor: t.accent + '18', borderWidth: 1, borderColor: t.accent + '40', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6 },
   restBtnText: { color: t.accent, fontSize: 13, fontWeight: '600' },

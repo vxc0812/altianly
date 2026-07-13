@@ -404,12 +404,50 @@ function tryParseJson(text: string): StructuredWorkoutPlan | null {
   for (const candidate of candidates) {
     try {
       const parsed = JSON.parse(candidate)
-      if (parsed?.days && Array.isArray(parsed.days)) {
-        return parsed as StructuredWorkoutPlan
-      }
+      const normalized = normalizeStructuredPlan(parsed)
+      if (normalized) return normalized
     } catch {}
   }
   return null
+}
+
+// Guards the render path against malformed LLM output. A small model may return
+// `days` without an `exercises` array (or with a mistyped field), which used to
+// crash WorkoutPlanScreen with "Cannot read properties of undefined (reading 'map')".
+// We keep only days that have at least one exercise and coerce each exercise's
+// fields to safe types; if nothing valid survives we return null so the caller
+// falls back to the plain-text plan.
+function normalizeStructuredPlan(parsed: unknown): StructuredWorkoutPlan | null {
+  if (!parsed || typeof parsed !== 'object') return null
+  const p = parsed as Record<string, any>
+  if (!Array.isArray(p.days)) return null
+
+  const days = p.days
+    .filter((d: any) => d && Array.isArray(d.exercises) && d.exercises.length > 0)
+    .map((d: any, di: number) => ({
+      day: typeof d.day === 'number' ? d.day : di + 1,
+      focus: typeof d.focus === 'string' ? d.focus : 'Workout',
+      exercises: d.exercises
+        .filter((e: any) => e && typeof e.name === 'string' && e.name.trim())
+        .map((e: any) => ({
+          name: e.name,
+          sets: typeof e.sets === 'number' ? e.sets : Number(e.sets) || 0,
+          reps: e.reps != null ? String(e.reps) : '',
+          restSeconds: typeof e.restSeconds === 'number' ? e.restSeconds : 60,
+          notes: typeof e.notes === 'string' ? e.notes : undefined,
+        })),
+    }))
+    .filter((d: any) => d.exercises.length > 0)
+
+  if (days.length === 0) return null
+
+  return {
+    name: typeof p.name === 'string' ? p.name : 'Workout Plan',
+    days,
+    warmup: typeof p.warmup === 'string' ? p.warmup : undefined,
+    cooldown: typeof p.cooldown === 'string' ? p.cooldown : undefined,
+    notes: typeof p.notes === 'string' ? p.notes : undefined,
+  } as StructuredWorkoutPlan
 }
 
 export function extractStructuredPlan(text: string): {

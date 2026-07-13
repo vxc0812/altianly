@@ -4,6 +4,19 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 
 ---
 
+## 2026-07-13 — External-review Tier 1 fixes (crash, dead links, save/copy feedback, marketing mismatch)
+
+Acted on `Altianly_Feedback_Comparison.docx` (marketing + hands-on app review + competitor comparison). Fixed the four ship-blocking items:
+
+- **AI-plan crash fixed.** The flagship BMI→questionnaire→AI plan flow crashed to a blank white screen (`TypeError: Cannot read properties of undefined (reading 'map')`). Root cause: `tryParseJson` in `services/llm.ts` validated that `days` was an array but not that each day carried an `exercises` array — a small model returning a malformed day crashed `WorkoutPlanScreen`'s `day.exercises.map`. Added `normalizeStructuredPlan()` which drops/coerces malformed days & exercises and returns `null` (→ plain-text fallback) if nothing valid survives. Added a defense-in-depth `Array.isArray(days)` guard on the render path.
+- **Dead "Home" links fixed (systemic).** `navigation.navigate('Home')` is a no-op from any screen pushed on the root Stack, because `Home` is a tab inside `Main`, not a sibling route. Reviewer caught it on the workout-log screen; the same latent bug existed in **WorkoutPlan, WorkoutLog, HistoryGraph, Questionnaire, Timer, PlanLogs, Settings**. All now use `navigate('Main', { screen: 'Home' })`. Tab screens (History/Profile) were already correct and untouched.
+- **Save/Copy now confirm on web.** `Alert.alert` is effectively a no-op on React Native Web, so "Save Log" and "Copy" gave zero feedback. WorkoutPlan now shows an inline toast for Save/Copy; WorkoutLog shows a "Logged ✓" banner + disabled "Saved" button, then returns so Home's streak/dots refresh.
+- **Marketing↔app mismatch reconciled.** `public/altianly-homepage.html` claimed Notion export (doesn't exist) and a theme toggle in Settings (it's on Home; Settings is provider config only). Rewrote the hero line, the "Notion Export" card (→ "Copy & Share"), the Workout Plan screen blurb, and the Settings screen blurb to match reality. (`dist/` is a gitignored build artifact regenerated from `public/` by `npm run build` — not hand-edited.)
+
+Typecheck clean (`npm run typecheck`). **Tier 2/3 still open** (see HANDOFF): personal Cloudflare worker shipped as default provider, stale-BMI snapshot on saved plans, messy USDA nutrition names + serving/calorie drift, BMI copy reframing, and marketing polish (real screenshots, pricing, FAQ, social proof).
+
+---
+
 ## 2026-07-04 — MIGRATION.md
 
 - **`MIGRATION.md`** — new-computer checklist: what git carries vs. what needs manual copying (gitignored Claude instruction files, Obsidian vault, research docs, `~/.claude` memory folder), re-login steps (wrangler/GitHub/Claude Code), smoke tests, and a "what lives where" reference table

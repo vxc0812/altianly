@@ -1,6 +1,6 @@
 # Altianly — Session Handoff Document
 
-> **Date:** 2026-07-04
+> **Date:** 2026-07-13
 > **Stack:** React Native (Expo SDK 56), TypeScript, AsyncStorage, SecureStore
 > **Dev server:** `npm start` → Expo Go, `npm run web` → browser preview
 > **Cloudflare:** Pages (web build), Workers (AI proxy), Dashboard (management)
@@ -8,6 +8,22 @@
 > **App Store:** iOS submission guide in `APP_STORE_CHECKLIST.md` (EAS Build, no Mac required)
 > **Plain-English docs:** `HOW_IT_WORKS.md` (system explained for non-developers) · `ROADMAP.md` (plan forward)
 > **Changing computers?** Follow `MIGRATION.md` — covers the gitignored files and `~/.claude` that a clone won't carry
+
+---
+
+## What Was Done This Session (2026-07-13, external-review Tier 1)
+
+Source: `Altianly_Feedback_Comparison.docx` — an external three-part review (marketing site, hands-on app testing, competitor comparison vs deep-app.co / askvora.com). Fixed the four ship-blocking defects; see CHANGELOG 2026-07-13 for detail.
+
+- **AI-plan crash** (blank white screen on the headline feature) — hardened JSON parsing in `services/llm.ts` (`normalizeStructuredPlan`) + render guard in `WorkoutPlanScreen`.
+- **Dead "Home" links** — `navigate('Home')` is a no-op from root-Stack screens; fixed across WorkoutPlan, WorkoutLog, HistoryGraph, Questionnaire, Timer, PlanLogs, Settings → `navigate('Main', { screen: 'Home' })`.
+- **Silent Save/Copy** — `Alert.alert` is a no-op on web; added inline toast/banner confirmations to WorkoutPlan + WorkoutLog.
+- **Marketing↔app mismatch** — removed false Notion-export + Settings-theme-toggle claims from `public/altianly-homepage.html`.
+
+### Still open from the review (not yet done)
+
+- **Tier 2 — trust/correctness:** default LLM provider ships as the developer's personal worker `altianly-ai.vishhalchopra.workers.dev` (`src/constants/index.ts`) → every user's AI traffic hits it (cost/abuse); stale-BMI value snapshotted onto saved plans (showed "BMI 22" vs calculated 24.4); nutrition quick-add returns messy concatenated USDA names ("CAFFE LATTE ALMONDS, CAFFE LATTE") and serving/calorie values that drift between preview and saved entry; reframe BMI copy in Health Snapshot as a screening tool, not a diagnosis (reviewer supplied draft copy in the docx).
+- **Tier 3 — marketing/growth:** replace emoji "App Screens" with real screenshots/device mockups + demo GIF; add pricing section + FAQ + health disclaimer near hero; strip tech-stack jargon (Expo SDK, provider names) from user-facing copy; social proof/testimonials; a "vs MyFitnessPal/Fitbod" comparison page.
 
 ---
 
