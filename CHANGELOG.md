@@ -4,6 +4,13 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 
 ---
 
+## 2026-07-13 — Tier 3 phone-mockup screens + nutrition name fix
+
+- **Homepage "App Screens" section rebuilt as phone mockups.** Replaced the emoji "screen cards" with CSS phone frames (dark bezel, rounded screen) for the 6 chosen screens (Home, AI Workout Plan, Nutrition, BMI & Insights, Progress Graphs, Workout Log). Each frame loads a real screenshot from `public/screens/<name>.png`; until a file exists, an `onerror` handler hides the `<img>` and a labeled placeholder (emoji + screen name on a soft gradient) shows through — so the section never displays a broken image. See `public/screens/README.md` for the exact filenames + capture tips (mobile aspect ratio, cream theme, ~2×). **Real PNGs still to be added** (browser-automation capture was blocked by tooling; the design/frames are done).
+- **Nutrition saved-name mismatch fixed.** Verified live on altianly.com that the quick-add *preview* showed the clean standardized name ("Latte") but the *saved* entry showed the raw USDA description ("Caffe Latte Almonds, Caffe Latte"). `handleAddParsed` now keeps the matched Food's nutrients/serving but overrides its display name with the clean `item.name`, so the logged entry matches the preview. (Complements the earlier `cleanFoodName` Tier 2 fix, which is confirmed live.)
+
+---
+
 ## 2026-07-13 — External-review Tier 3 (marketing copy + FAQ cleanup)
 
 Homepage (`public/altianly-homepage.html`) — the quick copy pass; pricing confirmed **free**:

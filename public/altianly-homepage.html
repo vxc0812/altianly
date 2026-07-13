@@ -223,26 +223,58 @@
     .step h3 { margin-bottom: 0.5rem; }
     .step p  { font-size: 0.925rem; margin: 0 auto; }
 
-    /* ---- Screens / Mockup section ---- */
+    /* ---- Screens / Phone mockup section ---- */
     .screens-grid {
       display: grid;
-      gap: 1rem;
+      gap: 2.5rem 1.5rem;
+      grid-template-columns: repeat(2, 1fr);
     }
-    @media (min-width: 600px) { .screens-grid { grid-template-columns: repeat(3, 1fr); } }
-    .screen-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 2rem 1.5rem;
+    @media (min-width: 720px) { .screens-grid { grid-template-columns: repeat(3, 1fr); } }
+    .screen-item { text-align: center; }
+    .phone {
+      width: 210px;
+      max-width: 78%;
+      aspect-ratio: 210 / 430;
+      margin: 0 auto 1.1rem;
+      background: #14110f;
+      border-radius: 30px;
+      padding: 9px;
+      box-shadow: 0 14px 34px rgba(40, 42, 49, 0.16);
+    }
+    .phone .screen {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 22px;
+      overflow: hidden;
+      background: var(--bg);
+    }
+    .phone .screen > .screen-ph,
+    .phone .screen > img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+    /* Placeholder sits behind the image; once the real PNG loads it covers this.
+       If the image is missing, onerror hides it and the placeholder shows through. */
+    .phone .screen > .screen-ph {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 1rem;
       text-align: center;
+      color: var(--textMuted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: linear-gradient(160deg, #FFFFFF 0%, #F2EEE8 100%);
     }
-    .screen-card .mock-icon {
-      font-size: 2.5rem;
-      margin-bottom: 0.75rem;
-      display: block;
-    }
-    .screen-card h4 { margin-bottom: 0.35rem; font-size: 1rem; }
-    .screen-card p  { font-size: 0.85rem; margin: 0; }
+    .phone .screen > .screen-ph span { font-size: 1.5rem; }
+    .phone .screen > img { object-fit: cover; object-position: top center; }
+    .screen-item h4 { margin-bottom: 0.3rem; font-size: 1rem; }
+    .screen-item p  { font-size: 0.85rem; margin: 0 auto; max-width: 32ch; }
 
     /* ---- CTA ---- */
     .cta-section {
@@ -444,35 +476,53 @@
       <p class="section-desc mx-auto">From your first BMI entry to your tenth logged workout — every screen is built to keep tracking fast and simple.</p>
     </div>
     <div class="container screens-grid">
-      <div class="screen-card">
-        <span class="mock-icon">&#127968;</span>
+      <div class="screen-item">
+        <div class="phone"><div class="screen">
+          <span class="screen-ph"><span>&#127968;</span>Home</span>
+          <img src="/screens/home.png" alt="Altianly Home dashboard" loading="lazy" onerror="this.style.display='none'">
+        </div></div>
         <h4>Home</h4>
-        <p>BMI calculator, stats, badges, quick-start cards, and training split picker.</p>
+        <p>Your dashboard — BMI, calorie ring, streaks, and quick-start workouts.</p>
       </div>
-      <div class="screen-card">
-        <span class="mock-icon">&#128202;</span>
-        <h4>History &amp; Graphs</h4>
-        <p>Past workout plans, BMI/weight charts, individual entry deletion, clear all.</p>
+      <div class="screen-item">
+        <div class="phone"><div class="screen">
+          <span class="screen-ph"><span>&#128170;</span>Workout Plan</span>
+          <img src="/screens/workout-plan.png" alt="Altianly AI workout plan" loading="lazy" onerror="this.style.display='none'">
+        </div></div>
+        <h4>AI Workout Plan</h4>
+        <p>A structured plan with warmup, sets, reps, rest, and cooldown.</p>
       </div>
-      <div class="screen-card">
-        <span class="mock-icon">&#128170;</span>
-        <h4>Workout Plan</h4>
-        <p>Full structured plan with copy, share, and a medical disclaimer.</p>
+      <div class="screen-item">
+        <div class="phone"><div class="screen">
+          <span class="screen-ph"><span>&#127822;</span>Nutrition</span>
+          <img src="/screens/nutrition.png" alt="Altianly nutrition tracking" loading="lazy" onerror="this.style.display='none'">
+        </div></div>
+        <h4>Nutrition</h4>
+        <p>Log meals by USDA search, barcode, or plain-text quick add.</p>
       </div>
-      <div class="screen-card">
-        <span class="mock-icon">&#128221;</span>
+      <div class="screen-item">
+        <div class="phone"><div class="screen">
+          <span class="screen-ph"><span>&#9878;</span>BMI &amp; Insights</span>
+          <img src="/screens/bmi.png" alt="Altianly BMI result and insights" loading="lazy" onerror="this.style.display='none'">
+        </div></div>
+        <h4>BMI &amp; Insights</h4>
+        <p>Instant BMI with a plain-language health snapshot, not a verdict.</p>
+      </div>
+      <div class="screen-item">
+        <div class="phone"><div class="screen">
+          <span class="screen-ph"><span>&#128202;</span>Progress Graphs</span>
+          <img src="/screens/graphs.png" alt="Altianly progress graphs" loading="lazy" onerror="this.style.display='none'">
+        </div></div>
+        <h4>Progress Graphs</h4>
+        <p>Track BMI and weight over days, weeks, months, and years.</p>
+      </div>
+      <div class="screen-item">
+        <div class="phone"><div class="screen">
+          <span class="screen-ph"><span>&#128221;</span>Workout Log</span>
+          <img src="/screens/workout-log.png" alt="Altianly workout logging" loading="lazy" onerror="this.style.display='none'">
+        </div></div>
         <h4>Workout Log</h4>
-        <p>Day-by-day logging of sets, reps, and weight with disclaimer acknowledgment.</p>
-      </div>
-      <div class="screen-card">
-        <span class="mock-icon">&#9881;</span>
-        <h4>Settings</h4>
-        <p>Works out of the box with free built-in AI — or plug in your own provider if you prefer.</p>
-      </div>
-      <div class="screen-card">
-        <span class="mock-icon">&#128100;</span>
-        <h4>Profile</h4>
-        <p>Email login and register, your name and stats, and one-tap logout.</p>
+        <p>Log real sets, reps, and weight with a built-in rest timer.</p>
       </div>
     </div>
   </section>

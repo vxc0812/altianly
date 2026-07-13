@@ -152,14 +152,17 @@ export default function NutritionScreen(_props: Props) {
       const entries: { food: Food; servings: number; servingSize: number; servingUnit: string }[] = []
       for (const idx of checkedItems) {
         const item = parsedItems[idx]
-        const f = item.food || {
+        const base = item.food || {
           id: `est_${item.name}`,
-          name: item.name,
           brandName: null,
           servingSize: 100,
           servingUnit: 'g',
           nutrients: item.estimatedNutrients || { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 },
         }
+        // Save the clean standardized name ("Latte") shown in the preview, not the
+        // raw USDA description ("Caffe Latte Almonds, Caffe Latte") that the matched
+        // Food carries — otherwise the logged entry name mismatches what was previewed.
+        const f: Food = { ...base, name: item.name }
         entries.push({ food: f, servings: item.servings, servingSize: f.servingSize ?? 100, servingUnit: f.servingUnit || 'g' })
       }
       if (existing) {
