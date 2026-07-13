@@ -4,6 +4,19 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 
 ---
 
+## 2026-07-13 — External-review Tier 3 (marketing copy + FAQ cleanup)
+
+Homepage (`public/altianly-homepage.html`) — the quick copy pass; pricing confirmed **free**:
+
+- **Stripped tech jargon from user-facing copy.** Removed "React Native (Expo SDK 56)" (App Screens subtitle), "Built with React Native + Expo" (footer), and the "OpenRouter / Ollama / HuggingFace / Cloudflare Workers AI" provider dumps (AI card + Settings card) in favor of benefit-driven language. Swapped the alarming ☢ radioactive icon on the AI card for 🤖. Corrected the Profile card ("Passkey login" → "Email login and register", matching the actual auth).
+- **Made "free" visible before signup.** Hero now shows "100% free · No account required · No ads"; signup blurb leads with "It's free"; footer notes "Free to use".
+- **Added an FAQ section** (`#faq`, pure-CSS `<details>` accordion, no JS): is it free / data privacy / consult-a-doctor / how AI plans are generated / equipment needed. Added FAQ links to the nav and footer.
+- Verified in-browser: hero, FAQ accordion (expand/collapse toggles), signup, and footer all render correctly in the warm palette.
+
+**Still open (Tier 3, higher-effort):** real app screenshots + demo GIF to replace the emoji "App Screens" (needs live captures); social proof/testimonials (needs real users — won't fabricate); a vs-MyFitnessPal/Fitbod comparison page; blog/guides + distinctive visual identity.
+
+---
+
 ## 2026-07-13 — External-review Tier 2 (correctness + BMI reframing)
 
 - **Stale BMI on saved plans fixed.** Home quick-start ("Quick Workout"/"Start a Split") and the AI Trainer chat's "Save plan" hardcoded `bmiResult: { bmi: 22, evaluation: 'normal' }`, so plans saved from those paths always showed "BMI 22 — normal" regardless of the user's real BMI (reviewer saw 22 vs an actual 24.4). All three now read the latest `getBMIHistory()` entry for `bmi`/`evaluation`/`gender`/`weightLbs` (`HomeScreen.tsx`, `ConversationalWorkoutScreen.tsx`).

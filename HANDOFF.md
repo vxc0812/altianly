@@ -32,7 +32,9 @@ Source: `Altianly_Feedback_Comparison.docx` — an external three-part review (m
 
 - **Deploy the worker** so the AI rate limit goes live (see above). Optionally still rebrand the personal `vishhalchopra` subdomain to a neutral one (e.g. `ai.altianly.com`) — cosmetic, separate from the cost fix.
 - **Nutrition names, ideal fix:** reduce to the queried food ("Latte") server-side in `/food/parse`, which has the query context; the client `cleanFoodName()` only tidies formatting.
-- **Tier 3 — marketing/growth:** replace emoji "App Screens" with real screenshots/device mockups + demo GIF; add pricing section + FAQ + health disclaimer near hero; strip tech-stack jargon (Expo SDK, provider names) from user-facing copy; social proof/testimonials; a "vs MyFitnessPal/Fitbod" comparison page.
+- **Tier 3 — done this session:** ✅ stripped tech jargon from homepage copy, ✅ fixed ☢→🤖 + Profile "Passkey"→email, ✅ made "free" visible (hero/signup/footer — pricing decision: **free at this time**), ✅ added FAQ section + nav/footer links. Verified in-browser.
+- **Tier 3 — still open (higher-effort):** replace emoji "App Screens" with real screenshots/device mockups + demo GIF (needs live captures); social proof/testimonials (needs real users — do not fabricate); a "vs MyFitnessPal/Fitbod" comparison page; blog/guides + a more distinctive visual identity.
+- **Deploy note:** homepage changes go live via `npm run build` (copies `public/altianly-homepage.html` → `dist/index.html`) + the Cloudflare Pages deploy — not yet built/deployed this session.
 
 ---
 

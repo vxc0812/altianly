@@ -293,6 +293,37 @@
     }
     footer a { color: var(--textSec); }
 
+    /* ---- FAQ ---- */
+    .faq-list { max-width: 720px; margin: 0 auto; text-align: left; }
+    .faq-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 0.75rem;
+      padding: 0 1.25rem;
+    }
+    .faq-item summary {
+      cursor: pointer;
+      padding: 1.1rem 0;
+      font-weight: 600;
+      color: var(--text);
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+    .faq-item summary::-webkit-details-marker { display: none; }
+    .faq-item summary::after {
+      content: '+';
+      color: var(--accent);
+      font-size: 1.4rem;
+      font-weight: 400;
+      line-height: 1;
+    }
+    .faq-item[open] summary::after { content: '\2013'; }
+    .faq-item p { font-size: 0.95rem; padding-bottom: 1.1rem; margin: 0; max-width: none; }
+
     /* ---- Utility ---- */
     .text-center { text-align: center; }
     .mx-auto    { margin-left: auto; margin-right: auto; }
@@ -305,6 +336,7 @@
     <div class="nav-links">
       <a href="#features">Features</a>
       <a href="#how">How It Works</a>
+      <a href="#faq">FAQ</a>
       <a href="/app/" class="btn btn-primary" style="padding:0.5rem 1.25rem;font-size:0.875rem;">Launch App</a>
     </div>
   </nav>
@@ -319,6 +351,7 @@
       <a href="#signup" class="btn btn-primary">Get Started Free</a>
       <a href="#features" class="btn btn-outline">Explore Features</a>
     </div>
+    <p style="font-size:0.9rem;color:var(--textMuted);margin-top:1.25rem;">100% free &middot; No account required &middot; No ads</p>
   </header>
 
   <!-- Features -->
@@ -335,9 +368,9 @@
         <p>Instant BMI with CDC-standard evaluation. Supports imperial and metric units. Auto-saves every entry with weight tracking and streak counter.</p>
       </div>
       <div class="feature-card">
-        <span class="icon">&#9762;</span>
+        <span class="icon">&#129302;</span>
         <h3>AI Workout Plans</h3>
-        <p>Generate structured plans via OpenRouter, Ollama, HuggingFace, or Cloudflare Workers AI. Warmup, sets, reps, rest, cooldown — fully personalized.</p>
+        <p>Get a structured plan built around your goals, experience, and equipment — warmup, sets, reps, rest, and cooldown, all personalized to you.</p>
       </div>
       <div class="feature-card">
         <span class="icon">&#9783;</span>
@@ -408,7 +441,7 @@
     <div class="container text-center">
       <span class="section-label">App Screens</span>
       <h2 class="section-title">Built for the web, ready for mobile</h2>
-      <p class="section-desc mx-auto">React Native (Expo SDK 56) powers every screen — from your first BMI entry to your tenth logged workout.</p>
+      <p class="section-desc mx-auto">From your first BMI entry to your tenth logged workout — every screen is built to keep tracking fast and simple.</p>
     </div>
     <div class="container screens-grid">
       <div class="screen-card">
@@ -434,13 +467,44 @@
       <div class="screen-card">
         <span class="mock-icon">&#9881;</span>
         <h4>Settings</h4>
-        <p>Configure your AI provider and model — OpenRouter, Ollama, HuggingFace, or Cloudflare Workers AI.</p>
+        <p>Works out of the box with free built-in AI — or plug in your own provider if you prefer.</p>
       </div>
       <div class="screen-card">
         <span class="mock-icon">&#128100;</span>
         <h4>Profile</h4>
-        <p>Passkey login/register, name/email, member stats, logout with confirmation.</p>
+        <p>Email login and register, your name and stats, and one-tap logout.</p>
       </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq">
+    <div class="container text-center">
+      <span class="section-label">FAQ</span>
+      <h2 class="section-title">Questions, answered</h2>
+      <p class="section-desc mx-auto">Everything you might want to know before you start.</p>
+    </div>
+    <div class="container faq-list">
+      <details class="faq-item">
+        <summary>Is Altianly free?</summary>
+        <p>Yes — Altianly is completely free. There's no subscription, no paywall, and no ads. You can even use it as a guest without creating an account.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Is my health data private?</summary>
+        <p>Your BMI, workouts, and nutrition logs are stored on your device by default. If you create an account, your history syncs privately so you can pick up where you left off on another device. We never sell your data.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Do I need to consult a doctor first?</summary>
+        <p>Altianly offers general fitness guidance, not medical advice. If you have a medical condition, a recent injury, chronic pain, or you haven't been active in a while, check with a healthcare professional before starting — and stop any exercise that causes pain, dizziness, or shortness of breath.</p>
+      </details>
+      <details class="faq-item">
+        <summary>How are the AI workout plans generated?</summary>
+        <p>Your plan is built from your BMI, goals, experience level, available equipment, and lifestyle answers — so it fits your body and your setup, not a generic template. Altianly works out of the box with free built-in AI, and you can connect your own AI provider in Settings if you'd rather.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Do I need any equipment?</summary>
+        <p>No. Tell Altianly what you have — a full gym, a few dumbbells, or nothing at all — and your plan adapts to match.</p>
+      </details>
     </div>
   </section>
 
@@ -449,7 +513,7 @@
     <div class="container text-center">
       <span class="section-label">Get Started</span>
       <h2 class="section-title">Create your account</h2>
-      <p class="section-desc mx-auto">Enter your name and email to begin your fitness journey — you'll set a password in the app. Or skip the account entirely and use Altianly as a guest.</p>
+      <p class="section-desc mx-auto">It's free — enter your name and email to begin, and you'll set a password in the app. Or skip the account entirely and use Altianly as a guest.</p>
       <form class="signup-form" action="/app/" method="GET">
         <div class="field">
           <label for="signup-name">Name</label>
@@ -477,7 +541,7 @@
   </section>
 
   <footer>
-    <p>&copy; 2026 Altianly &middot; Built with React Native + Expo &middot; <a href="/privacy.html">Privacy Policy</a> &middot; <a href="/terms.html">Terms &amp; Disclaimers</a></p>
+    <p>&copy; 2026 Altianly &middot; Your personal fitness AI &middot; Free to use &middot; <a href="#faq">FAQ</a> &middot; <a href="/privacy.html">Privacy Policy</a> &middot; <a href="/terms.html">Terms &amp; Disclaimers</a></p>
   </footer>
 
 </body>
