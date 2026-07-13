@@ -21,11 +21,13 @@ const evaluationColors: Record<string, string> = {
   obese: '#F85149',
 }
 
+// Descriptive ranges rather than diagnostic verdicts — BMI can't tell muscle
+// from fat, so "Above typical range" reads more honestly than "Overweight".
 const evaluationLabels: Record<string, string> = {
-  underweight: 'Underweight',
-  normal: 'Normal Weight',
-  overweight: 'Overweight',
-  obese: 'Obese',
+  underweight: 'Below typical range',
+  normal: 'Normal range',
+  overweight: 'Above typical range',
+  obese: 'Well above typical range',
 }
 
 const lifestyleOptions: { value: Lifestyle; label: string; desc: string }[] = [
@@ -162,6 +164,9 @@ export default function ResultScreen({ navigation, route }: Props) {
         <View style={[s.badge, { backgroundColor: color + '22' }]}>
           <Text style={[s.badgeText, { color }]}>{evaluationLabels[evaluation]}</Text>
         </View>
+        <Text style={s.bmiNote}>
+          BMI is a rough screening tool based on height and weight only. It can't tell the difference between muscle and fat, and it's one input among several (goals, experience, equipment) in your plan — not the main driver.
+        </Text>
       </View>
 
       <Text style={s.sectionTitle}>Health Insights</Text>
@@ -345,6 +350,7 @@ const styles = (t: Theme) => StyleSheet.create({
   bmiLabel: { fontSize: 16, color: t.textSecondary, marginTop: 4 },
   badge: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20, marginTop: 12 },
   badgeText: { fontSize: 16, fontWeight: '700' },
+  bmiNote: { fontSize: 12, color: t.textMuted, marginTop: 14, textAlign: 'center', lineHeight: 18, paddingHorizontal: 8 },
   sectionTitle: { fontSize: 20, fontWeight: '700', color: t.text, marginBottom: 16, marginTop: 8 },
   actionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   actionIcon: { fontSize: 20, marginRight: 10 },

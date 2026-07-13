@@ -52,6 +52,30 @@ export async function searchFoodByBarcode(barcode: string): Promise<Food | null>
   }
 }
 
+// USDA descriptions come back ALL-CAPS with duplicated brand fragments
+// (e.g. "CAFFE LATTE ALMONDS, CAFFE LATTE"). Title-case them and drop repeated
+// comma segments so the tracker shows a readable label instead of a raw DB row.
+export function cleanFoodName(raw: string | null | undefined): string {
+  if (!raw) return ''
+  const seen = new Set<string>()
+  const segments = raw
+    .replace(/\s+/g, ' ')
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => {
+      if (!s) return false
+      const key = s.toLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  const titled = segments
+    .join(', ')
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+  return titled || raw.trim()
+}
+
 export async function parseFoodText(text: string): Promise<ParsedFoodItem[]> {
   const base = await getSyncUrl()
   const res = await fetch(`${base}/food/parse`, {
@@ -64,7 +88,13 @@ export async function parseFoodText(text: string): Promise<ParsedFoodItem[]> {
     throw new Error(err.error || `Server error (${res.status})`)
   }
   const data = await res.json()
-  return data.items || []
+  const items = (data.items || []) as ParsedFoodItem[]
+  // Tidy the display names on both the item and its matched Food.
+  return items.map((item) => ({
+    ...item,
+    name: cleanFoodName(item.name),
+    food: item.food ? { ...item.food, name: cleanFoodName(item.food.name) } : item.food,
+  }))
 }
 
 export function computeMealCalories(entry: {

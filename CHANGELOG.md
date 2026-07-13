@@ -4,6 +4,17 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 
 ---
 
+## 2026-07-13 — External-review Tier 2 (correctness + BMI reframing)
+
+- **Stale BMI on saved plans fixed.** Home quick-start ("Quick Workout"/"Start a Split") and the AI Trainer chat's "Save plan" hardcoded `bmiResult: { bmi: 22, evaluation: 'normal' }`, so plans saved from those paths always showed "BMI 22 — normal" regardless of the user's real BMI (reviewer saw 22 vs an actual 24.4). All three now read the latest `getBMIHistory()` entry for `bmi`/`evaluation`/`gender`/`weightLbs` (`HomeScreen.tsx`, `ConversationalWorkoutScreen.tsx`).
+- **Nutrition quick-add: calorie drift fixed.** The parsed-food preview computed `calories × servings` (treating values as per-serving) while the save path used `computeMealCalories` = `(calories/100) × servingSize × servings` (per-100g) — so the number shown differed from the number logged whenever a USDA food's serving size wasn't 100g (e.g. the 48g latte). The preview now uses the exact `computeMealCalories`/`scaleNutrient` math with the food's `servingSize`, so preview == saved.
+- **Nutrition names cleaned.** Added `cleanFoodName()` (`services/nutrition.ts`): title-cases and de-duplicates the comma segments of raw USDA descriptions (e.g. "CAFFE LATTE ALMONDS, CAFFE LATTE" → "Caffe Latte Almonds, Caffe Latte"). Applied to parsed items and their matched Food. (Ideal reduction to just "Latte" belongs server-side in `/food/parse`, which has the query context — noted for later.)
+- **BMI reframed as a screening tool, not a verdict.** Evaluation labels softened from diagnostic ("Normal Weight"/"Overweight") to descriptive ("Normal range"/"Above typical range") in `ResultScreen` and `HistoryScreen`; added a screening-tool note under the BMI card and a "A quick starting point — not a diagnosis." subtitle on the Home Health Snapshot. The stored `evaluation` enum is unchanged (badges/colors/history untouched).
+
+**Still open (Tier 2):** default LLM provider ships as the developer's personal worker `altianly-ai.vishhalchopra.workers.dev` — needs a product decision (rate-limit the worker vs. require users to bring their own key vs. rebrand the subdomain). Tier 3 marketing items remain (see HANDOFF).
+
+---
+
 ## 2026-07-13 — External-review Tier 1 fixes (crash, dead links, save/copy feedback, marketing mismatch)
 
 Acted on `Altianly_Feedback_Comparison.docx` (marketing + hands-on app review + competitor comparison). Fixed the four ship-blocking items:

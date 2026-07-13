@@ -20,9 +20,17 @@ Source: `Altianly_Feedback_Comparison.docx` — an external three-part review (m
 - **Silent Save/Copy** — `Alert.alert` is a no-op on web; added inline toast/banner confirmations to WorkoutPlan + WorkoutLog.
 - **Marketing↔app mismatch** — removed false Notion-export + Settings-theme-toggle claims from `public/altianly-homepage.html`.
 
-### Still open from the review (not yet done)
+### Tier 2 — done this session
 
-- **Tier 2 — trust/correctness:** default LLM provider ships as the developer's personal worker `altianly-ai.vishhalchopra.workers.dev` (`src/constants/index.ts`) → every user's AI traffic hits it (cost/abuse); stale-BMI value snapshotted onto saved plans (showed "BMI 22" vs calculated 24.4); nutrition quick-add returns messy concatenated USDA names ("CAFFE LATTE ALMONDS, CAFFE LATTE") and serving/calorie values that drift between preview and saved entry; reframe BMI copy in Health Snapshot as a screening tool, not a diagnosis (reviewer supplied draft copy in the docx).
+- ✅ Stale-BMI snapshot on saved plans (Home quick-start + AI chat now read latest `getBMIHistory()`).
+- ✅ Nutrition preview↔saved calorie drift (preview now uses `computeMealCalories`/`scaleNutrient`).
+- ✅ Messy USDA names (`cleanFoodName()` title-cases + de-dupes comma segments).
+- ✅ BMI copy reframed as a screening tool (softer labels + notes; stored enum unchanged).
+
+### Still open
+
+- **Tier 2 — default provider (needs a decision):** the default LLM provider is the developer's personal worker `altianly-ai.vishhalchopra.workers.dev` (`src/constants/index.ts:15,50`), so every user's AI traffic hits it (cost/abuse) and the personal subdomain shows in Settings. Options: (a) keep it but add server-side rate limiting to the worker, (b) require users to bring their own key (drops zero-config free AI), (c) rebrand to a neutral subdomain (cosmetic only). Not yet decided.
+- **Nutrition names, ideal fix:** reduce to the queried food ("Latte") server-side in `/food/parse`, which has the query context; the client `cleanFoodName()` only tidies formatting.
 - **Tier 3 — marketing/growth:** replace emoji "App Screens" with real screenshots/device mockups + demo GIF; add pricing section + FAQ + health disclaimer near hero; strip tech-stack jargon (Expo SDK, provider names) from user-facing copy; social proof/testimonials; a "vs MyFitnessPal/Fitbod" comparison page.
 
 ---

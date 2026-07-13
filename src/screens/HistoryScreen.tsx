@@ -31,10 +31,10 @@ const evaluationColors: Record<string, string> = {
 }
 
 const evaluationLabels: Record<string, string> = {
-  underweight: 'Underweight',
-  normal: 'Normal',
-  overweight: 'Overweight',
-  obese: 'Obese',
+  underweight: 'Below range',
+  normal: 'Normal range',
+  overweight: 'Above range',
+  obese: 'Well above range',
 }
 
 function computeStreak(entries: BMIHistoryEntry[]): number {

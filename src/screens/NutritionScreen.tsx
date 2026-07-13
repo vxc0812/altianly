@@ -7,7 +7,7 @@ import { useFocusEffect } from '@react-navigation/native'
 import type { RootStackParamList, Food, Meal, MealEntry, MealType } from '../types'
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
-import { searchFoods, createMeal, getMealsForDate, getDailyTotals, deleteMeal, DEFAULT_RDI, parseFoodText, searchFoodByBarcode } from '../services/nutrition'
+import { searchFoods, createMeal, getMealsForDate, getDailyTotals, deleteMeal, DEFAULT_RDI, parseFoodText, searchFoodByBarcode, computeMealCalories, scaleNutrient } from '../services/nutrition'
 import type { ParsedFoodItem } from '../types'
 import BarcodeScanner from '../components/BarcodeScanner'
 
@@ -394,10 +394,16 @@ export default function NutritionScreen(_props: Props) {
                       const checked = checkedItems.has(idx)
                       const tierLabel = item.tier === 1 ? 'Verified' : item.tier === 2 ? 'Estimated' : 'AI guess'
                       const tierColor = item.tier === 1 ? theme.success : item.tier === 2 ? '#FBBF24' : theme.textMuted
-                      const kcal = item.food?.nutrients.calories ?? item.estimatedNutrients?.calories ?? 0
-                      const protein = item.food?.nutrients.protein ?? item.estimatedNutrients?.protein ?? 0
-                      const carbs = item.food?.nutrients.carbs ?? item.estimatedNutrients?.carbs ?? 0
-                      const fat = item.food?.nutrients.fat ?? item.estimatedNutrients?.fat ?? 0
+                      // Use the exact math the save path applies (computeMealCalories/
+                      // scaleNutrient with the food's servingSize) so the preview total
+                      // matches what actually gets logged — they used to drift whenever a
+                      // USDA food's serving size wasn't 100g.
+                      const baseNutrients = item.food?.nutrients ?? item.estimatedNutrients ?? { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 }
+                      const previewServingSize = item.food?.servingSize ?? 100
+                      const kcal = computeMealCalories({ servings: item.servings, servingSize: previewServingSize, calories: baseNutrients.calories })
+                      const protein = scaleNutrient(baseNutrients.protein, previewServingSize, item.servings)
+                      const carbs = scaleNutrient(baseNutrients.carbs, previewServingSize, item.servings)
+                      const fat = scaleNutrient(baseNutrients.fat, previewServingSize, item.servings)
                       return (
                         <TouchableOpacity key={idx} style={s.parsedRow} onPress={() => toggleItem(idx)}>
                           <View style={[s.checkbox, checked && s.checkboxChecked]}>
@@ -412,7 +418,7 @@ export default function NutritionScreen(_props: Props) {
                             </View>
                             <Text style={s.parsedDetail}>
                               {item.servings} serving{item.servings !== 1 ? 's' : ''}
-                              {' · '}{Math.round(kcal * item.servings)} kcal · P {(protein * item.servings).toFixed(1)}g · C {(carbs * item.servings).toFixed(1)}g · F {(fat * item.servings).toFixed(1)}g
+                              {' · '}{Math.round(kcal)} kcal · P {protein.toFixed(1)}g · C {carbs.toFixed(1)}g · F {fat.toFixed(1)}g
                             </Text>
                           </View>
                         </TouchableOpacity>

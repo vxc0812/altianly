@@ -220,7 +220,8 @@ export default function HomeScreen({ navigation }: Props) {
 
   async function handleQuickChoice(choice: WorkoutChoice | 'surprise') {
     const entries = await getBMIHistory()
-    const ageVal = entries[0]?.age ?? 30
+    const latest = entries[0]
+    const ageVal = latest?.age ?? 30
 
     let plan: StructuredWorkoutPlan
     if (choice === 'hiit' || choice === 'strength') {
@@ -266,8 +267,8 @@ export default function HomeScreen({ navigation }: Props) {
     const workoutPlan: WorkoutPlan = {
       id,
       timestamp: Date.now(),
-      userInput: { age: ageVal, gender: 'male', unitSystem: 'imperial', heightFeet: 5, heightInches: 9, weightLbs: 160 },
-      bmiResult: { bmi: 22, evaluation: 'normal' },
+      userInput: { age: ageVal, gender: latest?.gender ?? 'male', unitSystem: 'imperial', heightFeet: 5, heightInches: 9, weightLbs: latest?.weightLbs ?? 160 },
+      bmiResult: latest ? { bmi: latest.bmi, evaluation: latest.evaluation } : { bmi: 22, evaluation: 'normal' },
       answers: {
         lifestyle: 'moderate', exerciseLevel: 'medium', trainingSplit: 'full_body',
         workoutChoice: choice === 'surprise' ? undefined : choice,
@@ -303,8 +304,8 @@ export default function HomeScreen({ navigation }: Props) {
     const workoutPlan: WorkoutPlan = {
       id,
       timestamp: Date.now(),
-      userInput: { age: ageVal, gender: 'male', unitSystem: 'imperial', heightFeet: 5, heightInches: 9, weightLbs: 160 },
-      bmiResult: { bmi: 22, evaluation: 'normal' },
+      userInput: { age: ageVal, gender: latest?.gender ?? 'male', unitSystem: 'imperial', heightFeet: 5, heightInches: 9, weightLbs: latest?.weightLbs ?? 160 },
+      bmiResult: latest ? { bmi: latest.bmi, evaluation: latest.evaluation } : { bmi: 22, evaluation: 'normal' },
       answers: { lifestyle: 'moderate', exerciseLevel: 'medium', trainingSplit: split, workoutChoice: 'strength' },
       plan: plan.name,
       structuredPlan: plan,
@@ -547,6 +548,7 @@ export default function HomeScreen({ navigation }: Props) {
         )}
 
         <Text style={s.sectionLabel}>Health Snapshot</Text>
+        <Text style={s.sectionSubLabel}>A quick starting point — not a diagnosis.</Text>
         <TouchableOpacity
           style={s.bmiHeader}
           onPress={() => setBmiExpanded(!bmiExpanded)}
@@ -779,6 +781,9 @@ const styles = (t: Theme) => StyleSheet.create({
   sectionLabel: {
     fontSize: 12, fontWeight: '700', color: t.textSecondary,
     textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 20,
+  },
+  sectionSubLabel: {
+    fontSize: 12, color: t.textMuted, marginTop: -6, marginBottom: 10,
   },
   cardLabel: {
     fontSize: 12, fontWeight: '700', color: t.textSecondary,

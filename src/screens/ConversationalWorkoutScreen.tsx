@@ -96,13 +96,14 @@ export function ConversationalWorkoutScreen() {
   const handleSavePlan = useCallback(async (message: Message) => {
     if (!message.plan || savedIds.includes(message.id)) return;
     const entries = await getBMIHistory();
-    const ageVal = entries[0]?.age ?? 30;
+    const latest = entries[0];
+    const ageVal = latest?.age ?? 30;
 
     const record: WorkoutPlan = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
       timestamp: Date.now(),
-      userInput: { age: ageVal, gender: 'male', unitSystem: 'imperial', heightFeet: 5, heightInches: 9, weightLbs: 160 },
-      bmiResult: { bmi: 22, evaluation: 'normal' },
+      userInput: { age: ageVal, gender: latest?.gender ?? 'male', unitSystem: 'imperial', heightFeet: 5, heightInches: 9, weightLbs: latest?.weightLbs ?? 160 },
+      bmiResult: latest ? { bmi: latest.bmi, evaluation: latest.evaluation } : { bmi: 22, evaluation: 'normal' },
       answers: { lifestyle: 'moderate', exerciseLevel: 'medium', trainingSplit: 'full_body' },
       plan: message.plan.name,
       structuredPlan: message.plan,
