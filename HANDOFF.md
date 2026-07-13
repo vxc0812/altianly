@@ -34,7 +34,7 @@ Source: `Altianly_Feedback_Comparison.docx` — an external three-part review (m
 - **Nutrition names, ideal fix:** reduce to the queried food ("Latte") server-side in `/food/parse`, which has the query context; the client `cleanFoodName()` only tidies formatting.
 - **Tier 3 — done this session:** ✅ stripped tech jargon from homepage copy, ✅ fixed ☢→🤖 + Profile "Passkey"→email, ✅ made "free" visible (hero/signup/footer — pricing decision: **free at this time**), ✅ added FAQ section + nav/footer links. Verified in-browser.
 - **Tier 3 — still open (higher-effort):** replace emoji "App Screens" with real screenshots/device mockups + demo GIF (needs live captures); social proof/testimonials (needs real users — do not fabricate); a "vs MyFitnessPal/Fitbod" comparison page; blog/guides + a more distinctive visual identity.
-- **Deploy note:** homepage changes go live via `npm run build` (copies `public/altianly-homepage.html` → `dist/index.html`) + the Cloudflare Pages deploy — not yet built/deployed this session.
+- **Deployed ✅** (commit `ac88f14`): pushed to `master`, which **auto-triggers the Cloudflare Pages build** (Pages project `altianly`, Git Provider = Yes; CI runs `npm run build` itself). Verified live on `altianly.com` and the deployment preview. **Do NOT run `npx wrangler deploy` for the site** — that hits the legacy/unused Workers `altianly` (root `wrangler.jsonc`, last real deploy 2026-07-04); the live site is Pages-on-git-push only. (`npx wrangler deploy --config workers/ai-proxy/wrangler.toml` is still correct for the separate `altianly-ai` AI worker.)
 
 ---
 
