@@ -11,6 +11,17 @@
 
 ---
 
+## ⚠️ PENDING — DO AT NEXT LAUNCH (held on purpose)
+
+A **local, unpushed commit `3d0688b`** ("phone-mockup App Screens + nutrition name fix") is waiting. It was deliberately **not pushed** so the live marketing site doesn't debut empty phone frames. Pushing to `master` auto-deploys (Cloudflare Pages), so before pushing:
+
+1. **Capture 6 app screenshots** and drop them in `public/screens/` — exact filenames + tips in `public/screens/README.md` (`home.png`, `workout-plan.png`, `nutrition.png`, `bmi.png`, `graphs.png`, `workout-log.png`; mobile aspect ratio, cream theme, ~2×). Capture from `altianly.com/app/` via the browser device toolbar (⌘/Ctrl+Shift+M → iPhone) — automated capture was blocked (see Tier 3 note below).
+2. **`git add public/screens/*.png && git commit`**, then **`git push origin master`** — this deploys the filled phone frames **and** the already-committed nutrition saved-name fix together.
+
+Until then the homepage still shows the old (already-live) version; the new frames only go out on that push. Verify after deploy on `altianly.com`.
+
+---
+
 ## What Was Done This Session (2026-07-13, external-review Tier 1)
 
 Source: `Altianly_Feedback_Comparison.docx` — an external three-part review (marketing site, hands-on app testing, competitor comparison vs deep-app.co / askvora.com). Fixed the four ship-blocking defects; see CHANGELOG 2026-07-13 for detail.
