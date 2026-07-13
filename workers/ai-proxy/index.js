@@ -22,6 +22,29 @@ function error(msg, status = 400) {
   return json({ error: msg }, status)
 }
 
+// ── Rate limiting (Workers AI cost/abuse protection) ─────
+// Coarse per-IP daily cap on the AI-consuming endpoints so one user (or a
+// scraper) can't run up the account's Workers AI bill. KV is eventually
+// consistent, so the count is approximate — that's fine for abuse control.
+// Override the default with the AI_RATE_LIMIT_PER_DAY env var if needed.
+const DEFAULT_AI_RATE_LIMIT = 100
+
+async function checkAiRateLimit(env, request) {
+  const limit = parseInt(env.AI_RATE_LIMIT_PER_DAY, 10) || DEFAULT_AI_RATE_LIMIT
+  const ip = request.headers.get('cf-connecting-ip') || 'unknown'
+  const day = new Date().toISOString().slice(0, 10) // YYYY-MM-DD (UTC)
+  const key = `rl:ai:${ip}:${day}`
+  const current = parseInt((await env.ALTIANLY_DATA.get(key)) || '0', 10)
+  if (current >= limit) return false
+  // Self-expiring daily bucket (48h TTL covers clock skew across the boundary).
+  await env.ALTIANLY_DATA.put(key, String(current + 1), { expirationTtl: 172800 })
+  return true
+}
+
+function rateLimited() {
+  return error('Daily AI request limit reached. Please try again tomorrow, or set up your own AI provider in Settings.', 429)
+}
+
 function randomBytes(n) {
   const buf = new Uint8Array(n)
   crypto.getRandomValues(buf)
@@ -356,6 +379,7 @@ export default {
       if (!body) return error('Invalid JSON')
       const { text } = body
       if (!text) return error('Missing text')
+      if (!(await checkAiRateLimit(env, request))) return rateLimited()
 
       try {
         const extractRes = await env.AI.run('@cf/meta/llama-3.2-3b-instruct', {
@@ -475,6 +499,7 @@ All values per 100g/serving. Be reasonable based on common food knowledge. Outpu
       if (!body) return error('Invalid JSON')
       const { prompt, model } = body
       if (!prompt) return error('Missing prompt')
+      if (!(await checkAiRateLimit(env, request))) return rateLimited()
 
       try {
         const modelName = model || '@cf/meta/llama-3.2-3b-instruct'

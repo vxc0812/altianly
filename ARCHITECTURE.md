@@ -231,7 +231,9 @@ Sensitive data (API keys, user profile) uses `expo-secure-store` with automatic 
 | Ollama | `{baseUrl}/api/generate` | None | Yes (SSE) | Free (local) |
 | OpenRouter | `{baseUrl}/chat/completions` | API Key | Yes (SSE) | Free tier available |
 | HuggingFace | `{baseUrl}/models/{model}` | API Key | Yes (token) | Free tier available |
-| Cloudflare | `{baseUrl}/ai` (altianly-ai worker) | None | No (full response) | Free (Workers AI allocation) |
+| Cloudflare | `{baseUrl}/ai` (altianly-ai worker) | None | No (full response) | Free (Workers AI allocation) — rate-limited per IP/day |
+
+> The default Cloudflare provider is a shared worker (`altianly-ai`). Its AI endpoints (`/ai`, `/food/parse`) enforce a per-IP daily cap (`checkAiRateLimit`, default 100, override via `AI_RATE_LIMIT_PER_DAY` var) so shared usage can't run up the Workers AI bill.
 
 ## Theme System
 

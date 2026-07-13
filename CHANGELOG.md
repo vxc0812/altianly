@@ -11,7 +11,9 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 - **Nutrition names cleaned.** Added `cleanFoodName()` (`services/nutrition.ts`): title-cases and de-duplicates the comma segments of raw USDA descriptions (e.g. "CAFFE LATTE ALMONDS, CAFFE LATTE" → "Caffe Latte Almonds, Caffe Latte"). Applied to parsed items and their matched Food. (Ideal reduction to just "Latte" belongs server-side in `/food/parse`, which has the query context — noted for later.)
 - **BMI reframed as a screening tool, not a verdict.** Evaluation labels softened from diagnostic ("Normal Weight"/"Overweight") to descriptive ("Normal range"/"Above typical range") in `ResultScreen` and `HistoryScreen`; added a screening-tool note under the BMI card and a "A quick starting point — not a diagnosis." subtitle on the Home Health Snapshot. The stored `evaluation` enum is unchanged (badges/colors/history untouched).
 
-**Still open (Tier 2):** default LLM provider ships as the developer's personal worker `altianly-ai.vishhalchopra.workers.dev` — needs a product decision (rate-limit the worker vs. require users to bring their own key vs. rebrand the subdomain). Tier 3 marketing items remain (see HANDOFF).
+- **Default-provider cost/abuse capped (rate limiting).** The default Cloudflare provider is the shared `altianly-ai` worker, so every user's AI traffic hits it. Added `checkAiRateLimit()` (`workers/ai-proxy/index.js`): a per-IP daily cap (default 100, override via `AI_RATE_LIMIT_PER_DAY` var) on both AI-consuming endpoints (`/ai`, `/food/parse`), stored in the existing `ALTIANLY_DATA` KV with a 48h self-expiring bucket. Over-limit returns 429 with a message pointing users to configure their own provider; the client already surfaces 429s with a friendly rate-limit hint. **Deploy required to take effect:** `npx wrangler deploy --config workers/ai-proxy/wrangler.toml` (or `--name altianly-ai`).
+
+Tier 3 marketing items remain (see HANDOFF).
 
 ---
 

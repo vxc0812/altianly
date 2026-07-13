@@ -26,10 +26,11 @@ Source: `Altianly_Feedback_Comparison.docx` — an external three-part review (m
 - ✅ Nutrition preview↔saved calorie drift (preview now uses `computeMealCalories`/`scaleNutrient`).
 - ✅ Messy USDA names (`cleanFoodName()` title-cases + de-dupes comma segments).
 - ✅ BMI copy reframed as a screening tool (softer labels + notes; stored enum unchanged).
+- ✅ Default-provider cost/abuse: added per-IP daily rate limit on the worker's AI endpoints (`checkAiRateLimit`, `/ai` + `/food/parse`, default 100/day via `AI_RATE_LIMIT_PER_DAY`). **⚠️ Needs deploy** to take effect: `npx wrangler deploy --config workers/ai-proxy/wrangler.toml` (or `--name altianly-ai` — Wrangler otherwise resolves the ROOT config).
 
 ### Still open
 
-- **Tier 2 — default provider (needs a decision):** the default LLM provider is the developer's personal worker `altianly-ai.vishhalchopra.workers.dev` (`src/constants/index.ts:15,50`), so every user's AI traffic hits it (cost/abuse) and the personal subdomain shows in Settings. Options: (a) keep it but add server-side rate limiting to the worker, (b) require users to bring their own key (drops zero-config free AI), (c) rebrand to a neutral subdomain (cosmetic only). Not yet decided.
+- **Deploy the worker** so the AI rate limit goes live (see above). Optionally still rebrand the personal `vishhalchopra` subdomain to a neutral one (e.g. `ai.altianly.com`) — cosmetic, separate from the cost fix.
 - **Nutrition names, ideal fix:** reduce to the queried food ("Latte") server-side in `/food/parse`, which has the query context; the client `cleanFoodName()` only tidies formatting.
 - **Tier 3 — marketing/growth:** replace emoji "App Screens" with real screenshots/device mockups + demo GIF; add pricing section + FAQ + health disclaimer near hero; strip tech-stack jargon (Expo SDK, provider names) from user-facing copy; social proof/testimonials; a "vs MyFitnessPal/Fitbod" comparison page.
 
