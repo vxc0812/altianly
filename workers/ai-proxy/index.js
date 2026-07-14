@@ -386,14 +386,16 @@ export default {
           messages: [
             {
               role: 'system',
-              content: `Extract food items from a meal description. Return ONLY a valid JSON array.
-Each item: { "name": "standardized food name for USDA lookup", "servings": number }
+              content: `Extract the distinct foods a person ate from their description. Return ONLY a valid JSON array.
+Each item: { "name": "food name for USDA lookup", "servings": number }
 
 Rules:
-- Standardize names (e.g. "coffee with milk" → "latte", "fries" → "french fries")
-- Default servings to 1 if not specified
-- If serving count is specified (e.g. "2 eggs"), use that number
-- Output ONLY the JSON array, no other text`,
+- Treat a single named dish, meal, or branded menu item as ONE item. Do NOT break a dish into its ingredients. Example: "Chick-fil-A Deluxe Chicken Sandwich" is ONE item — never split it into bun + chicken + cheese + lettuce.
+- Only return multiple items when the description clearly lists separate foods. Example: "chicken sandwich and a latte" → two items; "eggs, toast, and orange juice" → three items.
+- Keep brand and specific names in "name" when given (e.g. "Chick-fil-A Deluxe Chicken Sandwich") so branded nutrition can be matched; don't reduce a specific item to a generic ingredient.
+- Standardize only vague descriptions (e.g. "coffee with milk" → "latte", "fries" → "french fries").
+- Default servings to 1 if not specified. If a count is given (e.g. "2 eggs"), use that number.
+- Output ONLY the JSON array, no other text.`,
             },
             { role: 'user', content: text },
           ],
@@ -443,13 +445,17 @@ Rules:
             if (foods.length > 0) {
               const best = foods[0]
               const nut = (n) => Math.round((best.foodNutrients?.find((x) => x.nutrientId === n)?.value || 0) * 10) / 10
-              const nameMatch = best.description.toLowerCase().includes(name) || name.includes(best.description.toLowerCase().split(' ').slice(0, 2).join(' '))
+              const desc = best.description.toLowerCase()
+              const nameLower = name.toLowerCase()
+              const nameMatch = desc.includes(nameLower) || nameLower.includes(desc.split(' ').slice(0, 2).join(' '))
               tier = nameMatch ? 1 : 2
+              // USDA serving sizes can carry float noise (e.g. 28.399999618530273g) — round it.
+              const servingSize = typeof best.servingSize === 'number' ? Math.round(best.servingSize * 10) / 10 : null
               food = {
                 id: String(best.fdcId),
                 name: best.description,
                 brandName: best.brandName || best.brandOwner || null,
-                servingSize: best.servingSize || null,
+                servingSize,
                 servingUnit: best.servingSizeUnit || null,
                 nutrients: {
                   calories: nut(1008), protein: nut(1003), carbs: nut(1005), fat: nut(1004),

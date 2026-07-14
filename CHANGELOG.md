@@ -4,6 +4,19 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 
 ---
 
+## 2026-07-14 — Nutrition quick-add: stop over-decomposing branded/named items
+
+Fixes a parse-quality bug found testing on live production: quick-adding "Chick-fil-A Deluxe Chicken Sandwich" returned **8 ingredient items** (Chicken Sandwich + Bun + Chicken Breast + Cheese + …) and **double-counted**, logging ~1,222 kcal for a ~490 kcal sandwich.
+
+- **`workers/ai-proxy/index.js` `/food/parse` extraction prompt rewritten.** A single named dish or branded menu item now returns as **one** item — the model is told not to break a dish into ingredients, to only split when the text clearly lists separate foods ("chicken sandwich and a latte" → 2), and to keep brand/specific names so branded nutrition can match. Verified live after deploy: the same input now returns 1 item ("Chick-Fil-A Deluxe Chicken Sandwich") with the brand preserved.
+- **Serving-size float noise rounded.** USDA `servingSize` values like `28.399999618530273g` are now rounded to 1 decimal before returning.
+- **Tier-classification casing bug fixed.** The USDA name-match check compared the raw (possibly mixed-case) query against a lowercased description; both sides are now lowercased.
+- **Deployed** to the `altianly-ai` worker (`npx wrangler deploy --config workers/ai-proxy/wrangler.toml`). Worker deploys are separate from the Pages site.
+
+**Known remaining limitation:** for a branded item with no USDA match, the Tier-3 (Estimated) LLM fallback can still be unreliable (the sandwich estimated at 160 kcal / 0g protein) — a separate LLM-estimation-quality issue, not the parse/decomposition bug fixed here.
+
+---
+
 ## 2026-07-14 — Daily check-in + composite Health Score + habits on web (Feature-gap Phase 2)
 
 Second slice of `FEATURE_GAP_PLAN.md` — the daily-tracking loop and single "hero number" both competitor apps lead with.
