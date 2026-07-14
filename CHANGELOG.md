@@ -4,6 +4,19 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 
 ---
 
+## 2026-07-14 — Custom foods (manual entry + save & reuse)
+
+Inspired by Bevel's approach (a verified DB + user-entered custom foods, *not* an LLM as the data source): gives Altianly a reliable answer for branded/restaurant items USDA misses and the Tier-3 LLM estimates get wrong.
+
+- **Create a custom food** from the Nutrition "Add Food" sheet — name, brand, and per-serving calories/protein/carbs/fat (+ optional fiber/sugar/sodium). Saved locally and immediately selectable for adding.
+- **Save & reuse.** Custom foods appear in a **"Your foods"** list in the add sheet and are prepended to USDA search results (your own item always wins), with a "My food" badge and delete. `src/services/customFoods.ts` (AsyncStorage, key `altianly_custom_foods`).
+- **Correct math, clean display.** Custom foods store per-serving nutrients with `servingSize 100` / unit `serving` so `computeMealCalories`/`scaleNutrient` yield exact per-serving values; serving lines render as "N serving(s)" / "per serving" instead of "N × 100serving". `Food` gained an optional `custom` flag.
+- Verified live on web: created "Chick-fil-A Deluxe Chicken Sandwich" (490 kcal / 29P / 43C / 20F) → logged at exactly 490 kcal (vs the LLM parse's inflated 1,222), then reused it from the "Your foods" list.
+
+**Next (deferred, per plan):** a real nutrition API with restaurant coverage (e.g. Nutritionix) is the eventual step beyond custom foods; tracked for later.
+
+---
+
 ## 2026-07-14 — Nutrition quick-add: stop over-decomposing branded/named items
 
 Fixes a parse-quality bug found testing on live production: quick-adding "Chick-fil-A Deluxe Chicken Sandwich" returned **8 ingredient items** (Chicken Sandwich + Bun + Chicken Breast + Cheese + …) and **double-counted**, logging ~1,222 kcal for a ~490 kcal sandwich.

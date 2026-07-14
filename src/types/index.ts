@@ -199,6 +199,9 @@ export interface Food {
   servingSize?: number | null
   servingUnit?: string | null
   nutrients: FoodNutrients
+  // True for user-created custom foods (saved locally and reusable). Custom
+  // foods store per-serving nutrients with servingSize 100 / unit 'serving'.
+  custom?: boolean
 }
 
 export interface MealEntry {

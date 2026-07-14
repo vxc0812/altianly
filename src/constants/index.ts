@@ -94,6 +94,7 @@ export const STORAGE_KEYS = {
   LAST_ACTIVITY: 'altianly_last_activity',
   GUEST_MODE: 'altianly_guest_mode',
   CHECKINS: 'altianly_checkins',
+  CUSTOM_FOODS: 'altianly_custom_foods',
 } as const
 
 export const EXERCISE_TYPES: ExerciseType[] = ['strength', 'cardio', 'metcon', 'hiit', 'combat', 'stretching', 'wellness', 'yoga']

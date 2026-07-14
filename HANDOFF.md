@@ -22,6 +22,17 @@ Until then the homepage still shows the old (already-live) version; the new fram
 
 ---
 
+## What Was Done This Session (2026-07-14, nutrition quality + custom foods)
+
+Researched how **Bevel Health** sources food data (a verified multi-source DB + user-entered custom foods; explicitly *not* an LLM as the data source) and acted on it:
+
+- **`/food/parse` fix (deployed):** rewrote the worker extraction prompt so a single named/branded item returns as ONE item (was deconstructing "Chick-fil-A Deluxe" into 8 ingredients + double-counting → 1222 kcal); rounded USDA serving-size float noise; fixed a tier-match casing bug. Live-verified (8→1).
+- **Custom foods (new feature):** create a food with per-serving macros in the Nutrition add sheet, saved locally (`customFoods.ts`, key `altianly_custom_foods`) and reusable via a "Your foods" list + prepended into search. Correct per-serving math (verified 490 kcal for the same sandwich), clean serving display. See CHANGELOG 2026-07-14.
+
+**Deferred (agreed):** a real nutrition API with restaurant coverage (Nutritionix etc.) — the step beyond custom foods, for later.
+
+---
+
 ## What Was Done This Session (2026-07-14, Feature-gap Phase 2)
 
 Built **Phase 2 (Daily Check-in + Health Score)** of `FEATURE_GAP_PLAN.md`, on branch **`feat/health-measurements`** (stacked on Phase 1):

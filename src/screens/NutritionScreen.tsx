@@ -8,8 +8,16 @@ import type { RootStackParamList, Food, Meal, MealEntry, MealType } from '../typ
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
 import { searchFoods, createMeal, getMealsForDate, getDailyTotals, deleteMeal, DEFAULT_RDI, parseFoodText, searchFoodByBarcode, computeMealCalories, scaleNutrient } from '../services/nutrition'
+import { getCustomFoods, saveCustomFood, deleteCustomFood, searchCustomFoods } from '../services/customFoods'
 import type { ParsedFoodItem } from '../types'
 import BarcodeScanner from '../components/BarcodeScanner'
+
+// Custom foods store per-serving nutrients (unit 'serving'); format their
+// serving line as "N serving(s)" instead of the raw "N × 100serving".
+function servingText(servings: number, servingSize?: number | null, servingUnit?: string | null): string {
+  if (servingUnit === 'serving') return `${servings} serving${servings !== 1 ? 's' : ''}`
+  return `${servings} × ${servingSize ?? 100}${servingUnit || 'g'}`
+}
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Nutrition'> }
 
@@ -30,11 +38,16 @@ function renderFoodResults(
         onPress={() => onSelect(f)}
       >
         <View style={{ flex: 1 }}>
-          <Text style={sty.foodName}>{f.name}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={sty.foodName}>{f.name}</Text>
+            {f.custom && (
+              <View style={sty.myFoodBadge}><Text style={sty.myFoodBadgeText}>My food</Text></View>
+            )}
+          </View>
           {f.brandName && <Text style={sty.foodBrand}>{f.brandName}</Text>}
           <Text style={sty.foodNutrients}>
             {Math.round(f.nutrients.calories)} kcal · P {f.nutrients.protein}g · C {f.nutrients.carbs}g · F {f.nutrients.fat}g
-            {f.servingSize ? ` / ${f.servingSize}${f.servingUnit || 'g'}` : ' / 100g'}
+            {f.servingUnit === 'serving' ? ' / serving' : f.servingSize ? ` / ${f.servingSize}${f.servingUnit || 'g'}` : ' / 100g'}
           </Text>
         </View>
         {sel && <Text style={sty.foodCheck}>✓</Text>}
@@ -88,6 +101,10 @@ export default function NutritionScreen(_props: Props) {
   const [parsing, setParsing] = useState(false)
   const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set())
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
+  const [customFoods, setCustomFoods] = useState<Food[]>(EMPTY_FOODS)
+  const [showCustomForm, setShowCustomForm] = useState(false)
+  const [cf, setCf] = useState({ name: '', brand: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', sugar: '', sodium: '' })
+  const [cfError, setCfError] = useState('')
 
   const totals = getDailyTotals(meals)
   const rdi = DEFAULT_RDI
@@ -95,11 +112,48 @@ export default function NutritionScreen(_props: Props) {
 
   useFocusEffect(useCallback(() => {
     loadMealsForDate(formatDate(currentDate))
+    loadCustomFoods()
   }, [currentDate]))
 
   async function loadMealsForDate(date: string) {
     const m = await getMealsForDate(date)
     setMeals(m)
+  }
+
+  async function loadCustomFoods() {
+    try { setCustomFoods(await getCustomFoods()) } catch { /* ignore */ }
+  }
+
+  function openCustomForm() {
+    setCf({ name: searchQuery.trim() || nlpText.trim(), brand: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', sugar: '', sodium: '' })
+    setCfError('')
+    setShowCustomForm(true)
+  }
+
+  async function handleSaveCustomFood() {
+    const name = cf.name.trim()
+    const calories = parseFloat(cf.calories)
+    if (!name) { setCfError('Give your food a name'); return }
+    if (isNaN(calories) || calories < 0) { setCfError('Enter the calories per serving'); return }
+    const num = (v: string) => { const n = parseFloat(v); return isNaN(n) || n < 0 ? 0 : Math.round(n * 10) / 10 }
+    const food = await saveCustomFood({
+      name,
+      brandName: cf.brand,
+      nutrients: {
+        calories: Math.round(calories),
+        protein: num(cf.protein), carbs: num(cf.carbs), fat: num(cf.fat),
+        fiber: num(cf.fiber), sugar: num(cf.sugar), sodium: num(cf.sodium),
+      },
+    })
+    await loadCustomFoods()
+    setShowCustomForm(false)
+    // Jump straight to the servings/add step with the new food selected.
+    setSelectedFood(food)
+  }
+
+  async function handleDeleteCustomFood(id: string) {
+    await deleteCustomFood(id)
+    await loadCustomFoods()
   }
 
   function changeDate(delta: number) {
@@ -112,12 +166,14 @@ export default function NutritionScreen(_props: Props) {
     if (!searchQuery.trim()) return
     setSearching(true)
     setSearchError('')
+    // Your own custom foods come first, then USDA — so a saved item always wins.
+    const custom = await searchCustomFoods(searchQuery.trim())
     try {
       const results = await searchFoods(searchQuery.trim())
-      setFoodResults(results)
+      setFoodResults([...custom, ...results])
     } catch (e) {
-      setFoodResults([] as Food[])
-      setSearchError((e as Error).message || 'Search failed. Try a different query.')
+      setFoodResults(custom)
+      if (custom.length === 0) setSearchError((e as Error).message || 'Search failed. Try a different query.')
     } finally {
       setSearching(false)
     }
@@ -338,7 +394,7 @@ export default function NutritionScreen(_props: Props) {
                   <View style={s.entryInfo}>
                     <Text style={s.entryName}>{entry.foodName}</Text>
                     <Text style={s.entryDetail}>
-                      {entry.servings} × {entry.servingSize}{entry.servingUnit}
+                      {servingText(entry.servings, entry.servingSize, entry.servingUnit)}
                       {' · '}{entry.calories} kcal · P {entry.protein}g · C {entry.carbs}g · F {entry.fat}g
                     </Text>
                   </View>
@@ -361,17 +417,60 @@ export default function NutritionScreen(_props: Props) {
       </ScrollView>
 
       {/* Food search modal */}
-      <Modal visible={!!addingToMeal} animationType="slide" transparent onRequestClose={() => { setAddingToMeal(null); setParsedItems([]); setNlpText('') }}>
+      <Modal visible={!!addingToMeal} animationType="slide" transparent onRequestClose={() => { setAddingToMeal(null); setParsedItems([]); setNlpText(''); setShowCustomForm(false) }}>
         <View style={s.modalOverlay}>
           <View style={s.modalSheet}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Add to {MEAL_TYPES.find((mt) => mt.key === addingToMeal)?.label}</Text>
-              <TouchableOpacity onPress={() => { setAddingToMeal(null); setSelectedFood(null); setFoodResults([] as Food[]); setSearchQuery(''); setParsedItems([]); setNlpText('') }}>
+              <Text style={s.modalTitle}>
+                {showCustomForm ? 'New custom food' : `Add to ${MEAL_TYPES.find((mt) => mt.key === addingToMeal)?.label}`}
+              </Text>
+              <TouchableOpacity onPress={() => { setAddingToMeal(null); setSelectedFood(null); setFoodResults([] as Food[]); setSearchQuery(''); setParsedItems([]); setNlpText(''); setShowCustomForm(false) }}>
                 <Text style={s.modalClose}>Done</Text>
               </TouchableOpacity>
             </View>
 
-            {!selectedFood ? (
+            {showCustomForm ? (
+              <ScrollView style={s.modalBody}>
+                <Text style={s.customHint}>Enter the nutrition per one serving (from the label or the menu). It's saved to reuse anytime.</Text>
+                <Text style={s.cfLabel}>Name</Text>
+                <TextInput style={s.searchInput} value={cf.name} onChangeText={(v) => setCf({ ...cf, name: v })} placeholder="e.g. Chick-fil-A Deluxe Sandwich" placeholderTextColor={theme.textMuted} />
+                <Text style={s.cfLabel}>Brand <Text style={s.cfOptional}>(optional)</Text></Text>
+                <TextInput style={s.searchInput} value={cf.brand} onChangeText={(v) => setCf({ ...cf, brand: v })} placeholder="e.g. Chick-fil-A" placeholderTextColor={theme.textMuted} />
+
+                <Text style={s.cfSectionLabel}>Per serving</Text>
+                {([
+                  ['calories', 'Calories', 'kcal'],
+                  ['protein', 'Protein', 'g'],
+                  ['carbs', 'Carbs', 'g'],
+                  ['fat', 'Fat', 'g'],
+                  ['fiber', 'Fiber (optional)', 'g'],
+                  ['sugar', 'Sugar (optional)', 'g'],
+                  ['sodium', 'Sodium (optional)', 'mg'],
+                ] as const).map(([key, label, unit]) => (
+                  <View key={key} style={s.cfNutrientRow}>
+                    <Text style={s.cfNutrientLabel}>{label}</Text>
+                    <TextInput
+                      style={s.cfNutrientInput}
+                      value={cf[key]}
+                      onChangeText={(v) => setCf({ ...cf, [key]: v })}
+                      keyboardType="decimal-pad"
+                      placeholder="0"
+                      placeholderTextColor={theme.textMuted}
+                    />
+                    <Text style={s.cfNutrientUnit}>{unit}</Text>
+                  </View>
+                ))}
+
+                {cfError ? <Text style={s.searchErrorText}>{cfError}</Text> : null}
+                <TouchableOpacity style={s.confirmButton} onPress={handleSaveCustomFood}>
+                  <Text style={s.confirmButtonText}>Save & choose servings</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.backButton} onPress={() => setShowCustomForm(false)}>
+                  <Text style={s.backButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <View style={{ height: 20 }} />
+              </ScrollView>
+            ) : !selectedFood ? (
               <View style={s.modalBody}>
                 {/* Natural language input */}
                 <Text style={s.sectionLabel}>Quick add</Text>
@@ -438,6 +537,37 @@ export default function NutritionScreen(_props: Props) {
                   </View>
                 )}
 
+                {/* Create custom food + reuse your saved ones */}
+                <TouchableOpacity style={s.createCustomBtn} onPress={openCustomForm}>
+                  <Text style={s.createCustomText}>＋ Create a custom food</Text>
+                </TouchableOpacity>
+
+                {customFoods.length > 0 && (
+                  <>
+                    <Text style={s.sectionLabel}>Your foods</Text>
+                    <View style={s.yourFoods}>
+                      {(searchQuery.trim()
+                        ? customFoods.filter((f) => f.name.toLowerCase().includes(searchQuery.trim().toLowerCase()) || (f.brandName || '').toLowerCase().includes(searchQuery.trim().toLowerCase()))
+                        : customFoods
+                      ).map((f) => (
+                        <View key={f.id} style={s.customRow}>
+                          <TouchableOpacity style={{ flex: 1 }} onPress={() => setSelectedFood(f)}>
+                            <Text style={s.foodName}>{f.name}</Text>
+                            {f.brandName ? <Text style={s.foodBrand}>{f.brandName}</Text> : null}
+                            <Text style={s.foodNutrients}>
+                              {Math.round(f.nutrients.calories)} kcal · P {f.nutrients.protein}g · C {f.nutrients.carbs}g · F {f.nutrients.fat}g / serving
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => handleDeleteCustomFood(f.id)} style={s.entryDelete}>
+                            <Text style={s.entryDeleteText}>✕</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                    <View style={s.divider} />
+                  </>
+                )}
+
                 {/* Search input */}
                 <Text style={s.sectionLabel}>Search USDA database</Text>
                 <View style={s.searchRow}>
@@ -473,7 +603,9 @@ export default function NutritionScreen(_props: Props) {
                   <Text style={s.selectedFoodName}>{selectedFood.name}</Text>
                   {selectedFood.brandName && <Text style={s.selectedFoodBrand}>{selectedFood.brandName}</Text>}
                   <Text style={s.selectedFoodServing}>
-                    Serving: {selectedFood.servingSize || 100}{selectedFood.servingUnit || 'g'} — {Math.round(selectedFood.nutrients.calories)} kcal
+                    {selectedFood.servingUnit === 'serving'
+                      ? `Per serving — ${Math.round(selectedFood.nutrients.calories)} kcal`
+                      : `Serving: ${selectedFood.servingSize || 100}${selectedFood.servingUnit || 'g'} — ${Math.round(selectedFood.nutrients.calories)} kcal`}
                   </Text>
                 </View>
 
@@ -675,6 +807,34 @@ const styles = (t: Theme) => StyleSheet.create({
   tierBadge: { borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1 },
   tierText: { fontSize: 10, fontWeight: '700' },
   divider: { height: 1, backgroundColor: t.border, marginVertical: 12 },
+
+  // Custom foods
+  createCustomBtn: {
+    borderWidth: 1, borderColor: t.accent, borderStyle: 'dashed', borderRadius: 8,
+    padding: 12, alignItems: 'center', marginBottom: 16,
+  },
+  createCustomText: { color: t.accent, fontSize: 14, fontWeight: '600' },
+  yourFoods: { marginBottom: 4 },
+  customRow: {
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: t.border,
+  },
+  myFoodBadge: { backgroundColor: t.accent + '20', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1 },
+  myFoodBadgeText: { color: t.accent, fontSize: 10, fontWeight: '700' },
+  customHint: { color: t.textSecondary, fontSize: 13, lineHeight: 19, marginBottom: 16 },
+  cfLabel: { color: t.text, fontSize: 14, fontWeight: '600', marginBottom: 6, marginTop: 4 },
+  cfOptional: { color: t.textMuted, fontSize: 11, fontWeight: '400' },
+  cfSectionLabel: {
+    color: t.textSecondary, fontSize: 12, fontWeight: '600', marginTop: 18, marginBottom: 8,
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  cfNutrientRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 12 },
+  cfNutrientLabel: { color: t.text, fontSize: 14, flex: 1 },
+  cfNutrientInput: {
+    backgroundColor: t.inputBg, borderWidth: 1, borderColor: t.border, borderRadius: 8,
+    padding: 10, color: t.text, fontSize: 15, width: 90, textAlign: 'right',
+  },
+  cfNutrientUnit: { color: t.textMuted, fontSize: 13, width: 34 },
 
   // Selected food
   selectedFoodCard: {
