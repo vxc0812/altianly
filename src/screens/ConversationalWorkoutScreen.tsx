@@ -24,7 +24,8 @@ import { Theme } from '../constants/theme';
 import { DEFAULT_LLM_CONFIG } from '../constants';
 import { getLLMConfig, saveWorkoutPlan, getBMIHistory } from '../services/storage';
 import { AITrainerAgent } from '../services/agent/AITrainerAgent';
-import type { AITrainerResponse } from '../services/agent/AITrainerAgent';
+import type { AITrainerResponse, ChatTurn } from '../services/agent/AITrainerAgent';
+import { buildCoachContext } from '../services/coachContext';
 import type { StructuredWorkoutPlan, WorkoutPlan } from '../types';
 
 interface Message {
@@ -34,6 +35,8 @@ interface Message {
   timestamp: number;
   /** Present when the AI produced a structured plan — enables "Save Plan" */
   plan?: StructuredWorkoutPlan;
+  /** A session wrap-up summary — rendered as a distinct card. */
+  summary?: boolean;
 }
 
 export function ConversationalWorkoutScreen() {
@@ -45,14 +48,22 @@ export function ConversationalWorkoutScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [agent, setAgent] = useState<AITrainerAgent | null>(null);
   const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [knowsClient, setKnowsClient] = useState(false);
+  const [summarizing, setSummarizing] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
     (async () => {
       const cfg = (await getLLMConfig()) || DEFAULT_LLM_CONFIG;
-      setAgent(new AITrainerAgent({ llmConfig: cfg }));
+      // Ground the coach in the client's real data before the first message.
+      const coachContext = await buildCoachContext();
+      setAgent(new AITrainerAgent({ llmConfig: cfg, coachContext: coachContext ?? undefined }));
+      setKnowsClient(!!coachContext);
     })();
   }, []);
+
+  const historyFor = (msgs: Message[]): ChatTurn[] =>
+    msgs.filter(m => !m.summary).map(m => ({ role: m.isUser ? 'user' : 'assistant', text: m.text }));
 
   const handleSend = useCallback(async () => {
     if (!inputText.trim() || isLoading || !agent) return;
@@ -64,12 +75,13 @@ export function ConversationalWorkoutScreen() {
       timestamp: Date.now(),
     };
 
+    const history = historyFor(messages);
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
     setIsLoading(true);
 
     try {
-      const result = await agent.chat(inputText.trim());
+      const result = await agent.chat(inputText.trim(), history);
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -91,7 +103,33 @@ export function ConversationalWorkoutScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [inputText, isLoading, agent]);
+  }, [inputText, isLoading, agent, messages]);
+
+  const handleWrapUp = useCallback(async () => {
+    if (!agent || summarizing) return;
+    const history = historyFor(messages);
+    if (history.length === 0) return;
+    setSummarizing(true);
+    try {
+      const summary = await agent.summarize(history);
+      setMessages(prev => [...prev, {
+        id: `sum_${Date.now()}`,
+        text: summary,
+        isUser: false,
+        timestamp: Date.now(),
+        summary: true,
+      }]);
+    } catch (error) {
+      setMessages(prev => [...prev, {
+        id: `sum_${Date.now()}`,
+        text: `Couldn't build a summary. ${error instanceof Error ? error.message : ''}`.trim(),
+        isUser: false,
+        timestamp: Date.now(),
+      }]);
+    } finally {
+      setSummarizing(false);
+    }
+  }, [agent, summarizing, messages]);
 
   const handleSavePlan = useCallback(async (message: Message) => {
     if (!message.plan || savedIds.includes(message.id)) return;
@@ -114,6 +152,14 @@ export function ConversationalWorkoutScreen() {
 
   const renderMessage = ({ item }: { item: Message }) => {
     const isSaved = savedIds.includes(item.id);
+    if (item.summary) {
+      return (
+        <View style={s.summaryCard}>
+          <Text style={s.summaryLabel}>📋 Session summary</Text>
+          <Text style={[s.messageText, { color: theme.text }]}>{item.text}</Text>
+        </View>
+      );
+    }
     return (
       <View style={[
         s.messageBubble,
@@ -154,8 +200,29 @@ export function ConversationalWorkoutScreen() {
             <Text style={s.backText}>{'< Back'}</Text>
           </TouchableOpacity>
           <Text style={s.headerTitle}>AI Trainer</Text>
-          <View style={{ width: 50 }} />
+          {messages.length > 0 ? (
+            <TouchableOpacity
+              onPress={handleWrapUp}
+              disabled={summarizing}
+              accessibilityRole="button"
+              accessibilityLabel="Wrap up and summarize this session"
+            >
+              {summarizing
+                ? <ActivityIndicator size="small" color={theme.accent} />
+                : <Text style={s.wrapUpText}>Wrap up</Text>}
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 60 }} />
+          )}
         </View>
+
+        {knowsClient && messages.length === 0 && (
+          <View style={s.knowsHint}>
+            <Text style={s.knowsHintText}>
+              ✓ Your coach can see your latest BMI, workouts, check-ins and nutrition — ask anything.
+            </Text>
+          </View>
+        )}
         <FlatList
           ref={flatListRef}
           data={messages}
@@ -241,6 +308,41 @@ const styles = (t: Theme) => StyleSheet.create({
     color: t.text,
     fontSize: 17,
     fontWeight: '700',
+  },
+  wrapUpText: {
+    color: t.accent,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  knowsHint: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: t.accent + '14',
+    borderWidth: 1,
+    borderColor: t.accent + '33',
+  },
+  knowsHintText: {
+    color: t.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  summaryCard: {
+    backgroundColor: t.surface,
+    borderWidth: 1,
+    borderColor: t.accent,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 8,
+  },
+  summaryLabel: {
+    color: t.accent,
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   messagesList: {
     padding: 16,

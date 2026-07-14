@@ -93,7 +93,7 @@ Sequenced so the health-measurement work the doc explicitly called out lands fir
 - **Composite Health Score** blending BMI band, activity streak, check-in trends, and nutrition adherence → the single hero number both competitors lead with
 - Fix habits on web (mirror nutrition's AsyncStorage path so the `database.web.ts` mock stops returning empty)
 
-### Phase 3 — Smarter AI Coach — ~1.5 sprints
+### Phase 3 — Smarter AI Coach — ~1.5 sprints  ✅ DONE (2026-07-14)
 - Feed the coach real context (latest BMI, recent logs, check-ins, goals) in `buildPrompt` / ConversationalWorkout — the "compounds over time" differentiator
 - Add a **GROW-style structured session** that ends with a summary + action items saved to history
 - (Stretch) voice input via `expo-speech` / mic

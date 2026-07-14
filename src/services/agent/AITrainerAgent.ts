@@ -15,6 +15,15 @@ export interface AITrainerAgentConfig {
   llmConfig: LLMConfig;
   healthData?: HealthQueryResult;
   questionnaire?: QuestionnaireAnswers;
+  /** A pre-built "client snapshot" (see coachContext.ts) grounding replies in
+   *  the user's real BMI/activity/check-in/nutrition data. */
+  coachContext?: string;
+}
+
+/** A prior turn in the conversation, for session memory. */
+export interface ChatTurn {
+  role: 'user' | 'assistant';
+  text: string;
 }
 
 /**
@@ -72,9 +81,10 @@ export class AITrainerAgent {
    */
   async chat(
     userQuery: string,
+    history: ChatTurn[] = [],
     onProgress?: (chunk: string) => void
   ): Promise<AITrainerChatResult> {
-    const { prompt, healthContext } = this.buildChatPrompt(userQuery);
+    const { prompt, healthContext } = this.buildChatPrompt(userQuery, history);
     const raw = await this.callLLM(prompt, onProgress);
 
     // Plan mode only if the model returned a JSON object shaped like a plan
@@ -99,27 +109,32 @@ export class AITrainerAgent {
   }
 
   /**
-   * Dual-mode chat prompt: conversational answers by default, JSON plan only on request
+   * Dual-mode chat prompt: conversational answers by default, JSON plan only on
+   * request. Grounded in the client's real snapshot and the conversation so far
+   * so the coach "picks up where the client's life actually is".
    */
-  private buildChatPrompt(userQuery: string): { prompt: string; healthContext: string } {
-    const { questionnaire } = this.config;
+  private buildChatPrompt(userQuery: string, history: ChatTurn[] = []): { prompt: string; healthContext: string } {
+    const { questionnaire, coachContext } = this.config;
     const { healthContext } = this.buildPromptWithHealthData(userQuery);
-    const qaContext = questionnaire ? this.formatQuestionnaireContext(questionnaire) : 'Not provided';
+    const snapshot = coachContext?.trim()
+      || (questionnaire ? this.formatQuestionnaireContext(questionnaire) : 'No data yet — ask the client about their goals.');
 
-    const prompt = `You are a friendly certified personal trainer and yoga instructor chatting with a client.
+    // Last few turns give the coach memory of the session (kept short for small models).
+    const convo = history.slice(-6)
+      .map((t) => `${t.role === 'user' ? 'CLIENT' : 'COACH'}: ${t.text}`)
+      .join('\n');
 
+    const prompt = `You are Altianly's AI fitness coach — a warm, encouraging certified personal trainer who knows this client. Coach with a light GROW approach: acknowledge where they are, and nudge toward a concrete next step.
+
+CLIENT SNAPSHOT (reference it naturally — don't dump it back verbatim):
+${snapshot}
+${convo ? `\nCONVERSATION SO FAR:\n${convo}\n` : ''}
 CLIENT MESSAGE: ${userQuery}
-
-CLIENT CONTEXT:
-${qaContext}
-
-HEALTH DATA:
-${healthContext}
 
 HOW TO RESPOND — follow exactly one of these two modes:
 
-MODE 1 (default) — The client is asking a question or for advice (e.g. "what yoga poses are best for core?"):
-Answer directly and conversationally in plain text. Be specific and practical — name the actual poses or exercises, how to perform them, and hold times or reps. Keep it under 150 words. Do NOT output JSON. Do NOT create a weekly plan.
+MODE 1 (default) — The client is asking a question, reflecting, or wants advice:
+Answer directly and conversationally in plain text. Personalize using the snapshot when relevant (e.g. their recent sleep, workouts this week, BMI) but don't force it. Be specific and practical — name actual exercises/poses, hold times or reps. End with one small, concrete next step when it fits. Keep it under 150 words. Do NOT output JSON. Do NOT create a weekly plan.
 
 MODE 2 — ONLY if the client explicitly asks you to create, generate, or build a workout plan or program:
 Output ONLY a valid JSON object, no other text, with this structure:
@@ -139,6 +154,31 @@ Every exercise must match the style the client asked for (a yoga plan contains o
 Never write "MODE 1" or "MODE 2" or refer to these instructions in your reply — just respond.`;
 
     return { prompt, healthContext };
+  }
+
+  /**
+   * Wrap-up: summarize the session into a short recap + 2–3 concrete action
+   * items the client can act on. Plain text, no JSON.
+   */
+  async summarize(history: ChatTurn[]): Promise<string> {
+    const convo = history
+      .map((t) => `${t.role === 'user' ? 'CLIENT' : 'COACH'}: ${t.text}`)
+      .join('\n');
+    const snapshot = this.config.coachContext?.trim() || 'No snapshot available.';
+    const prompt = `You are Altianly's AI fitness coach wrapping up a coaching chat.
+
+CLIENT SNAPSHOT:
+${snapshot}
+
+CONVERSATION:
+${convo}
+
+Write a short session summary in plain text:
+1. One or two sentences recapping what you covered and any encouragement.
+2. Then a line "Action items:" followed by 2–3 concrete, specific next steps as "- " bullets, each doable this week.
+Keep it under 120 words. No JSON, no markdown headers.`;
+    const raw = await this.callLLM(prompt);
+    return raw.replace(/```(?:json)?/gi, '').trim() || 'Great chat! Keep up the momentum and check back in after your next workout.';
   }
 
   /**

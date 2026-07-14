@@ -4,6 +4,19 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 
 ---
 
+## 2026-07-14 — Smarter AI coach: real context + session memory + wrap-up (Feature-gap Phase 3)
+
+The AI Trainer chat previously ran with **no** client context and no memory — every reply was generic (the exact "starts from scratch" gap Mind Wobble/Lumia close). Phase 3 makes it "a coach that knows you."
+
+- **Grounded in real data.** New `src/services/coachContext.ts` builds a "client snapshot" from everything Phases 1–2 track — latest BMI + body-fat/waist-to-height, weight trend, workouts this week, last workout, today's check-in (mood/energy/stress/sleep), today's calories, and the composite Health Score — and injects it into every prompt. The chat shows a "✓ Your coach can see your latest BMI, workouts, check-ins and nutrition" hint. Verified live: the coach cited the user's 7.5h sleep, "week without workouts," and health score unprompted.
+- **Session memory.** `AITrainerAgent.chat()` now takes the recent conversation turns, so the coach remembers the session (verified: it referenced a walk it had just suggested and offered an indoor alternative). Prompt also adopts a light **GROW coaching stance** — acknowledge where you are, end with one concrete next step.
+- **Wrap-up.** A "Wrap up" header action calls `AITrainerAgent.summarize()` to produce a session recap + 2–3 concrete **action items**, rendered as a distinct summary card.
+- Typecheck + lint green; all three verified in-browser against the live Cloudflare AI worker.
+
+**Phase 3 stretch (deferred):** voice input.
+
+---
+
 ## 2026-07-14 — Fix: meal edits re-scaled existing entries' calories
 
 Found while cleaning up test data: deleting one item from a meal — or **adding a second item** — changed the *other* entries' numbers (a logged item with a 289g serving jumped 390 → 1127 kcal, and ballooned further on each edit).

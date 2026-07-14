@@ -22,6 +22,19 @@ Remaining task (no longer blocks a deploy):
 
 ---
 
+## What Was Done This Session (2026-07-14, Feature-gap Phase 3 — smarter AI coach)
+
+Made the AI Trainer chat "a coach that knows you" (it previously ran contextless + memoryless). **Deployed to production.**
+
+- **Real context** — `src/services/coachContext.ts` builds a client snapshot (BMI + body-fat/WHtR, weight trend, workouts this week, last workout, today's check-in, today's calories, Health Score) injected into every prompt. Chat shows a "✓ your coach can see your stats" hint. Verified live: coach cited 7.5h sleep, "week without workouts", health score unprompted.
+- **Session memory** — `AITrainerAgent.chat(query, history)` includes recent turns; prompt adopts a light GROW stance. Verified: it remembered a walk it suggested and pivoted to an indoor alternative.
+- **Wrap-up** — "Wrap up" header action → `AITrainerAgent.summarize()` produces a recap + 2–3 action items in a distinct summary card.
+- Typecheck + lint green. See CHANGELOG 2026-07-14. **Stretch deferred:** voice input.
+
+**All 3 planned build phases of `FEATURE_GAP_PLAN.md` are now done** (Phase 1 measurements, Phase 2 check-in/score, Phase 3 coach). Remaining plan items are optional (Phase 4 goals/journaling, Phase 5 Serenity + Apple Health/Google Fit).
+
+---
+
 ## What Was Done This Session (2026-07-14, nutrition quality + custom foods)
 
 Researched how **Bevel Health** sources food data (a verified multi-source DB + user-entered custom foods; explicitly *not* an LLM as the data source) and acted on it. **All deployed to production** (`master` pushes auto-deploy the Pages app; the `/food/parse` change also needed a separate `altianly-ai` worker deploy):
