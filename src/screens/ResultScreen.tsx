@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-nati
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RouteProp } from '@react-navigation/native'
 import { RootStackParamList, UserInput, Lifestyle, ExerciseLevel, TrainingSplit, PrimaryGoal, WorkoutEnvironment, WorkoutChoice } from '../types'
-import { calculateBMI } from '../services/bmi'
+import { calculateBMI, totalHeightInches, waistToHeight, estimateBodyFatNavy } from '../services/bmi'
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
 import { WORKOUT_CHOICES } from '../constants'
@@ -126,6 +126,19 @@ export default function ResultScreen({ navigation, route }: Props) {
   const color = evaluationColors[evaluation]
   const recommendations = getRecommendations(evaluation, userInput)
 
+  // Optional body-composition metrics — only when the user supplied measurements.
+  const heightIn = totalHeightInches(userInput.heightFeet, userInput.heightInches)
+  const whtr = userInput.waistInches ? waistToHeight(userInput.waistInches, heightIn) : null
+  const bodyFat = estimateBodyFatNavy(
+    userInput.gender,
+    { waistInches: userInput.waistInches, neckInches: userInput.neckInches, hipInches: userInput.hipInches },
+    heightIn,
+  )
+  const bodyCompColors: Record<string, string> = {
+    low: '#58A6FF', healthy: '#3FB950', increased: '#D29922', high: '#F85149',
+    essential: '#58A6FF', athlete: '#3FB950', fitness: '#3FB950', average: '#D29922',
+  }
+
   const [workoutChoice, setWorkoutChoice] = useState<WorkoutChoice | null>(null)
   const [lifestyle, setLifestyle] = useState<Lifestyle | null>(null)
   const [exerciseLevel, setExerciseLevel] = useState<ExerciseLevel | null>(null)
@@ -168,6 +181,30 @@ export default function ResultScreen({ navigation, route }: Props) {
           BMI is a rough screening tool based on height and weight only. It can't tell the difference between muscle and fat, and it's one input among several (goals, experience, equipment) in your plan — not the main driver.
         </Text>
       </View>
+
+      {(whtr || bodyFat) && (
+        <View style={s.bodyCompRow}>
+          {whtr && (
+            <View style={s.bodyCompCard}>
+              <Text style={[s.bodyCompValue, { color: bodyCompColors[whtr.category] }]}>{whtr.ratio.toFixed(2)}</Text>
+              <Text style={s.bodyCompMetric}>Waist-to-height</Text>
+              <Text style={[s.bodyCompLabel, { color: bodyCompColors[whtr.category] }]}>{whtr.label}</Text>
+            </View>
+          )}
+          {bodyFat && (
+            <View style={s.bodyCompCard}>
+              <Text style={[s.bodyCompValue, { color: bodyCompColors[bodyFat.category] }]}>{bodyFat.percent}%</Text>
+              <Text style={s.bodyCompMetric}>Body fat (est.)</Text>
+              <Text style={[s.bodyCompLabel, { color: bodyCompColors[bodyFat.category] }]}>{bodyFat.label}</Text>
+            </View>
+          )}
+        </View>
+      )}
+      {bodyFat && (
+        <Text style={s.bodyCompNote}>
+          Body fat is a US Navy tape-measure estimate — a helpful trend to track, not a clinical measurement.
+        </Text>
+      )}
 
       <Text style={s.sectionTitle}>Health Insights</Text>
       {recommendations.map((rec, i) => (
@@ -351,6 +388,12 @@ const styles = (t: Theme) => StyleSheet.create({
   badge: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20, marginTop: 12 },
   badgeText: { fontSize: 16, fontWeight: '700' },
   bmiNote: { fontSize: 12, color: t.textMuted, marginTop: 14, textAlign: 'center', lineHeight: 18, paddingHorizontal: 8 },
+  bodyCompRow: { flexDirection: 'row', gap: 12, marginBottom: 8 },
+  bodyCompCard: { flex: 1, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 12, padding: 16, alignItems: 'center' },
+  bodyCompValue: { fontSize: 28, fontWeight: '800' },
+  bodyCompMetric: { fontSize: 13, color: t.textSecondary, marginTop: 2 },
+  bodyCompLabel: { fontSize: 12, fontWeight: '700', marginTop: 6 },
+  bodyCompNote: { fontSize: 11, color: t.textMuted, textAlign: 'center', lineHeight: 16, marginBottom: 16, paddingHorizontal: 8 },
   sectionTitle: { fontSize: 20, fontWeight: '700', color: t.text, marginBottom: 16, marginTop: 8 },
   actionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   actionIcon: { fontSize: 20, marginRight: 10 },

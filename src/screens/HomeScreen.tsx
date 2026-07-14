@@ -23,7 +23,7 @@ import {
 import { useTheme } from '../context/ThemeContext'
 import { Theme } from '../constants/theme'
 import { CM_PER_INCH, LBS_PER_KG, TRAINING_SPLITS, WORKOUT_CHOICES, DEFAULT_LLM_CONFIGS } from '../constants'
-import { calculateBMI } from '../services/bmi'
+import { calculateBMI, totalHeightInches, estimateBodyFatNavy, waistToHeight } from '../services/bmi'
 import {
   saveBMIEntry, getBMIHistory, getWorkoutHistory,
   saveWorkoutPlan, getWorkoutLogs,
@@ -106,6 +106,10 @@ export default function HomeScreen({ navigation }: Props) {
   const [feet, setFeet] = useState('')
   const [inches, setInches] = useState('')
   const [weight, setWeight] = useState('')
+  const [waist, setWaist] = useState('')
+  const [neck, setNeck] = useState('')
+  const [hip, setHip] = useState('')
+  const [measurementsExpanded, setMeasurementsExpanded] = useState(false)
   const [error, setError] = useState('')
   const [userName, setUserName] = useState('')
 
@@ -199,9 +203,31 @@ export default function HomeScreen({ navigation }: Props) {
       if (!w || w < 20 || w > 1000) { setError('Please enter a valid weight in lbs (20-1000)'); return }
     }
 
-    const userInput = { age: a, gender: g, unitSystem, heightFeet: f, heightInches: i, weightLbs: Math.round(w) }
+    // Optional body-composition inputs. Stored internally in inches; metric
+    // entries arrive in cm. Skipped silently when left blank.
+    const toInches = (raw: string): number | undefined => {
+      const n = parseFloat(raw)
+      if (!n || n <= 0) return undefined
+      const inches = unitSystem === 'metric' ? n / CM_PER_INCH : n
+      return Math.round(inches * 10) / 10
+    }
+    const waistInches = toInches(waist)
+    const neckInches = toInches(neck)
+    const hipInches = toInches(hip)
+
+    const userInput = {
+      age: a, gender: g, unitSystem, heightFeet: f, heightInches: i, weightLbs: Math.round(w),
+      waistInches, neckInches, hipInches,
+    }
     const { bmi, evaluation } = calculateBMI(userInput.weightLbs, userInput.heightFeet, userInput.heightInches)
-    await saveBMIEntry({ bmi, weightLbs: Math.round(w), evaluation, timestamp: Date.now(), age: a, gender: g })
+
+    const heightIn = totalHeightInches(f, i)
+    const whtr = waistInches ? waistToHeight(waistInches, heightIn)?.ratio : undefined
+    const bodyFatPct = estimateBodyFatNavy(g, { waistInches, neckInches, hipInches }, heightIn)?.percent
+    await saveBMIEntry({
+      bmi, weightLbs: Math.round(w), evaluation, timestamp: Date.now(), age: a, gender: g,
+      waistInches, neckInches, hipInches, bodyFatPct, waistToHeightRatio: whtr,
+    })
 
     const entries = await getBMIHistory()
     const s = computeStreak(entries)
@@ -678,6 +704,64 @@ export default function HomeScreen({ navigation }: Props) {
               />
             </View>
 
+            <TouchableOpacity
+              style={s.measureToggle}
+              onPress={() => setMeasurementsExpanded(!measurementsExpanded)}
+              accessibilityRole="button"
+              accessibilityLabel={measurementsExpanded ? 'Hide optional body measurements' : 'Add optional body measurements for a fuller picture'}
+            >
+              <Text style={s.measureToggleText}>
+                {measurementsExpanded ? '▲' : '＋'}  Body measurements
+                <Text style={s.optionalTag}>  (optional)</Text>
+              </Text>
+            </TouchableOpacity>
+
+            {measurementsExpanded && (
+              <View>
+                <Text style={s.measureHint}>
+                  A tape measure adds a fuller picture than BMI alone — waist-to-height
+                  ratio and a body-fat estimate. All optional.
+                  {unitSystem === 'metric' ? ' Enter in cm.' : ' Enter in inches.'}
+                </Text>
+                <View style={s.inputGroup}>
+                  <Text style={s.label}>Waist</Text>
+                  <TextInput
+                    style={s.input}
+                    value={waist}
+                    onChangeText={setWaist}
+                    keyboardType="decimal-pad"
+                    placeholder={unitSystem === 'metric' ? 'Around navel (cm)' : 'Around navel (in)'}
+                    placeholderTextColor={theme.textMuted}
+                    accessibilityLabel="Enter your waist measurement"
+                  />
+                </View>
+                <View style={s.inputGroup}>
+                  <Text style={s.label}>Neck</Text>
+                  <TextInput
+                    style={s.input}
+                    value={neck}
+                    onChangeText={setNeck}
+                    keyboardType="decimal-pad"
+                    placeholder={unitSystem === 'metric' ? 'Below larynx (cm)' : 'Below larynx (in)'}
+                    placeholderTextColor={theme.textMuted}
+                    accessibilityLabel="Enter your neck measurement"
+                  />
+                </View>
+                <View style={s.inputGroup}>
+                  <Text style={s.label}>Hip <Text style={s.optionalTag}>(for body-fat estimate if female)</Text></Text>
+                  <TextInput
+                    style={s.input}
+                    value={hip}
+                    onChangeText={setHip}
+                    keyboardType="decimal-pad"
+                    placeholder={unitSystem === 'metric' ? 'Widest point (cm)' : 'Widest point (in)'}
+                    placeholderTextColor={theme.textMuted}
+                    accessibilityLabel="Enter your hip measurement"
+                  />
+                </View>
+              </View>
+            )}
+
             {error ? <Text style={s.error}>{error}</Text> : null}
 
             <TouchableOpacity
@@ -970,6 +1054,10 @@ const styles = (t: Theme) => StyleSheet.create({
   row: { flexDirection: 'row', gap: 12 },
   halfInput: { flex: 1 },
   error: { color: t.danger, textAlign: 'center', marginBottom: 16 },
+  measureToggle: { paddingVertical: 12, marginTop: 4, marginBottom: 4 },
+  measureToggleText: { color: t.accent, fontSize: 14, fontWeight: '600' },
+  optionalTag: { fontSize: 11, fontWeight: '400', color: t.textMuted },
+  measureHint: { fontSize: 12, color: t.textMuted, lineHeight: 18, marginBottom: 12 },
   button: { backgroundColor: t.success, padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 8 },
   buttonText: { color: t.successText, fontSize: 16, fontWeight: '700' },
 

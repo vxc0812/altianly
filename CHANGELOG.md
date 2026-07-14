@@ -4,6 +4,20 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 
 ---
 
+## 2026-07-14 — Richer Health Snapshot: body-composition measurements (Feature-gap Phase 1)
+
+First slice of the competitor gap plan (`FEATURE_GAP_PLAN.md`, Phase 1) — the "other health measurements" the external feedback (Section 6) asked for, so BMI is no longer the only signal.
+
+- **Optional body measurements on the BMI check.** New collapsible "＋ Body measurements (optional)" section on HomeScreen's Health Snapshot collects **waist, neck, and hip** (inches, or cm when Metric is selected — converted to inches internally). All fields are skippable; blank inputs are ignored.
+- **Two new derived metrics on the Result screen.** When measurements are supplied, the result shows **Waist-to-height ratio** (with Healthy/Increased/High banding) and a **US Navy body-fat estimate** (Athletic/Fitness/Average bands), both color-coded, with a note that body fat is a tape-measure estimate, not clinical. Verified live: 34"/15.5"/70" → 16.5% body fat "Fitness", 0.49 WHtR "Healthy range".
+- **Math in `src/services/bmi.ts`.** Added `waistToHeight()`, `estimateBodyFatNavy()` (male/female formulas; 'other' falls back sensibly), `totalHeightInches()`, and body-fat/WHtR classification helpers. Types added to `src/types/index.ts` (`BodyMeasurements`, `WaistHeightResult`, `BodyFatResult`; optional fields on `UserInput` and `BMIHistoryEntry`).
+- **Persisted + trendable.** Each BMI check now stores `waistInches`/`neckInches`/`hipInches`/`bodyFatPct`/`waistToHeightRatio`. HistoryGraph gained **Body Fat** and **Waist** metric toggles (line chart + stats + records), with a friendly empty state for records that predate the measurement.
+- Typecheck + lint green.
+
+**Still open in Phase 1:** progress-photo log; broader body metrics (chest/arm/thigh). **Next phases** (daily check-in + composite Health Score, smarter AI coach, goals/journaling) tracked in `FEATURE_GAP_PLAN.md`.
+
+---
+
 ## 2026-07-13 — Tier 3 phone-mockup screens + nutrition name fix
 
 - **Homepage "App Screens" section rebuilt as phone mockups.** Replaced the emoji "screen cards" with CSS phone frames (dark bezel, rounded screen) for the 6 chosen screens (Home, AI Workout Plan, Nutrition, BMI & Insights, Progress Graphs, Workout Log). Each frame loads a real screenshot from `public/screens/<name>.png`; until a file exists, an `onerror` handler hides the `<img>` and a labeled placeholder (emoji + screen name on a soft gradient) shows through — so the section never displays a broken image. See `public/screens/README.md` for the exact filenames + capture tips (mobile aspect ratio, cream theme, ~2×). **Real PNGs still to be added** (browser-automation capture was blocked by tooling; the design/frames are done).

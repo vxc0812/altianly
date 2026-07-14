@@ -37,6 +37,37 @@ const TIME_UNITS: { value: GraphTimeUnit; label: string }[] = [
   { value: 'years', label: 'Years' },
 ]
 
+const METRICS: { value: GraphMetric; label: string }[] = [
+  { value: 'bmi', label: 'BMI' },
+  { value: 'weight', label: 'Weight' },
+  { value: 'bodyfat', label: 'Body Fat' },
+  { value: 'waist', label: 'Waist' },
+]
+
+const metricColors: Record<GraphMetric, string> = {
+  bmi: '#6B4FBC', weight: '#6B4FBC', bodyfat: '#D96A2B', waist: '#2B8FD9',
+}
+
+// Returns the plotted value for a metric, or null when the entry lacks it
+// (body-fat / waist are optional, so older records may not have them).
+function metricValue(entry: BMIHistoryEntry, metric: GraphMetric): number | null {
+  switch (metric) {
+    case 'bmi': return entry.bmi
+    case 'weight': return entry.weightLbs
+    case 'bodyfat': return entry.bodyFatPct ?? null
+    case 'waist': return entry.waistToHeightRatio ?? null
+  }
+}
+
+function formatMetric(value: number, metric: GraphMetric): string {
+  switch (metric) {
+    case 'bmi': return `BMI ${value}`
+    case 'weight': return `${value} lbs`
+    case 'bodyfat': return `${value}% body fat`
+    case 'waist': return `${value.toFixed(2)} waist-to-height`
+  }
+}
+
 function aggregateData(
   entries: BMIHistoryEntry[],
   unit: GraphTimeUnit,
@@ -56,6 +87,8 @@ function aggregateData(
   const buckets = new Map<string, Bucket>()
 
   for (const entry of sorted) {
+    const value = metricValue(entry, metric)
+    if (value === null) continue
     const d = new Date(entry.timestamp)
     let key: string
     let label: string
@@ -89,7 +122,7 @@ function aggregateData(
       buckets.set(key, { label, values: [], entries: [], key })
     }
     const bucket = buckets.get(key)!
-    bucket.values.push(metric === 'bmi' ? entry.bmi : entry.weightLbs)
+    bucket.values.push(value)
     bucket.entries.push(entry)
   }
 
@@ -99,7 +132,7 @@ function aggregateData(
     const avg = bucket.values.reduce((a, b) => a + b, 0) / bucket.values.length
     const point: DataPoint = {
       label: bucket.label,
-      value: Math.round(avg * 10) / 10,
+      value: metric === 'waist' ? Math.round(avg * 100) / 100 : Math.round(avg * 10) / 10,
       timestamp: bucket.entries[bucket.entries.length - 1].timestamp,
     }
     groups.push({ points: [point], raw: bucket.entries })
@@ -116,7 +149,7 @@ const evaluationColors: Record<string, string> = {
 }
 
 function getMetricColor(metric: GraphMetric, entry: BMIHistoryEntry): string {
-  return metric === 'bmi' ? evaluationColors[entry.evaluation] : '#6B4FBC'
+  return metric === 'bmi' ? evaluationColors[entry.evaluation] : metricColors[metric]
 }
 
 export default function HistoryGraphScreen({ navigation }: Props) {
@@ -138,6 +171,10 @@ export default function HistoryGraphScreen({ navigation }: Props) {
 
   const groups = aggregateData(allEntries, timeUnit, metric)
   const chartData = groups.map((g) => g.points[0])
+  // Records that actually carry the selected metric (body-fat / waist are optional).
+  const metricEntries = allEntries.filter((e) => metricValue(e, metric) !== null)
+  const metricLabel = METRICS.find((m) => m.value === metric)!.label
+  const decimals = metric === 'waist' ? 2 : metric === 'weight' ? 0 : 1
 
   async function handleDeleteAll() {
     const ok = await confirmWeb(`Delete all ${allEntries.length} BMI and weight records? This cannot be undone.`)
@@ -170,18 +207,15 @@ export default function HistoryGraphScreen({ navigation }: Props) {
       </View>
 
       <View style={s.metricToggle}>
-        <TouchableOpacity
-          style={[s.metricOption, metric === 'bmi' && s.metricOptionActive]}
-          onPress={() => setMetric('bmi')}
-        >
-          <Text style={[s.metricLabel, metric === 'bmi' && s.metricLabelActive]}>BMI</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[s.metricOption, metric === 'weight' && s.metricOptionActive]}
-          onPress={() => setMetric('weight')}
-        >
-          <Text style={[s.metricLabel, metric === 'weight' && s.metricLabelActive]}>Weight (lbs)</Text>
-        </TouchableOpacity>
+        {METRICS.map((m) => (
+          <TouchableOpacity
+            key={m.value}
+            style={[s.metricOption, metric === m.value && s.metricOptionActive]}
+            onPress={() => setMetric(m.value)}
+          >
+            <Text style={[s.metricLabel, metric === m.value && s.metricLabelActive]}>{m.label}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       <View style={s.timeUnitRow}>
@@ -217,39 +251,47 @@ export default function HistoryGraphScreen({ navigation }: Props) {
         </View>
       ) : (
         <ScrollView contentContainerStyle={s.scrollContent}>
-          <LineChart
-            data={chartData}
-            theme={theme}
-            height={260}
-            lineColor={metric === 'weight' ? '#6B4FBC' : undefined}
-          />
+          {chartData.length === 0 ? (
+            <View style={s.metricEmpty}>
+              <Text style={s.metricEmptyTitle}>No {metricLabel.toLowerCase()} data yet</Text>
+              <Text style={s.metricEmptySubtitle}>
+                Add optional body measurements when you calculate your BMI on the
+                home screen to start tracking {metricLabel.toLowerCase()}.
+              </Text>
+            </View>
+          ) : (
+            <>
+              <LineChart
+                data={chartData}
+                theme={theme}
+                height={260}
+                lineColor={metric === 'bmi' ? undefined : metricColors[metric]}
+              />
 
-          <View style={s.statsRow}>
-            <View style={s.statCard}>
-              <Text style={s.statValue}>{allEntries.length}</Text>
-              <Text style={s.statLabel}>Total Records</Text>
-            </View>
-            <View style={s.statCard}>
-              <Text style={s.statValue}>
-                {metric === 'bmi'
-                  ? Math.min(...allEntries.map((e) => e.bmi)).toFixed(1)
-                  : Math.min(...allEntries.map((e) => e.weightLbs)).toFixed(0)}
-              </Text>
-              <Text style={s.statLabel}>Lowest</Text>
-            </View>
-            <View style={s.statCard}>
-              <Text style={s.statValue}>
-                {metric === 'bmi'
-                  ? Math.max(...allEntries.map((e) => e.bmi)).toFixed(1)
-                  : Math.max(...allEntries.map((e) => e.weightLbs)).toFixed(0)}
-              </Text>
-              <Text style={s.statLabel}>Highest</Text>
-            </View>
-          </View>
+              <View style={s.statsRow}>
+                <View style={s.statCard}>
+                  <Text style={s.statValue}>{metricEntries.length}</Text>
+                  <Text style={s.statLabel}>Records</Text>
+                </View>
+                <View style={s.statCard}>
+                  <Text style={s.statValue}>
+                    {Math.min(...metricEntries.map((e) => metricValue(e, metric)!)).toFixed(decimals)}
+                  </Text>
+                  <Text style={s.statLabel}>Lowest</Text>
+                </View>
+                <View style={s.statCard}>
+                  <Text style={s.statValue}>
+                    {Math.max(...metricEntries.map((e) => metricValue(e, metric)!)).toFixed(decimals)}
+                  </Text>
+                  <Text style={s.statLabel}>Highest</Text>
+                </View>
+              </View>
+            </>
+          )}
 
           <Text style={s.sectionTitle}>All Records</Text>
 
-          {allEntries.map((entry, i) => (
+          {metricEntries.map((entry, i) => (
             <View key={entry.timestamp} style={s.recordRow}>
               <View
                 style={[
@@ -259,9 +301,7 @@ export default function HistoryGraphScreen({ navigation }: Props) {
               />
               <View style={s.recordInfo}>
                 <Text style={s.recordPrimary}>
-                  {metric === 'bmi'
-                    ? `BMI ${entry.bmi}`
-                    : `${entry.weightLbs} lbs`}
+                  {formatMetric(metricValue(entry, metric)!, metric)}
                   {'  '}
                   <Text style={s.recordSecondary}>
                     {metric === 'bmi' ? entry.evaluation : `BMI ${entry.bmi}`}
@@ -313,7 +353,7 @@ const styles = (t: Theme) => StyleSheet.create({
     flex: 1, paddingVertical: 10, alignItems: 'center',
   },
   metricOptionActive: { backgroundColor: t.accent + '22' },
-  metricLabel: { color: t.textSecondary, fontSize: 14, fontWeight: '600' },
+  metricLabel: { color: t.textSecondary, fontSize: 13, fontWeight: '600' },
   metricLabelActive: { color: t.accent, fontWeight: '700' },
 
   timeUnitRow: {
@@ -341,6 +381,13 @@ const styles = (t: Theme) => StyleSheet.create({
   },
   statValue: { color: t.accent, fontSize: 22, fontWeight: '800' },
   statLabel: { color: t.textSecondary, fontSize: 11, marginTop: 4 },
+
+  metricEmpty: {
+    alignItems: 'center', paddingVertical: 40, paddingHorizontal: 16, marginBottom: 8,
+    backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 12,
+  },
+  metricEmptyTitle: { color: t.text, fontSize: 16, fontWeight: '600', marginBottom: 8 },
+  metricEmptySubtitle: { color: t.textSecondary, fontSize: 13, textAlign: 'center', lineHeight: 19 },
 
   sectionTitle: { fontSize: 16, fontWeight: '700', color: t.text, marginBottom: 12 },
 

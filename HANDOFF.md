@@ -22,6 +22,19 @@ Until then the homepage still shows the old (already-live) version; the new fram
 
 ---
 
+## What Was Done This Session (2026-07-14, Feature-gap Phase 1)
+
+Reviewed competitor sites **mindwobble.com** + **lumiaapp.co** (plus the feedback docx's Section 6 on health-metric credibility) and wrote **`FEATURE_GAP_PLAN.md`** — a 15-item gap list in 5 tiers + a 5-phase build plan. Then built **Phase 1 (Richer Health Snapshot)**:
+
+- Optional **waist / neck / hip** measurements on HomeScreen's BMI check (inches, or cm in Metric mode → converted to inches). All skippable.
+- Result screen now shows **waist-to-height ratio** + **US Navy body-fat estimate** (color-banded) when measurements exist. Math in `src/services/bmi.ts` (`waistToHeight`, `estimateBodyFatNavy`, `totalHeightInches`).
+- Measurements persist in `BMIHistoryEntry`; **HistoryGraph** gained **Body Fat** + **Waist** trend toggles with an empty state for older records.
+- Verified live in-browser (34"/15.5"/70" → 16.5% "Fitness", 0.49 WHtR "Healthy"). Typecheck + lint green. See CHANGELOG 2026-07-14.
+
+**Phase 1 remaining:** progress-photo log, chest/arm/thigh circumferences. **Next:** Phase 2 (daily check-in + composite Health Score) per `FEATURE_GAP_PLAN.md`.
+
+---
+
 ## What Was Done This Session (2026-07-13, external-review Tier 1)
 
 Source: `Altianly_Feedback_Comparison.docx` — an external three-part review (marketing site, hands-on app testing, competitor comparison vs deep-app.co / askvora.com). Fixed the four ship-blocking defects; see CHANGELOG 2026-07-13 for detail.

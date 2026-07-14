@@ -12,11 +12,38 @@ export interface UserInput {
   heightFeet: number
   heightInches: number
   weightLbs: number
+  // Optional body-composition measurements (stored in inches). BMI can't tell
+  // muscle from fat, so these power the richer Health Snapshot metrics.
+  waistInches?: number
+  neckInches?: number
+  hipInches?: number
 }
 
 export interface BMIResult {
   bmi: number
   evaluation: BMIEvaluation
+}
+
+// Optional tape-measure inputs used for waist-to-height ratio and the US Navy
+// body-fat estimate. All values are in inches.
+export interface BodyMeasurements {
+  waistInches?: number
+  neckInches?: number
+  hipInches?: number
+}
+
+export type WaistHeightCategory = 'low' | 'healthy' | 'increased' | 'high'
+export interface WaistHeightResult {
+  ratio: number
+  category: WaistHeightCategory
+  label: string
+}
+
+export type BodyFatCategory = 'essential' | 'athlete' | 'fitness' | 'average' | 'high'
+export interface BodyFatResult {
+  percent: number
+  category: BodyFatCategory
+  label: string
 }
 
 // Comprehensive questionnaire answers
@@ -92,10 +119,16 @@ export interface BMIHistoryEntry {
   timestamp: number
   age: number
   gender: Gender
+  // Optional body-composition snapshot captured alongside the BMI check.
+  waistInches?: number
+  neckInches?: number
+  hipInches?: number
+  bodyFatPct?: number
+  waistToHeightRatio?: number
 }
 
 export type GraphTimeUnit = 'days' | 'weeks' | 'months' | 'years'
-export type GraphMetric = 'bmi' | 'weight'
+export type GraphMetric = 'bmi' | 'weight' | 'bodyfat' | 'waist'
 
 export interface WorkoutLogEntry {
   exerciseName: string
