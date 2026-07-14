@@ -4,6 +4,16 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 
 ---
 
+## 2026-07-14 — Fix: meal edits re-scaled existing entries' calories
+
+Found while cleaning up test data: deleting one item from a meal — or **adding a second item** — changed the *other* entries' numbers (a logged item with a 289g serving jumped 390 → 1127 kcal, and ballooned further on each edit).
+
+- **Root cause:** `mapMealEntryToInput` (NutritionScreen) rebuilt an existing entry's food using its **absolute** (already-scaled) nutrients, then `createMeal → createMealEntry` re-applied `computeMealCalories`/`scaleNutrient`, scaling a second time. Only entries whose serving size ≠ 100g were affected (custom foods, serving 100, were immune).
+- **Fix:** convert the entry's absolute nutrients back to the per-100g base (`v*100/(servingSize*servings)`, with a per-serving branch for servingSize 0) before re-inserting, so the recompute reproduces the exact stored values.
+- Verified live: a 289g "Grilled Chicken Breast" logged at 390 kcal stayed 390 across two further meal edits; Lunch totaled exactly 490+390+490 = 1370.
+
+---
+
 ## 2026-07-14 — Custom foods (manual entry + save & reuse)
 
 Inspired by Bevel's approach (a verified DB + user-entered custom foods, *not* an LLM as the data source): gives Altianly a reliable answer for branded/restaurant items USDA misses and the Tier-3 LLM estimates get wrong.

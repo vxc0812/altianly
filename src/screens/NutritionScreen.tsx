@@ -653,7 +653,16 @@ export default function NutritionScreen(_props: Props) {
   )
 }
 
+// A MealEntry stores ABSOLUTE (already-scaled) nutrients, but createMeal ->
+// createMealEntry re-applies computeMealCalories/scaleNutrient on the food it's
+// given. So to re-insert an existing entry unchanged (e.g. when adding a second
+// item to a meal, or deleting one), we must first convert its absolute values
+// back to the per-100g base those functions expect — otherwise they get scaled
+// a second time (a bug that ballooned calories on every edit).
 function mapMealEntryToInput(e: MealEntry): { food: Food; servings: number; servingSize: number; servingUnit: string } {
+  const S = e.servingSize
+  const N = e.servings || 1
+  const toBase = (v: number) => (S > 0 ? (v * 100) / (S * N) : v / N)
   return {
     food: {
       id: e.foodId,
@@ -662,13 +671,13 @@ function mapMealEntryToInput(e: MealEntry): { food: Food; servings: number; serv
       servingSize: e.servingSize,
       servingUnit: e.servingUnit,
       nutrients: {
-        calories: e.calories,
-        protein: e.protein,
-        carbs: e.carbs,
-        fat: e.fat,
-        fiber: e.fiber,
-        sugar: e.sugar,
-        sodium: e.sodium,
+        calories: toBase(e.calories),
+        protein: toBase(e.protein),
+        carbs: toBase(e.carbs),
+        fat: toBase(e.fat),
+        fiber: toBase(e.fiber),
+        sugar: toBase(e.sugar),
+        sodium: toBase(e.sodium),
       },
     },
     servings: e.servings,
