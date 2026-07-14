@@ -82,13 +82,13 @@ Sequenced so the health-measurement work the doc explicitly called out lands fir
 
 > **Precondition:** the docx also flags real defects (AI-plan crash, dead "Home" link, silent Save/Copy) as higher priority than *any* new feature. Those should stay ahead of this roadmap. (Most were addressed in the 2026-07-13 Tier 1 pass — verify before starting Phase 1.)
 
-### Phase 1 — Richer Health Snapshot (replaces BMI-as-centerpiece) — ~1 sprint
+### Phase 1 — Richer Health Snapshot (replaces BMI-as-centerpiece) — ~1 sprint  ✅ DONE (2026-07-14)
 - Extend `UserInput` / BMI types with `bodyFatPct`, `waist`, `hip`, `neck` → add **waist-to-height ratio** + optional **Navy body-fat estimate** in `src/services/bmi.ts`
 - New optional inputs in the Health Snapshot flow (all skippable, per the doc's "keep it lightweight" note)
 - Apply the doc's Section 6 copy rewrite ("Normal range" not "Overweight"; screening-tool framing + info tooltip)
 - Body-measurements log + trend lines reusing `HistoryGraphScreen` patterns
 
-### Phase 2 — Daily Check-in + Health Score — ~1–1.5 sprints
+### Phase 2 — Daily Check-in + Health Score — ~1–1.5 sprints  ✅ DONE (2026-07-14)
 - Daily check-in card on Home: mood / sleep / stress / energy / water (new storage key `altianly_checkins`, AsyncStorage-first like nutrition)
 - **Composite Health Score** blending BMI band, activity streak, check-in trends, and nutrition adherence → the single hero number both competitors lead with
 - Fix habits on web (mirror nutrition's AsyncStorage path so the `database.web.ts` mock stops returning empty)

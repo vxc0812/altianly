@@ -127,6 +127,31 @@ export interface BMIHistoryEntry {
   waistToHeightRatio?: number
 }
 
+// One editable wellbeing check-in per day. All fields optional so users can log
+// only what they want; stored in AsyncStorage keyed by local YYYY-MM-DD.
+export interface DailyCheckin {
+  date: string
+  mood?: number        // 1 (low) – 5 (great)
+  energy?: number      // 1 (drained) – 5 (energized)
+  stress?: number      // 1 (calm) – 5 (very stressed)
+  sleepHours?: number  // hours slept last night
+  waterCups?: number   // cups (8 oz) of water
+  note?: string
+  updatedAt: number
+}
+
+// Composite Health Score — a single 0–100 number blending the signals below.
+export interface HealthScoreComponent {
+  key: 'bmi' | 'activity' | 'wellbeing' | 'nutrition'
+  label: string
+  score: number // 0–100
+}
+export interface HealthScoreResult {
+  score: number // 0–100
+  label: string
+  components: HealthScoreComponent[]
+}
+
 export type GraphTimeUnit = 'days' | 'weeks' | 'months' | 'years'
 export type GraphMetric = 'bmi' | 'weight' | 'bodyfat' | 'waist'
 
@@ -238,6 +263,7 @@ export type RootStackParamList = {
   HistoryGraph: undefined
   Habits: undefined
   Nutrition: undefined
+  Checkin: undefined
 }
 
 export type ExerciseType = 'strength' | 'cardio' | 'metcon' | 'hiit' | 'combat' | 'stretching' | 'wellness' | 'yoga'

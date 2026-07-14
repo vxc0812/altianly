@@ -36,6 +36,9 @@ import { extractStructuredPlan } from '../services/llm'
 import { getAllHabits, getWeekEntries } from '../services/habits'
 import type { Habit, HabitEntry as HabitEntryType } from '../types'
 import { getMealsForDate, getDailyTotals, DEFAULT_RDI } from '../services/nutrition'
+import { getCheckin, getRecentCheckins, checkinDateStr } from '../services/checkins'
+import { computeHealthScore } from '../services/healthScore'
+import type { DailyCheckin, HealthScoreResult } from '../types'
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Home'> }
 
@@ -119,6 +122,8 @@ export default function HomeScreen({ navigation }: Props) {
   const [latestPlan, setLatestPlan] = useState<WorkoutPlan | null>(null)
   const [recentLogs, setRecentLogs] = useState<WorkoutLog[]>([])
   const [nutritionTotals, setNutritionTotals] = useState({ calories: 0, protein: 0, carbs: 0, fat: 0 })
+  const [todayCheckin, setTodayCheckin] = useState<DailyCheckin | null>(null)
+  const [healthScore, setHealthScore] = useState<HealthScoreResult | null>(null)
   const [habits, setHabits] = useState<Habit[]>([])
   const [habitWeekEntries, setHabitWeekEntries] = useState<Record<string, (HabitEntryType | null)[]>>({})
   const [bmiExpanded, setBmiExpanded] = useState(false)
@@ -172,6 +177,40 @@ export default function HomeScreen({ navigation }: Props) {
       const todayMeals = await getMealsForDate(ls)
       const totals = getDailyTotals(todayMeals)
       setNutritionTotals({ calories: totals.calories, protein: totals.protein, carbs: totals.carbs, fat: totals.fat })
+    })()
+  }, []))
+
+  // Daily check-in + composite Health Score. Isolated so a failure here can't
+  // cascade into the rest of the dashboard.
+  useFocusEffect(useCallback(() => {
+    (async () => {
+      try {
+        const [checkin, recentCheckins, entries, logs] = await Promise.all([
+          getCheckin(checkinDateStr()),
+          getRecentCheckins(7),
+          getBMIHistory(),
+          getWorkoutLogs(),
+        ])
+        setTodayCheckin(checkin)
+
+        // How many of the last 7 days have at least one meal logged.
+        let nutritionDaysLogged = 0
+        for (let i = 0; i < 7; i++) {
+          const d = new Date()
+          d.setDate(d.getDate() - i)
+          const meals = await getMealsForDate(checkinDateStr(d))
+          if (meals.some((m) => m.entries.length > 0)) nutritionDaysLogged++
+        }
+
+        const week = computeWeekDays(logs)
+        setHealthScore(computeHealthScore({
+          bmi: entries[0]?.bmi ?? null,
+          hasWorkoutData: logs.length > 0,
+          workoutsThisWeek: week.filter(Boolean).length,
+          checkins: recentCheckins,
+          nutritionDaysLogged,
+        }))
+      } catch {}
     })()
   }, []))
 
@@ -347,6 +386,21 @@ export default function HomeScreen({ navigation }: Props) {
     })
   }
 
+  const warnColor = theme.isDark ? '#FBBF24' : '#D29922'
+  const scoreColor = !healthScore ? theme.accent
+    : healthScore.score >= 80 ? theme.success
+    : healthScore.score >= 65 ? theme.accent
+    : healthScore.score >= 45 ? warnColor
+    : theme.danger
+
+  function checkinSummary(c: DailyCheckin): string {
+    const parts: string[] = []
+    if (typeof c.mood === 'number') parts.push(['😞', '😕', '😐', '🙂', '😄'][c.mood - 1])
+    if (typeof c.sleepHours === 'number') parts.push(`${c.sleepHours} hrs sleep`)
+    if (typeof c.waterCups === 'number' && c.waterCups > 0) parts.push(`${c.waterCups} cups water`)
+    return parts.length ? parts.join('  ·  ') : 'Logged today'
+  }
+
   return (
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
@@ -374,6 +428,35 @@ export default function HomeScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Health Score — composite hero */}
+        {healthScore && (
+          <View style={s.scoreCard} accessibilityRole="text" accessibilityLabel={`Health Score ${healthScore.score} out of 100, ${healthScore.label}`}>
+            <View style={s.scoreHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.cardLabel}>Health Score</Text>
+                <Text style={[s.scoreLabelText, { color: scoreColor }]}>{healthScore.label}</Text>
+              </View>
+              <View style={s.scoreValueWrap}>
+                <Text style={[s.scoreValue, { color: scoreColor }]}>{healthScore.score}</Text>
+                <Text style={s.scoreValueMax}>/100</Text>
+              </View>
+            </View>
+            <View style={s.scoreComponents}>
+              {healthScore.components.map((c) => (
+                <View key={c.key} style={s.scoreComp}>
+                  <View style={s.scoreCompHeader}>
+                    <Text style={s.scoreCompLabel}>{c.label}</Text>
+                    <Text style={s.scoreCompValue}>{c.score}</Text>
+                  </View>
+                  <View style={s.scoreCompBarTrack}>
+                    <View style={[s.scoreCompBarFill, { width: `${c.score}%`, backgroundColor: scoreColor }]} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Today — hero nutrition card */}
         <TouchableOpacity
@@ -409,6 +492,23 @@ export default function HomeScreen({ navigation }: Props) {
               ))}
             </View>
           </View>
+        </TouchableOpacity>
+
+        {/* Daily Check-in */}
+        <TouchableOpacity
+          style={s.checkinCard}
+          onPress={() => navigation.navigate('Checkin')}
+          accessibilityRole="button"
+          accessibilityLabel={todayCheckin ? "Update today's check-in" : 'Start your daily check-in'}
+        >
+          <Text style={s.checkinIcon}>{todayCheckin && typeof todayCheckin.mood === 'number' ? ['😞', '😕', '😐', '🙂', '😄'][todayCheckin.mood - 1] : '📝'}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={s.checkinTitle}>Daily Check-in</Text>
+            <Text style={s.checkinSub} numberOfLines={1}>
+              {todayCheckin ? checkinSummary(todayCheckin) : 'How are you today? Log mood, sleep & more.'}
+            </Text>
+          </View>
+          <Text style={s.checkinCta}>{todayCheckin ? 'Update' : 'Check in'}</Text>
         </TouchableOpacity>
 
         {/* This Week */}
@@ -486,6 +586,22 @@ export default function HomeScreen({ navigation }: Props) {
               )}
             </View>
           </>
+        )}
+
+        {habits.length === 0 && (
+          <TouchableOpacity
+            style={s.checkinCard}
+            onPress={() => navigation.navigate('Habits')}
+            accessibilityRole="button"
+            accessibilityLabel="Track a daily habit"
+          >
+            <Text style={s.checkinIcon}>✅</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={s.checkinTitle}>Track a Habit</Text>
+              <Text style={s.checkinSub} numberOfLines={1}>Build a daily streak — water, steps, reading & more.</Text>
+            </View>
+            <Text style={s.checkinCta}>Add</Text>
+          </TouchableOpacity>
         )}
 
         <Text style={s.sectionLabel}>Quick Start</Text>
@@ -873,6 +989,37 @@ const styles = (t: Theme) => StyleSheet.create({
     fontSize: 12, fontWeight: '700', color: t.textSecondary,
     textTransform: 'uppercase', letterSpacing: 0.5,
   },
+
+  scoreCard: {
+    backgroundColor: t.surface,
+    borderWidth: 1,
+    borderColor: t.border,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 12,
+  },
+  scoreHeader: { flexDirection: 'row', alignItems: 'center' },
+  scoreLabelText: { fontSize: 18, fontWeight: '800', marginTop: 4 },
+  scoreValueWrap: { flexDirection: 'row', alignItems: 'baseline' },
+  scoreValue: { fontSize: 44, fontWeight: '800', letterSpacing: -1 },
+  scoreValueMax: { fontSize: 14, color: t.textMuted, fontWeight: '600', marginLeft: 2 },
+  scoreComponents: { marginTop: 16, gap: 10 },
+  scoreComp: { gap: 4 },
+  scoreCompHeader: { flexDirection: 'row', justifyContent: 'space-between' },
+  scoreCompLabel: { fontSize: 12, color: t.textSecondary, fontWeight: '600' },
+  scoreCompValue: { fontSize: 12, color: t.textMuted, fontWeight: '700' },
+  scoreCompBarTrack: { height: 6, borderRadius: 3, backgroundColor: t.border, overflow: 'hidden' },
+  scoreCompBarFill: { height: 6, borderRadius: 3 },
+
+  checkinCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: t.surface, borderWidth: 1, borderColor: t.border,
+    borderRadius: 16, padding: 16, marginBottom: 12,
+  },
+  checkinIcon: { fontSize: 26 },
+  checkinTitle: { fontSize: 15, fontWeight: '700', color: t.text },
+  checkinSub: { fontSize: 13, color: t.textSecondary, marginTop: 2 },
+  checkinCta: { fontSize: 13, fontWeight: '700', color: t.accent },
 
   todayCard: {
     backgroundColor: t.surface,

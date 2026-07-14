@@ -25,6 +25,7 @@ import { ConversationalWorkoutScreen } from './src/screens/ConversationalWorkout
 import HistoryGraphScreen from './src/screens/HistoryGraphScreen'
 import HabitsScreen from './src/screens/HabitsScreen'
 import NutritionScreen from './src/screens/NutritionScreen'
+import CheckinScreen from './src/screens/CheckinScreen'
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
 const Tab = createBottomTabNavigator<RootStackParamList>()
@@ -118,6 +119,7 @@ function AppContent() {
         <Stack.Screen name="ConversationalWorkout" component={ConversationalWorkoutScreen} />
         <Stack.Screen name="HistoryGraph" component={HistoryGraphScreen} />
         <Stack.Screen name="Habits" component={HabitsScreen} />
+        <Stack.Screen name="Checkin" component={CheckinScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   )

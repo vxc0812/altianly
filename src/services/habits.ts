@@ -1,5 +1,31 @@
+import { Platform } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { getDb } from './database'
 import type { Habit, HabitEntry, HabitType } from '../types'
+
+// Web has no SQLite (the database.web.ts mock returns nothing), so habits use
+// AsyncStorage there — the same approach the nutrition tracker takes. Native
+// keeps the SQLite path. Every exported function branches on `isWeb`.
+const isWeb = Platform.OS === 'web'
+const HABITS_KEY = 'altianly_habits'
+const HABIT_ENTRIES_KEY = 'altianly_habit_entries'
+
+function newId(): string {
+  return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+async function readList<T>(key: string): Promise<T[]> {
+  try {
+    const json = await AsyncStorage.getItem(key)
+    return json ? JSON.parse(json) : []
+  } catch {
+    return []
+  }
+}
+
+async function writeList<T>(key: string, list: T[]): Promise<void> {
+  await AsyncStorage.setItem(key, JSON.stringify(list))
+}
 
 export async function createHabit(
   name: string,
@@ -8,10 +34,18 @@ export async function createHabit(
   unit?: string,
   options?: string[],
 ): Promise<Habit> {
-  const db = await getDb()
-  const id = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const id = newId()
   const now = Date.now()
 
+  if (isWeb) {
+    const habits = await readList<Habit>(HABITS_KEY)
+    const habit: Habit = { id, name, type, target, unit, options, createdAt: now, sortOrder: habits.length }
+    habits.push(habit)
+    await writeList(HABITS_KEY, habits)
+    return habit
+  }
+
+  const db = await getDb()
   const stmt = await db.prepareAsync(
     'INSERT INTO habits (id, name, type, target, unit, options, created_at, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
   )
@@ -32,6 +66,16 @@ export async function updateHabit(
   unit?: string,
   options?: string[],
 ): Promise<void> {
+  if (isWeb) {
+    const habits = await readList<Habit>(HABITS_KEY)
+    const idx = habits.findIndex((h) => h.id === id)
+    if (idx >= 0) {
+      habits[idx] = { ...habits[idx], name, type, target, unit, options }
+      await writeList(HABITS_KEY, habits)
+    }
+    return
+  }
+
   const db = await getDb()
   const stmt = await db.prepareAsync(
     'UPDATE habits SET name = ?, type = ?, target = ?, unit = ?, options = ? WHERE id = ?'
@@ -44,11 +88,24 @@ export async function updateHabit(
 }
 
 export async function deleteHabit(id: string): Promise<void> {
+  if (isWeb) {
+    const habits = await readList<Habit>(HABITS_KEY)
+    await writeList(HABITS_KEY, habits.filter((h) => h.id !== id))
+    const entries = await readList<HabitEntry>(HABIT_ENTRIES_KEY)
+    await writeList(HABIT_ENTRIES_KEY, entries.filter((e) => e.habitId !== id))
+    return
+  }
+
   const db = await getDb()
   await db.execAsync(`DELETE FROM habits WHERE id = '${id}'`)
 }
 
 export async function getAllHabits(): Promise<Habit[]> {
+  if (isWeb) {
+    const habits = await readList<Habit>(HABITS_KEY)
+    return habits.sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt - b.createdAt)
+  }
+
   const db = await getDb()
   const stmt = await db.prepareAsync('SELECT * FROM habits ORDER BY sort_order ASC, created_at ASC')
   try {
@@ -61,6 +118,11 @@ export async function getAllHabits(): Promise<Habit[]> {
 }
 
 export async function getHabit(id: string): Promise<Habit | null> {
+  if (isWeb) {
+    const habits = await readList<Habit>(HABITS_KEY)
+    return habits.find((h) => h.id === id) ?? null
+  }
+
   const db = await getDb()
   const stmt = await db.prepareAsync('SELECT * FROM habits WHERE id = ?')
   try {
@@ -100,11 +162,21 @@ export async function logHabitEntry(
   skipped = false,
   notes?: string,
 ): Promise<HabitEntry> {
-  const db = await getDb()
-  const id = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const id = newId()
   const date = todayStr()
   const now = Date.now()
 
+  if (isWeb) {
+    const entries = await readList<HabitEntry>(HABIT_ENTRIES_KEY)
+    // INSERT OR REPLACE semantics: one entry per (habit, date).
+    const filtered = entries.filter((e) => !(e.habitId === habitId && e.date === date))
+    const entry: HabitEntry = { id, habitId, date, value, skipped, notes, createdAt: now }
+    filtered.push(entry)
+    await writeList(HABIT_ENTRIES_KEY, filtered)
+    return entry
+  }
+
+  const db = await getDb()
   const stmt = await db.prepareAsync(
     `INSERT OR REPLACE INTO habit_entries (id, habit_id, date, value, skipped, notes, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -119,6 +191,11 @@ export async function logHabitEntry(
 }
 
 export async function getEntryForDate(habitId: string, date: string): Promise<HabitEntry | null> {
+  if (isWeb) {
+    const entries = await readList<HabitEntry>(HABIT_ENTRIES_KEY)
+    return entries.find((e) => e.habitId === habitId && e.date === date) ?? null
+  }
+
   const db = await getDb()
   const stmt = await db.prepareAsync('SELECT * FROM habit_entries WHERE habit_id = ? AND date = ?')
   try {
@@ -140,6 +217,11 @@ export async function getEntryForDate(habitId: string, date: string): Promise<Ha
 }
 
 export async function getEntriesForDate(date: string): Promise<HabitEntry[]> {
+  if (isWeb) {
+    const entries = await readList<HabitEntry>(HABIT_ENTRIES_KEY)
+    return entries.filter((e) => e.date === date)
+  }
+
   const db = await getDb()
   const stmt = await db.prepareAsync('SELECT * FROM habit_entries WHERE date = ?')
   try {
@@ -160,6 +242,14 @@ export async function getEntriesForDate(date: string): Promise<HabitEntry[]> {
 }
 
 export async function getEntriesForHabit(habitId: string, days = 30): Promise<HabitEntry[]> {
+  if (isWeb) {
+    const entries = await readList<HabitEntry>(HABIT_ENTRIES_KEY)
+    return entries
+      .filter((e) => e.habitId === habitId)
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, days)
+  }
+
   const db = await getDb()
   const stmt = await db.prepareAsync(
     'SELECT * FROM habit_entries WHERE habit_id = ? ORDER BY date DESC LIMIT ?'

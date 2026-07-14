@@ -22,6 +22,19 @@ Until then the homepage still shows the old (already-live) version; the new fram
 
 ---
 
+## What Was Done This Session (2026-07-14, Feature-gap Phase 2)
+
+Built **Phase 2 (Daily Check-in + Health Score)** of `FEATURE_GAP_PLAN.md`, on branch **`feat/health-measurements`** (stacked on Phase 1):
+
+- **Daily check-in** — `CheckinScreen` (route `Checkin`) for mood/energy/stress/sleep/water + note; `src/services/checkins.ts` stores one merged record/day in AsyncStorage (`altianly_checkins`). Home **Daily Check-in card** prompts/summarizes.
+- **Composite Health Score** — `src/services/healthScore.ts` blends BMI + activity + wellbeing + nutrition-consistency into a 0–100 number (equal-weighted mean of available components; degrades gracefully). Home **hero card** with per-component bars.
+- **Habits on web fixed** — `habits.ts` now has an AsyncStorage path for all ops (native SQLite untouched), so habits persist on web. Added an always-visible **"Track a Habit"** Home card for the zero-habits case (the Habits screen was previously unreachable with no habits).
+- Verified live in-browser (check-in → score updated to 60 w/ Wellbeing 81; created a habit on web). Typecheck + lint green. See CHANGELOG 2026-07-14.
+
+**Next:** Phase 3 (smarter AI coach: real context + GROW-style structured sessions).
+
+---
+
 ## What Was Done This Session (2026-07-14, Feature-gap Phase 1)
 
 Reviewed competitor sites **mindwobble.com** + **lumiaapp.co** (plus the feedback docx's Section 6 on health-metric credibility) and wrote **`FEATURE_GAP_PLAN.md`** — a 15-item gap list in 5 tiers + a 5-phase build plan. Then built **Phase 1 (Richer Health Snapshot)**:

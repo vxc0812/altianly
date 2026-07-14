@@ -4,6 +4,19 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 
 ---
 
+## 2026-07-14 — Daily check-in + composite Health Score + habits on web (Feature-gap Phase 2)
+
+Second slice of `FEATURE_GAP_PLAN.md` — the daily-tracking loop and single "hero number" both competitor apps lead with.
+
+- **Daily wellbeing check-in.** New `CheckinScreen` (route `Checkin`) captures mood (emoji 1–5), energy, stress, sleep hours, water cups, and an optional note — all skippable. One editable record per day, merged so partial updates don't clobber earlier ones. Stored in AsyncStorage under `altianly_checkins` (cross-platform, no SQLite) via `src/services/checkins.ts`. Home shows a **Daily Check-in card** that prompts when empty and summarizes today's entry ("🙂 · 7.5 hrs sleep · 3 cups water") once logged, with an inline "saved" confirmation on the screen.
+- **Composite Health Score.** New `src/services/healthScore.ts` blends whichever signals have data into one 0–100 number: BMI band, activity (workouts this week), wellbeing (check-in trends over 7 days), and nutrition-logging consistency (days logged of last 7). Equal-weighted mean of available components, so it degrades gracefully — a brand-new user sees BMI only, and it enriches as they log. Rendered as a **hero card on Home** with per-component bars and an Excellent/Good/Fair/Needs-attention band. Verified live: BMI 99 + Wellbeing 81 + Nutrition 0 → 60 "Fair".
+- **Habits now work on web.** `src/services/habits.ts` gained an AsyncStorage path (mirroring nutrition) for every operation, so habits persist on web instead of the `database.web.ts` SQLite mock silently returning empty arrays; native SQLite path unchanged. Also added an always-visible **"Track a Habit" entry card** on Home for the zero-habits case — previously the Habits screen was unreachable with no habits (both links were gated behind `habits.length > 0`), so a first habit could never be created. Verified live: created a habit on web and it rendered in the grid + list.
+- Typecheck + lint green; all three pieces verified in-browser.
+
+**Next:** Phase 3 (smarter AI coach with real context + structured sessions) per `FEATURE_GAP_PLAN.md`.
+
+---
+
 ## 2026-07-14 — Richer Health Snapshot: body-composition measurements (Feature-gap Phase 1)
 
 First slice of the competitor gap plan (`FEATURE_GAP_PLAN.md`, Phase 1) — the "other health measurements" the external feedback (Section 6) asked for, so BMI is no longer the only signal.
