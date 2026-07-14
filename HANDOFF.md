@@ -1,6 +1,6 @@
 # Altianly — Session Handoff Document
 
-> **Date:** 2026-07-13
+> **Date:** 2026-07-14
 > **Stack:** React Native (Expo SDK 56), TypeScript, AsyncStorage, SecureStore
 > **Dev server:** `npm start` → Expo Go, `npm run web` → browser preview
 > **Cloudflare:** Pages (web build), Workers (AI proxy), Dashboard (management)
@@ -11,23 +11,24 @@
 
 ---
 
-## ⚠️ PENDING — DO AT NEXT LAUNCH (held on purpose)
+## ⚠️ PENDING — capture the 6 app screenshots (post-deploy)
 
-A **local, unpushed commit `3d0688b`** ("phone-mockup App Screens + nutrition name fix") is waiting. It was deliberately **not pushed** so the live marketing site doesn't debut empty phone frames. Pushing to `master` auto-deploys (Cloudflare Pages), so before pushing:
+Workflow is now **deploy first, capture screenshots after** (see the `deploy-first-then-screenshots` memory). The previously-held marketing commit `3d0688b` **was deployed this session** — so the live homepage "App Screens" section now shows the CSS phone frames with **labeled placeholders** (not broken images) until the PNGs exist.
 
-1. **Capture 6 app screenshots** and drop them in `public/screens/` — exact filenames + tips in `public/screens/README.md` (`home.png`, `workout-plan.png`, `nutrition.png`, `bmi.png`, `graphs.png`, `workout-log.png`; mobile aspect ratio, cream theme, ~2×). Capture from `altianly.com/app/` via the browser device toolbar (⌘/Ctrl+Shift+M → iPhone) — automated capture was blocked (see Tier 3 note below).
-2. **`git add public/screens/*.png && git commit`**, then **`git push origin master`** — this deploys the filled phone frames **and** the already-committed nutrition saved-name fix together.
+Remaining task (no longer blocks a deploy):
 
-Until then the homepage still shows the old (already-live) version; the new frames only go out on that push. Verify after deploy on `altianly.com`.
+1. **Capture 6 app screenshots** and drop them in `public/screens/` — exact filenames + tips in `public/screens/README.md` (`home.png`, `workout-plan.png`, `nutrition.png`, `bmi.png`, `graphs.png`, `workout-log.png`; mobile aspect ratio, cream theme, ~2×). Capture from `altianly.com/app/` via the browser device toolbar (Ctrl+Shift+M → iPhone). Note: `bmi.png` now also shows the new waist-to-height + body-fat cards if optional measurements are entered.
+2. **`git add public/screens/*.png && git commit && git push origin master`** — this fills the live phone frames. Verify on `altianly.com`.
 
 ---
 
 ## What Was Done This Session (2026-07-14, nutrition quality + custom foods)
 
-Researched how **Bevel Health** sources food data (a verified multi-source DB + user-entered custom foods; explicitly *not* an LLM as the data source) and acted on it:
+Researched how **Bevel Health** sources food data (a verified multi-source DB + user-entered custom foods; explicitly *not* an LLM as the data source) and acted on it. **All deployed to production** (`master` pushes auto-deploy the Pages app; the `/food/parse` change also needed a separate `altianly-ai` worker deploy):
 
-- **`/food/parse` fix (deployed):** rewrote the worker extraction prompt so a single named/branded item returns as ONE item (was deconstructing "Chick-fil-A Deluxe" into 8 ingredients + double-counting → 1222 kcal); rounded USDA serving-size float noise; fixed a tier-match casing bug. Live-verified (8→1).
-- **Custom foods (new feature):** create a food with per-serving macros in the Nutrition add sheet, saved locally (`customFoods.ts`, key `altianly_custom_foods`) and reusable via a "Your foods" list + prepended into search. Correct per-serving math (verified 490 kcal for the same sandwich), clean serving display. See CHANGELOG 2026-07-14.
+- **`/food/parse` fix** (`41f9763` + worker deploy): rewrote the worker extraction prompt so a single named/branded item returns as ONE item (was deconstructing "Chick-fil-A Deluxe" into 8 ingredients + double-counting → 1222 kcal); rounded USDA serving-size float noise; fixed a tier-match casing bug. Live-verified (8→1). Follow-up gap: the Tier-3 (Estimated) LLM fallback for unmatched branded items is still unreliable (160 kcal / 0g protein) — separate LLM-quality issue.
+- **Custom foods** (`7f252b4`, new feature): create a food with per-serving macros in the Nutrition add sheet, saved locally (`customFoods.ts`, key `altianly_custom_foods`) and reusable via a "Your foods" list + prepended into search. Stored as `servingSize 100` / unit `serving` so existing per-100g math yields exact per-serving values; `Food` gained an optional `custom` flag. Verified live (490 kcal, reused from "Your foods").
+- **Meal-edit double-scaling fix** (`85feb1e`): found during cleanup — deleting/adding a meal item re-scaled the OTHER entries (a 289g item logged at 390 kcal jumped to 1127, compounding each edit). `mapMealEntryToInput` rebuilt existing entries from their absolute nutrients, which `createMealEntry` then re-scaled. Now converts absolutes back to the per-100g base first. Verified: a 289g entry stays 390 kcal across repeated edits (Lunch = 490+390+490 = 1370 exactly).
 
 **Deferred (agreed):** a real nutrition API with restaurant coverage (Nutritionix etc.) — the step beyond custom foods, for later.
 
@@ -35,7 +36,7 @@ Researched how **Bevel Health** sources food data (a verified multi-source DB + 
 
 ## What Was Done This Session (2026-07-14, Feature-gap Phase 2)
 
-Built **Phase 2 (Daily Check-in + Health Score)** of `FEATURE_GAP_PLAN.md`, on branch **`feat/health-measurements`** (stacked on Phase 1):
+Built **Phase 2 (Daily Check-in + Health Score)** of `FEATURE_GAP_PLAN.md`. (Phases 1+2 were built on branch `feat/health-measurements`, then **merged to `master` and deployed** to `altianly.com/app/` this session — verified live: Health Score + Daily Check-in cards render on Home.)
 
 - **Daily check-in** — `CheckinScreen` (route `Checkin`) for mood/energy/stress/sleep/water + note; `src/services/checkins.ts` stores one merged record/day in AsyncStorage (`altianly_checkins`). Home **Daily Check-in card** prompts/summarizes.
 - **Composite Health Score** — `src/services/healthScore.ts` blends BMI + activity + wellbeing + nutrition-consistency into a 0–100 number (equal-weighted mean of available components; degrades gracefully). Home **hero card** with per-component bars.
@@ -346,6 +347,10 @@ altianly_user_profile     // UserProfile (SecureStore + AsyncStorage fallback)
 altianly_last_activity    // timestamp string (AsyncStorage)
 altianly_guest_mode       // 'true' when using the app without an account (AsyncStorage)
 altianly_meals            // meals keyed by YYYY-MM-DD (web only, AsyncStorage)
+altianly_checkins         // daily wellbeing check-ins keyed by YYYY-MM-DD (AsyncStorage)
+altianly_custom_foods     // user-created reusable foods (AsyncStorage)
+altianly_habits           // habits (web; native uses SQLite) (AsyncStorage)
+altianly_habit_entries    // habit entries (web; native uses SQLite) (AsyncStorage)
 ```
 
 ### Cloudflare Services
@@ -371,7 +376,7 @@ altianly_meals            // meals keyed by YYYY-MM-DD (web only, AsyncStorage)
 | **Routing via filesystem** | Expo app lives at `/app/` (not `/app`). Cloudflare auto-adds trailing slash via 308 redirect. The `_redirects` file was abandoned due to prefix-matching issues and Cloudflare dashboard-level 308 redirects that free accounts can't remove. |
 | **Dev server must be restarted after source changes** | Expo web dev server caches the bundle in memory. Hard-reload of browser tab doesn't rebuild — need to Ctrl+C and `npm run web` again. This affects `database.web.ts` mock fixes and HomeScreen code changes. |
 | **`/food/parse` needs Workers AI binding** | Worker endpoint works (returns 200) but `env.AI` binding is missing. User needs to add "AI" binding in Cloudflare dashboard → Settings → Variables → AI bindings → Save & Deploy. |
-| **Habits return no data on web** | `database.web.ts` mock returns empty arrays for all queries. On native, habits use SQLite via `expo-sqlite`. The mock prevents `wa-sqlite.wasm` from bundling on web (would break Cloudflare Pages build). |
+| ~~**Habits return no data on web**~~ **FIXED 2026-07-14** | `habits.ts` now has an AsyncStorage path on web (mirrors nutrition); habits persist on web. Native still uses SQLite via `expo-sqlite`; the `database.web.ts` mock still prevents `wa-sqlite.wasm` from bundling. Nutrition/check-ins/custom-foods also use AsyncStorage on web. |
 | **Dev machine: ProtonVPN intercepts DNS** | ProtonVPN's leak protection hijacks ALL port-53 queries (even to 8.8.8.8/TLD servers) and answers from its resolver's cache — after any DNS change, local lookups and non-DoH browsers can show stale results for hours while the rest of the world is fine. Verify DNS via DNS-over-HTTPS only (`https://dns.google/resolve?name=DOMAIN&type=A`). Browser fixes: enable Secure DNS/DoH (done in Chrome), reconnect the VPN to a different server, or wait for TTL expiry. |
 
 ---
