@@ -689,19 +689,17 @@ export default function HomeScreen({ navigation }: Props) {
           </View>
         )}
 
-        <Text style={s.sectionLabel}>Health Snapshot</Text>
-        <Text style={s.sectionSubLabel}>A quick starting point — not a diagnosis.</Text>
         <TouchableOpacity
           style={s.bmiHeader}
           onPress={() => setBmiExpanded(!bmiExpanded)}
           accessibilityRole="button"
-          accessibilityLabel={bmiExpanded ? 'Collapse BMI calculator' : 'Expand BMI calculator'}
+          accessibilityLabel={bmiExpanded ? 'Collapse health snapshot' : 'Expand health snapshot'}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Text style={s.bmiHeaderIcon}>📊</Text>
             <View>
-              <Text style={s.bmiHeaderTitle}>BMI Check</Text>
-              <Text style={s.bmiHeaderDesc}>Calculate your body mass index</Text>
+              <Text style={s.bmiHeaderTitle}>Health Snapshot</Text>
+              <Text style={s.bmiHeaderDesc}>BMI, body fat & waist ratio — not a diagnosis</Text>
             </View>
           </View>
           <Text style={s.bmiChevron}>{bmiExpanded ? '▲' : '▼'}</Text>
@@ -982,9 +980,6 @@ const styles = (t: Theme) => StyleSheet.create({
     fontSize: 12, fontWeight: '700', color: t.textSecondary,
     textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 20,
   },
-  sectionSubLabel: {
-    fontSize: 12, color: t.textMuted, marginTop: -6, marginBottom: 10,
-  },
   cardLabel: {
     fontSize: 12, fontWeight: '700', color: t.textSecondary,
     textTransform: 'uppercase', letterSpacing: 0.5,
@@ -1154,6 +1149,7 @@ const styles = (t: Theme) => StyleSheet.create({
     borderColor: t.border,
     borderRadius: 10,
     padding: 16,
+    marginTop: 8,
   },
   bmiHeaderIcon: { fontSize: 22 },
   bmiHeaderTitle: { fontSize: 15, fontWeight: '700', color: t.text },

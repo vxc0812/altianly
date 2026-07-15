@@ -4,6 +4,12 @@ _All significant changes to Altianly, consolidated from per-date changelogs._
 
 ---
 
+## 2026-07-14 — Rename "BMI Check" → "Health Snapshot"
+
+The Home section now captures body-fat % and waist-to-height alongside BMI, so "BMI Check" undersold it and re-centered BMI (against the feedback doc's Section 6). Consolidated the redundant "Health Snapshot" section label + the "BMI Check" card (the card was the section's only content) into a single **"Health Snapshot"** collapsible titled with subtitle "BMI, body fat & waist ratio — not a diagnosis". Removed the now-unused `sectionSubLabel` style.
+
+---
+
 ## 2026-07-14 — Smarter AI coach: real context + session memory + wrap-up (Feature-gap Phase 3)
 
 The AI Trainer chat previously ran with **no** client context and no memory — every reply was generic (the exact "starts from scratch" gap Mind Wobble/Lumia close). Phase 3 makes it "a coach that knows you."
