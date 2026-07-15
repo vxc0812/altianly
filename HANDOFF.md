@@ -22,6 +22,24 @@ Remaining task (no longer blocks a deploy):
 
 ---
 
+## Session status snapshot (2026-07-14)
+
+**Everything below shipped to `master` and deployed to `altianly.com` this session** (newest first). Details in each entry + CHANGELOG.
+
+| Commit | What |
+|--------|------|
+| `92f4a66` | Renamed Home "BMI Check" → **"Health Snapshot"** (it now also does body fat + waist-to-height; merged the redundant section label) |
+| `ab57abe` | **Phase 3** — smarter AI coach (real context via `coachContext.ts`, session memory, "Wrap up" summary) |
+| `85feb1e` | Fix: meal edits double-scaled existing entries' calories (`mapMealEntryToInput`) |
+| `7f252b4` | **Custom foods** — manual entry + save & reuse (`customFoods.ts`) |
+| `41f9763` | `/food/parse` over-decomposition fix (also needed a separate `altianly-ai` worker deploy) |
+| `b1c50fc` | **Phase 2** — daily check-in + composite Health Score + habits-on-web |
+| `ef6e895` | **Phase 1** — body-composition measurements (waist/neck/hip → WHtR + Navy body fat) |
+
+**All 3 planned build phases of `FEATURE_GAP_PLAN.md` are done.** Open/optional next: the 6 marketing screenshots (`public/screens/`), Phase 4 (goals/journaling), Phase 5 (Serenity + Apple Health/Google Fit — needs native build), and deferred items (Tier-3 nutrition-estimate quality, a Nutritionix-style API, coach voice input).
+
+---
+
 ## What Was Done This Session (2026-07-14, Feature-gap Phase 3 — smarter AI coach)
 
 Made the AI Trainer chat "a coach that knows you" (it previously ran contextless + memoryless). **Deployed to production.**
@@ -64,7 +82,7 @@ Built **Phase 2 (Daily Check-in + Health Score)** of `FEATURE_GAP_PLAN.md`. (Pha
 
 Reviewed competitor sites **mindwobble.com** + **lumiaapp.co** (plus the feedback docx's Section 6 on health-metric credibility) and wrote **`FEATURE_GAP_PLAN.md`** — a 15-item gap list in 5 tiers + a 5-phase build plan. Then built **Phase 1 (Richer Health Snapshot)**:
 
-- Optional **waist / neck / hip** measurements on HomeScreen's BMI check (inches, or cm in Metric mode → converted to inches). All skippable.
+- Optional **waist / neck / hip** measurements on HomeScreen's **Health Snapshot** card (renamed from "BMI Check" — see the rename note below), inches or cm→inches in Metric. All skippable.
 - Result screen now shows **waist-to-height ratio** + **US Navy body-fat estimate** (color-banded) when measurements exist. Math in `src/services/bmi.ts` (`waistToHeight`, `estimateBodyFatNavy`, `totalHeightInches`).
 - Measurements persist in `BMIHistoryEntry`; **HistoryGraph** gained **Body Fat** + **Waist** trend toggles with an empty state for older records.
 - Verified live in-browser (34"/15.5"/70" → 16.5% "Fitness", 0.49 WHtR "Healthy"). Typecheck + lint green. See CHANGELOG 2026-07-14.
